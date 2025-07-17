@@ -1,0 +1,25 @@
+{
+    "theme_color": "#0f766e",
+    "background_color": "#f1f5f9",
+    "icons": [
+        {
+            "purpose": "maskable",
+            "sizes": "512x512",
+            "src": "icon512_maskable.png",
+            "type": "image/png"
+        },
+        {
+            "purpose": "any",
+            "sizes": "512x512",
+            "src": "icon512_rounded.png",
+            "type": "image/png"
+        }
+    ],
+    "orientation": "any",
+    "display": "standalone",
+    "start_url": "/",
+    "dir": "auto",
+    "lang": "en-US",
+    "name": "TABEEB",
+    "short_name": "TABEEB"
+}
