@@ -1,24 +1,14 @@
 {
-  "name": "tabeebbackend",
+  "name": "tabeeb-backend",
   "version": "1.0.0",
-  "description": "Tabeeb Backend",
+  "description": "Backend for the TABEEB Healthcare App",
   "main": "medllama.js",
   "type": "module",
   "scripts": {
     "start": "node medllama.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/HammadHafeez186/TabeebBackend.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/HammadHafeez186/TabeebBackend/issues"
-  },
-  "homepage": "https://github.com/HammadHafeez186/TabeebBackend#readme",
+  "keywords": ["tabeeb", "healthcare", "backend", "express"],
   "dependencies": {
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
