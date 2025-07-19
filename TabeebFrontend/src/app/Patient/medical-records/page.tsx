@@ -63,18 +63,18 @@ export default function MedicalRecordsPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Tags</label>
-                <input type="text" placeholder="Tags (comma separated)" value={tags} onChange={(e) => setTags(e.target.value)} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 bg-gray-50 dark:bg-[#23232a] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                <input type="text" placeholder="Tags (comma separated)" value={tags} onChange={(e) => setTags(e.target.value)} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 bg-gray-50 dark:bg-[#23232a] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-400" />
               </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Notes</label>
-              <textarea placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 bg-gray-50 dark:bg-[#23232a] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[80px]" />
+              <textarea placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 bg-gray-50 dark:bg-[#23232a] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-400 min-h-[80px]" />
             </div>
             <div className="flex justify-end">
               <button
                 type="submit"
                 disabled={uploading}
-                className={`bg-blue-600 hover:bg-blue-700 transition-transform transition-colors text-white px-8 py-2 rounded-xl font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 active:scale-95 ${uploading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                className={`bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 transition-all duration-200 text-white px-8 py-2 rounded-xl font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-teal-400 active:scale-95 ${uploading ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 {uploading ? <span className="animate-pulse">Uploading...</span> : 'Upload'}
               </button>
