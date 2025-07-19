@@ -1,7 +1,23 @@
 
 import { useState } from "react";
+import Image from "next/image";
 
-export default function MedicalRecordCard({ record, onDelete }: { record: any, onDelete?: (id: string) => void }) {
+interface MedicalRecord {
+  _id: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  tags: string[];
+  notes?: string;
+  uploadedAt: string;
+}
+
+interface MedicalRecordCardProps {
+  record: MedicalRecord;
+  onDelete?: (id: string) => void;
+}
+
+export default function MedicalRecordCard({ record, onDelete }: MedicalRecordCardProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const isImage = (type: string) => type.startsWith("image/");
@@ -64,9 +80,11 @@ export default function MedicalRecordCard({ record, onDelete }: { record: any, o
             </button>
             <div className="w-full h-full flex items-center justify-center bg-white dark:bg-[#18181b] rounded-xl p-4 shadow-xl">
               {isImage(record.fileType) && (
-                <img
+                <Image
                   src={record.fileUrl}
                   alt={record.notes || "Medical record image"}
+                  width={800}
+                  height={600}
                   className="max-h-full max-w-full object-contain rounded-lg shadow"
                 />
               )}
