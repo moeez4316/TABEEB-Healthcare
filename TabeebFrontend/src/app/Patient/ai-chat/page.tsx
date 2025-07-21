@@ -76,7 +76,8 @@ export default function AIChat() {
       } else {
         setError(data.error || "No response from backend");
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Chat error:', error);
       setError("Failed to connect to backend");
     }
     setLoading(false);
