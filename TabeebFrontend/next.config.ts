@@ -27,6 +27,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'lh6.googleusercontent.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
     ],
   },
   // turbopack: {
