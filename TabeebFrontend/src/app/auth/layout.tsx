@@ -15,7 +15,7 @@ export default function AuthLayout({
 }>) {
   return (
     <AuthProvider>
-      <RouteGuard requireAuth={false} redirectTo="/Patient/dashboard">
+      <RouteGuard requireAuth={false} redirectTo="/select-role">
         {children}
       </RouteGuard>
     </AuthProvider>

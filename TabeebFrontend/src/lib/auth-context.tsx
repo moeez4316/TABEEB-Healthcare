@@ -107,6 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await firebaseSignOut(auth);
       setUser(null);
       setToken(null);
+      // Clear role from localStorage on logout
+      localStorage.removeItem('role');
+      console.log('[TABEEB DEBUG] Cleared localStorage.role on signOut');
     } catch (error) {
       throw error;
     }

@@ -11,6 +11,10 @@ export const createDoctor = async (req: Request, res: Response) => {
   }
 
   try {
+    // Only create User and Doctor when onboarding form is submitted
+    await prisma.user.create({
+      data: { uid: uid as string, role: 'doctor' }
+    });
     const doctor = await prisma.doctor.create({
       data: {
         uid: uid as string,
@@ -24,7 +28,8 @@ export const createDoctor = async (req: Request, res: Response) => {
     });
     res.status(201).json(doctor);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create doctor profile' });
+    console.error(error);
+    res.status(506).json({ error: 'Failed to create doctor profile' });
   }
 };
 
@@ -32,7 +37,11 @@ export const getDoctor = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
   try {
     const doctor = await prisma.doctor.findUnique({ where: { uid } });
-    if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+    console.log('[TABEEB DEBUG] doctorController: Prisma doctor query result:', doctor);
+    if (!doctor) {
+      console.log('[TABEEB DEBUG] doctorController: No doctor profile found for UID:', uid);
+      return res.status(404).json({ message: 'Doctor profile not found' });
+    }
     res.json(doctor);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch doctor profile' });

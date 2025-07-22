@@ -4,26 +4,34 @@ import prisma from '../lib/prisma';
 
 export const createPatient = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
-  const { name, email, phone, age, gender, medicalHistory } = req.body;
+  const { name, email, phone, dob, gender, medicalHistory } = req.body;
 
   if (!uid) {
     return res.status(400).json({ error: 'User UID is required' });
   }
 
+
   try {
+    // Create User and Patient record
+    await prisma.user.create({
+      data: { uid, role: 'patient' }
+    });
+
     const patient = await prisma.patient.create({
       data: {
         uid,
         name,
         email,
         phone,
-        age,
         gender,
-        medicalHistory
+        medicalHistory,
+        dob
       },
     });
+
     res.status(201).json(patient);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to create patient profile' });
   }
 };
@@ -41,10 +49,17 @@ export const getPatient = async (req: Request, res: Response) => {
 
 export const updatePatient = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
+  const updateData = { ...req.body };
+
+  // If dob exists in update, ensure it's a Date object
+  if (updateData.dob) {
+    updateData.dob = new Date(updateData.dob);
+  }
+
   try {
     const patient = await prisma.patient.update({
       where: { uid },
-      data: req.body,
+      data: updateData,
     });
     res.json(patient);
   } catch (error) {

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, Lock, User, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 import Image from 'next/image';
 import { useAuth } from '../../lib/auth-context';
+import { useRouter } from 'next/navigation';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
 
@@ -17,10 +18,57 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
-  const { signUp, signIn, signInWithGoogle, resetPassword } = useAuth();
+  const { user, signUp, signIn, signInWithGoogle, resetPassword, token } = useAuth();
+  const router = useRouter();
 
-  // No longer need useEffect redirect here - handled by RouteGuard in layout
+  useEffect(() => {
+    if (user) {
+      router.replace('/'); // Let root page handle role-based redirect
+    }
+  }, [user, router]);
+
+  // Debug: Log token value every time user or token changes
+  useEffect(() => {
+    console.log('[TABEEB DEBUG] [AuthPage] Current token:', token);
+  }, [user, token]);
+
+  useEffect(() => {
+    const fetchUserRoleAndRedirect = async () => {
+      if (!user || !user.uid || !token) return;
+      // Debug: Log UID and token
+      console.log('[TABEEB DEBUG] Checking role for UID:', user.uid);
+      console.log('[TABEEB DEBUG] Token:', token);
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      // Try doctor profile first
+      try {
+        const doctorRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/doctor`, { headers });
+        console.log('[TABEEB DEBUG] Doctor profile response:', doctorRes.status);
+        if (doctorRes.ok) {
+          router.replace('/Doctor/Dashboard');
+          return;
+        }
+        // Only try patient if doctor is not found
+        if (doctorRes.status === 404) {
+          const patientRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/patient`, { headers });
+          console.log('[TABEEB DEBUG] Patient profile response:', patientRes.status);
+          if (patientRes.ok) {
+            router.replace('/Patient/dashboard');
+            return;
+          }
+          if (patientRes.status === 404) {
+            router.replace('/select-role');
+            return;
+          }
+        }
+        // If any other error, go to select-role
+        router.replace('/select-role');
+      } catch (err) {
+        console.error('[TABEEB DEBUG] Error fetching role:', err);
+        router.replace('/select-role');
+      }
+    };
+    if (user && token) fetchUserRoleAndRedirect();
+  }, [user, token, router]);
 
   const getFirebaseErrorMessage = (error: unknown): string => {
     if (!(error instanceof Error)) return 'An unexpected error occurred';

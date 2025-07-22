@@ -36,7 +36,7 @@ model Patient {
   name           String
   email          String   @unique
   phone          String?
-  age            Int
+  dob            DateTime 
   gender         String
   medicalHistory String?
   createdAt      DateTime @default(now())
