@@ -18,7 +18,7 @@ type PatientForm = {
   name: string;
   email: string;
   phone: string;
-  age: number;
+  dob: string; // ISO date string
   gender: string;
   medicalHistory: string;
 };
@@ -38,7 +38,7 @@ export default function SelectRolePage() {
     name: "",
     email: "",
     phone: "",
-    age: 0,
+    dob: "",
     gender: "",
     medicalHistory: "",
   });
@@ -108,7 +108,7 @@ export default function SelectRolePage() {
       endpoint = "/api/patient";
       body = {
         ...patientForm,
-        age: Number(patientForm.age),
+        dob: patientForm.dob ? new Date(patientForm.dob).toISOString() : "",
         medicalHistory: patientForm.medicalHistory || ""
       };
     }
@@ -152,7 +152,7 @@ export default function SelectRolePage() {
           <input name="name" placeholder="Name" required value={patientForm.name} onChange={handlePatientChange} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
           <input name="email" placeholder="Email" required type="email" value={patientForm.email} onChange={handlePatientChange} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
           <input name="phone" placeholder="Phone" required value={patientForm.phone} onChange={handlePatientChange} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
-          <input name="age" placeholder="Age" required type="number" value={patientForm.age} onChange={handlePatientChange} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <input name="dob" placeholder="Date of Birth" required type="date" value={patientForm.dob} onChange={handlePatientChange} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
           <select name="gender" required value={patientForm.gender} onChange={handlePatientChange} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Gender</option>
             <option value="male">Male</option>
