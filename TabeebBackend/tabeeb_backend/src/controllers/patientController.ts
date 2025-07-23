@@ -1,4 +1,3 @@
-// src/controllers/patientController.ts
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 

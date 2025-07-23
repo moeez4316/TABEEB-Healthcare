@@ -65,41 +65,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
       
-      // Try doctor profile first
-      const doctorRes = await fetch(`${API_URL}/api/doctor`, { headers });
-      console.log("[AuthContext] Doctor profile status:", doctorRes.status);
-      
-      if (doctorRes.ok) {
-        setRole('doctor');
-        localStorage.setItem('role', 'doctor');
-        console.log("[AuthContext] Doctor profile found");
+      const userRes = await fetch(`${API_URL}/api/user`, { headers });
+      console.log("[AuthContext] User profile status:", userRes.status);
+
+      if(userRes.ok) {
+        const userData = await userRes.json();
+        const userRole: string = userData.role;
+        setRole(userRole);
+        localStorage.setItem('role', `${userRole}`);
+        console.log(`[AuthContext] ${userRole} profile found`);
         return;
+
+      } else {
+        console.log("[AuthContext] No User found");
+        setRole('no-role');
+        localStorage.removeItem('role');
+        return
       }
-      
-      // Only try patient if doctor is not found
-      if (doctorRes.status === 404) {
-        const patientRes = await fetch(`${API_URL}/api/patient`, { headers });
-        console.log("[AuthContext] Patient profile status:", patientRes.status);
-        
-        if (patientRes.ok) {
-          setRole('patient');
-          localStorage.setItem('role', 'patient');
-          console.log("[AuthContext] Patient profile found");
-          return;
-        }
-        
-        if (patientRes.status === 404) {
-          console.log("[AuthContext] No profile found");
-          setRole('no-role'); // Use a specific value instead of null
-          localStorage.removeItem('role');
-          return;
-        }
-      }
-      
-      // If any other error, clear role
-      console.log("[AuthContext] Error or unknown status, clearing role");
-      setRole('no-role');
-      localStorage.removeItem('role');
     } catch (err) {
       console.error("[AuthContext] Error fetching role from backend:", err);
       setRole('no-role');
