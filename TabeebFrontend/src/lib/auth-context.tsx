@@ -16,7 +16,7 @@ import { auth } from './firebase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// 🧠 Extend the AuthContext type to include token and role
+// Extend the AuthContext type to include token and role
 interface AuthContextType {
   user: User | null;
   token: string | null;
