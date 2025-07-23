@@ -24,7 +24,7 @@ type PatientForm = {
 };
 
 export default function SelectRolePage() {
-  const { token } = useAuth();
+  const { token, role: userRole, setUserRole, loading, roleLoading } = useAuth();
   const [role, setRole] = useState<"doctor" | "patient" | "">("");
   const [doctorForm, setDoctorForm] = useState<DoctorForm>({
     name: "",
@@ -44,50 +44,17 @@ export default function SelectRolePage() {
   });
   const router = useRouter();
 
-  // Redirect if role is already set
+  // Redirect if user already has a role (wait for loading to complete)
   useEffect(() => {
-    const storedRole = typeof window !== "undefined" ? localStorage.getItem("role") : null;
-    if (token && storedRole) {
-      console.log("[SelectRole] Found role in localStorage:", storedRole);
-      router.replace(storedRole === "doctor" ? "/Doctor/Dashboard" : "/Patient/dashboard");
-      return;
+    if (!loading && !roleLoading && userRole && userRole !== 'no-role') {
+      console.log("[SelectRole] User already has role:", userRole);
+      if (userRole === 'doctor') {
+        router.replace('/Doctor/Dashboard');
+      } else if (userRole === 'patient') {
+        router.replace('/Patient/dashboard');
+      }
     }
-    // If no role in localStorage, check backend
-    const checkRole = async () => {
-      if (!token) {
-        console.log("[SelectRole] No token available, skipping backend fetch.");
-        return;
-      }
-      console.log("[SelectRole] Using token for backend fetch:", token);
-      try {
-        const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-        // Try doctor profile first
-        const doctorRes = await fetch(`${API_URL}/api/doctor`, { headers: headers });
-        console.log("[SelectRole] Doctor profile status:", doctorRes.status);
-        if (doctorRes.ok) {
-          localStorage.setItem('role', 'doctor');
-          console.log("[SelectRole] Doctor profile found, redirecting to Doctor/Dashboard");
-          router.replace('/Doctor/Dashboard');
-          return;
-        }
-        // Only try patient if doctor is not found
-        if (doctorRes.status === 404) {
-          const patientRes = await fetch(`${API_URL}/api/patient`, { headers: headers });
-          console.log("[SelectRole] Patient profile status:", patientRes.status);
-          if (patientRes.ok) {
-            localStorage.setItem('role', 'patient');
-            console.log("[SelectRole] Patient profile found, redirecting to Patient/dashboard");
-            router.replace('/Patient/dashboard');
-            return;
-          }
-        }
-        console.log("[SelectRole] No profile found, showing role selection form");
-      } catch (err) {
-        console.error("[SelectRole] Error fetching role from backend:", err);
-      }
-    };
-    if (token && !storedRole) checkRole();
-  }, [router, token]);
+  }, [userRole, loading, roleLoading, router]);
 
   const handleDoctorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDoctorForm({ ...doctorForm, [e.target.name]: e.target.value });
@@ -122,7 +89,7 @@ export default function SelectRolePage() {
     });
     if (res.ok) {
       console.log("Selected role:", role);
-      localStorage.setItem("role", role);
+      setUserRole(role); // This will update both context and localStorage
       router.replace(role === "doctor" ? "/Doctor/Dashboard" : "/Patient/dashboard");
     } else {
       alert("Failed to submit profile");
