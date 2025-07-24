@@ -6,18 +6,41 @@ import { Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, role, loading, roleLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.replace('/Patient/dashboard');
-      } else {
-        router.replace('/landing-page');
-      }
+    // Wait for auth to be fully initialized
+    if (loading) {
+      console.log("[Root] Auth still loading...");
+      return;
     }
-  }, [user, loading, router]);
+    
+    if (!user) {
+      // User is not authenticated
+      console.log("[Root] No user, redirecting to landing page");
+      router.replace('/landing-page');
+      return;
+    }
+
+    // User is authenticated - handle role-based routing
+    if (roleLoading) {
+      console.log("[Root] Role still loading...");
+      return;
+    }
+
+    if (role === 'doctor') {
+      console.log("[Root] Redirecting to Doctor Dashboard");
+      router.replace('/Doctor/Dashboard');
+    } else if (role === 'patient') {
+      console.log("[Root] Redirecting to Patient dashboard");
+      router.replace('/Patient/dashboard');
+    } else if (role === 'no-role' || role === null) {
+      // User is authenticated but has no role
+      console.log("[Root] User has no role, redirecting to select-role");
+      router.replace('/select-role');
+    }
+  }, [user, role, loading, roleLoading, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">

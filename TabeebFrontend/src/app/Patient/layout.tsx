@@ -3,7 +3,7 @@ import RouteGuard from "@/components/RouteGuard";
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RouteGuard requireAuth={true}>
+    <RouteGuard requireAuth={true} allowedRoles={['patient']}>
       <div style={{ display: "flex" }}>
         <Sidebar />
         <main style={{ flex: 1, padding: 1 }}>{children}</main>

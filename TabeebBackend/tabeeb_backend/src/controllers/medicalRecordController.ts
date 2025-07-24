@@ -1,4 +1,3 @@
-
 import { Request, Response } from 'express';
 import MedicalRecord from '../models/MedicalRecord';
 import { uploadToCloudinary } from '../services/uploadService';

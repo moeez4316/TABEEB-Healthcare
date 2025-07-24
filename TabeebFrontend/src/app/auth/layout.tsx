@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import "@/app/globals.css";
-import { AuthProvider } from "@/lib/auth-context";
 import RouteGuard from "@/components/RouteGuard";
 
 export const metadata: Metadata = {
@@ -14,10 +12,8 @@ export default function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <AuthProvider>
-      <RouteGuard requireAuth={false} redirectTo="/Patient/dashboard">
-        {children}
-      </RouteGuard>
-    </AuthProvider>
+    <RouteGuard requireAuth={false} redirectTo="/">
+      {children}
+    </RouteGuard>
   );
 }

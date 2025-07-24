@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, Lock, User, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 import Image from 'next/image';
 import { useAuth } from '../../lib/auth-context';
+import { useRouter } from 'next/navigation';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
 
@@ -17,10 +18,14 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
-  const { signUp, signIn, signInWithGoogle, resetPassword } = useAuth();
+  const { user, signUp, signIn, signInWithGoogle, resetPassword } = useAuth();
+  const router = useRouter();
 
-  // No longer need useEffect redirect here - handled by RouteGuard in layout
+  useEffect(() => {
+    if (user) {
+      router.replace('/'); // Let root page handle role-based redirect
+    }
+  }, [user, router]);
 
   const getFirebaseErrorMessage = (error: unknown): string => {
     if (!(error instanceof Error)) return 'An unexpected error occurred';
