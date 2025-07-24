@@ -29,6 +29,8 @@ model Doctor {
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [uid], references: [uid])
+
+  verification Verification?
 }
 
 model Patient {
@@ -42,4 +44,14 @@ model Patient {
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [uid], references: [uid])
+}
+
+model Verification {
+  doctorUid      String   @id
+  isVerified     Boolean  @default(false)
+  cnic           String
+  pmdcNumber     String
+  certificate    String?
+
+  doctor         Doctor         @relation(fields: [doctorUid], references: [uid])
 }

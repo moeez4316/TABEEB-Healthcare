@@ -107,6 +107,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const token = await user.getIdToken();
         setToken(token);
         
+        // 🔥 FIREBASE TOKEN FOR TESTING 🔥
+        console.log("🔥 FIREBASE TOKEN FOR POSTMAN:", token);
+        console.log("Copy the token above and use it in Postman with Bearer authentication");
+        
         // Reset role fetch flag for new auth session
         setRoleFetchAttempted(false);
         
