@@ -1,13 +1,13 @@
 "use client";
 
-import { LogOut, User, Mail, Calendar, AlertTriangle, Stethoscope, Clock, Users, Activity } from 'lucide-react';
+import { LogOut, User, Mail, Calendar, AlertTriangle, Stethoscope, Clock, Users, Activity, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { useState } from 'react';
 import Link from 'next/link';
 
 export default function DoctorDashboard() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, verificationStatus } = useAuth();
   const [signOutError, setSignOutError] = useState<string>('');
 
   const handleSignOut = async () => {
@@ -147,6 +147,54 @@ export default function DoctorDashboard() {
                   Ready to help your patients today. Here&apos;s your practice overview.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Verification Status */}
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className={`p-3 rounded-lg ${
+                  verificationStatus === 'approved' 
+                    ? 'bg-green-100 dark:bg-green-800' 
+                    : verificationStatus === 'pending'
+                    ? 'bg-yellow-100 dark:bg-yellow-800'
+                    : 'bg-red-100 dark:bg-red-800'
+                }`}>
+                  {verificationStatus === 'approved' ? (
+                    <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  ) : verificationStatus === 'pending' ? (
+                    <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                  ) : (
+                    <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  )}
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Verification Status
+                  </h3>
+                  <p className={`text-sm font-medium ${
+                    verificationStatus === 'approved' 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : verificationStatus === 'pending'
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {verificationStatus === 'approved' && 'Verified Doctor'}
+                    {verificationStatus === 'pending' && 'Under Review'}
+                    {verificationStatus === 'rejected' && 'Verification Required'}
+                    {verificationStatus === 'not-submitted' && 'Documents Required'}
+                  </p>
+                </div>
+              </div>
+              
+              {verificationStatus === 'approved' && (
+                <div className="text-right">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    You can now accept patients
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

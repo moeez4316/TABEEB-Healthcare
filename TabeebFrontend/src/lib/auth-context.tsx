@@ -16,13 +16,18 @@ import { auth } from './firebase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Extend the AuthContext type to include token and role
+// Verification status type
+type VerificationStatus = 'not-submitted' | 'pending' | 'approved' | 'rejected' | null;
+
+// Extended AuthContext type to include verification
 interface AuthContextType {
   user: User | null;
   token: string | null;
   role: string | null;
+  verificationStatus: VerificationStatus;
   loading: boolean;
   roleLoading: boolean;
+  verificationLoading: boolean;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -30,6 +35,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   fetchUserRole: () => Promise<void>;
   setUserRole: (role: string) => void;
+  fetchVerificationStatus: () => Promise<void>;
+  refreshVerificationStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,38 +53,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>(null);
   const [loading, setLoading] = useState(true);
   const [roleLoading, setRoleLoading] = useState(false);
+  const [verificationLoading, setVerificationLoading] = useState(false);
   const [authInitialized, setAuthInitialized] = useState(false);
   const [roleFetchAttempted, setRoleFetchAttempted] = useState(false);
 
+  // Fetch verification status for doctors
+  const fetchVerificationStatus = async () => {
+    if (!token || role !== 'doctor') {
+      setVerificationStatus(null);
+      setVerificationLoading(false);
+      return;
+    }
+
+    setVerificationLoading(true);
+    
+    try {
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      
+      const verificationRes = await fetch(`${API_URL}/api/verification`, { headers });
+      
+      if (verificationRes.ok) {
+        const verificationData = await verificationRes.json();
+        
+        // Use the status field from backend, or derive from isVerified if status is missing
+        let status: VerificationStatus;
+        if (verificationData.status) {
+          status = verificationData.status as VerificationStatus;
+        } else {
+          // Fallback logic for older data without status field
+          status = verificationData.isVerified ? 'approved' : 'pending';
+        }
+        
+        setVerificationStatus(status);
+      } else if (verificationRes.status === 404) {
+        // No verification submitted yet
+        setVerificationStatus('not-submitted');
+      } else {
+        // Default to 'not-submitted' for other errors (500, etc.)
+        setVerificationStatus('not-submitted');
+      }
+    } catch (err) {
+      console.error("[AuthContext] Error fetching verification status:", err);
+      // Default to 'not-submitted' if there's an error fetching status
+      // This ensures the user can still access the verification form
+      setVerificationStatus('not-submitted');
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  // Refresh verification status (for polling or after submission)
+  const refreshVerificationStatus = async () => {
+    await fetchVerificationStatus();
+  };
+
   const fetchUserRole = async () => {
     if (!token) {
-      console.log("[AuthContext] No token available, cannot fetch role from backend.");
       setRoleLoading(false);
       setRoleFetchAttempted(true);
       return;
     }
 
-    console.log("[AuthContext] Fetching role from backend with token");
     setRoleFetchAttempted(true);
     
     try {
       const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
       
       const userRes = await fetch(`${API_URL}/api/user`, { headers });
-      console.log("[AuthContext] User profile status:", userRes.status);
 
       if(userRes.ok) {
         const userData = await userRes.json();
         const userRole: string = userData.role;
         setRole(userRole);
         localStorage.setItem('role', `${userRole}`);
-        console.log(`[AuthContext] ${userRole} profile found`);
         return;
 
       } else {
-        console.log("[AuthContext] No User found");
         setRole('no-role');
         localStorage.removeItem('role');
         return
@@ -97,19 +151,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    console.log("[AuthContext] Initializing auth listener...");
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log("[AuthContext] Auth state changed:", !!user);
       
       setUser(user);
       if (user) {
         const token = await user.getIdToken();
         setToken(token);
-        
-        // 🔥 FIREBASE TOKEN FOR TESTING 🔥
-        console.log("🔥 FIREBASE TOKEN FOR POSTMAN:", token);
-        console.log("Copy the token above and use it in Postman with Bearer authentication");
         
         // Reset role fetch flag for new auth session
         setRoleFetchAttempted(false);
@@ -117,17 +165,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Check if role exists in localStorage first
         const cachedRole = localStorage.getItem('role');
         if (cachedRole) {
-          console.log("[AuthContext] Found cached role:", cachedRole);
           setRole(cachedRole);
           setRoleFetchAttempted(true); // We have a cached role, no need to fetch
         } else {
           // Only set roleLoading if no cached role
-          console.log("[AuthContext] No cached role, will fetch from backend");
           setRole(null);
         }
       } else {
         setToken(null);
         setRole(null);
+        setVerificationStatus(null); // Clear verification status when user is null
         setRoleLoading(false);
         setRoleFetchAttempted(false);
         localStorage.removeItem('role');
@@ -143,11 +190,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Fetch role when token becomes available and no cached role exists
   useEffect(() => {
     if (authInitialized && token && !role && !roleLoading && !roleFetchAttempted) {
-      console.log("[AuthContext] Starting role fetch...");
       setRoleLoading(true);
       fetchUserRole();
     }
   }, [authInitialized, token, role, roleLoading, roleFetchAttempted]);
+
+  // Reset verification status when user changes (different UID)
+  useEffect(() => {
+    setVerificationStatus(null);
+  }, [user?.uid]);
+
+  // Fetch verification status when user becomes a doctor
+  useEffect(() => {
+    if (authInitialized && token && role === 'doctor' && verificationStatus === null && !verificationLoading) {
+      fetchVerificationStatus();
+    }
+  }, [authInitialized, token, role, verificationStatus, verificationLoading]);
 
   const signUp = async (email: string, password: string, displayName: string) => {
     try {
@@ -201,9 +259,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setToken(null);
       setRole(null);
+      setVerificationStatus(null); // Clear verification status on logout
       // Clear role from localStorage on logout
       localStorage.removeItem('role');
-      console.log('[TABEEB DEBUG] Cleared localStorage.role on signOut');
     } catch (error) {
       throw error;
     }
@@ -213,8 +271,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     token,
     role,
+    verificationStatus,
     loading,
     roleLoading,
+    verificationLoading,
     signUp,
     signIn,
     signInWithGoogle,
@@ -222,6 +282,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     fetchUserRole,
     setUserRole,
+    fetchVerificationStatus,
+    refreshVerificationStatus,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
