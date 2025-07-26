@@ -25,3 +25,31 @@ export const uploadToCloudinary = (buffer: Buffer, filename: string, resourceTyp
     stream.end(buffer);
   });
 };
+
+// Enhanced upload for verification documents
+export const uploadVerificationDocument = (buffer: Buffer, doctorUid: string, docType: 'cnic' | 'certificate') => {
+  return new Promise((resolve, reject) => {
+    const timestamp = Date.now();
+    const filename = `verification/${doctorUid}/${docType}_${timestamp}`;
+    
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'auto', // Auto-detect file type
+        public_id: filename,
+        folder: 'tabeeb/verification',
+        type: 'upload',
+        access_mode: 'public',
+        tags: ['verification', docType, doctorUid]
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Cloudinary upload error:', error);
+          return reject(error);
+        }
+        console.log('✅ Document uploaded successfully:', result?.secure_url);
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+};

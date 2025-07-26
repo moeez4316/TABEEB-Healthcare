@@ -29,6 +29,8 @@ model Doctor {
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [uid], references: [uid])
+
+  verification Verification?
 }
 
 model Patient {
@@ -42,4 +44,19 @@ model Patient {
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [uid], references: [uid])
+}
+
+model Verification {
+  doctorUid      String   @id
+  isVerified     Boolean  @default(false)
+  status         String   @default("pending") // "pending", "approved", "rejected"
+  cnic           String   // Cloudinary URL
+  pmdcNumber     String
+  certificate    String?  // Cloudinary URL
+  adminComments  String?  // Rejection reason or admin notes
+  submittedAt    DateTime @default(now())
+  reviewedAt     DateTime?
+  reviewedBy     String?  // Admin who reviewed
+
+  doctor         Doctor   @relation(fields: [doctorUid], references: [uid])
 }
