@@ -1,69 +1,91 @@
 'use client';
 
+import { BarChart3, TrendingUp, Users, Clock, CheckCircle, Activity, ArrowLeft } from 'lucide-react';
+
 export default function AdminAnalyticsPage() {
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Analytics & Reports</h1>
-        <p className="text-gray-600">Platform statistics and insights</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl text-white">
+                <BarChart3 className="w-6 h-6" />
+              </div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                Analytics & Reports
+              </h1>
+            </div>
+            <p className="text-slate-600 ml-12">Platform statistics and insights</p>
+          </div>
+        </div>
 
-      {/* Coming Soon */}
-      <div className="bg-white rounded-lg shadow-md p-12 text-center">
-        <div className="max-w-md mx-auto">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 002 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 002 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </div>
-          
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Analytics Coming Soon</h2>
-          <p className="text-gray-600 mb-6">
-            We're working on comprehensive analytics and reporting features for the admin panel.
-          </p>
-          
-          <div className="space-y-3 text-left">
-            <h3 className="font-medium text-gray-900">Planned Features:</h3>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li className="flex items-center">
-                <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Doctor registration trends
-              </li>
-              <li className="flex items-center">
-                <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Patient engagement metrics
-              </li>
-              <li className="flex items-center">
-                <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Verification processing times
-              </li>
-              <li className="flex items-center">
-                <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Platform usage statistics
-              </li>
-              <li className="flex items-center">
-                <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Revenue and financial reports
-              </li>
-            </ul>
-          </div>
-          
-          <div className="mt-8">
+        {/* Coming Soon Section */}
+        <div className="text-center py-16">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 border border-white/20 shadow-lg max-w-2xl mx-auto">
+            <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-2xl flex items-center justify-center">
+              <BarChart3 className="w-12 h-12 text-purple-600" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">Analytics Coming Soon</h2>
+            <p className="text-slate-600 mb-8 text-lg">
+              We're building comprehensive analytics and reporting features for the admin panel.
+            </p>
+            
+            {/* Planned Features Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-100 rounded-xl p-4 border border-emerald-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+                  <h3 className="font-semibold text-emerald-800">Registration Trends</h3>
+                </div>
+                <p className="text-sm text-emerald-700">Track doctor and patient registration patterns over time</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-4 border border-blue-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-semibold text-blue-800">User Engagement</h3>
+                </div>
+                <p className="text-sm text-blue-700">Monitor patient engagement and platform usage metrics</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-xl p-4 border border-amber-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <Clock className="w-5 h-5 text-amber-600" />
+                  <h3 className="font-semibold text-amber-800">Processing Times</h3>
+                </div>
+                <p className="text-sm text-amber-700">Analyze verification and approval processing efficiency</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-100 rounded-xl p-4 border border-purple-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <Activity className="w-5 h-5 text-purple-600" />
+                  <h3 className="font-semibold text-purple-800">System Health</h3>
+                </div>
+                <p className="text-sm text-purple-700">Monitor platform performance and system metrics</p>
+              </div>
+            </div>
+
+            {/* Progress Indicator */}
+            <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-slate-700">Development Progress</span>
+                <span className="text-sm text-slate-600">25%</span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-3">
+                <div className="bg-gradient-to-r from-teal-500 to-emerald-600 h-3 rounded-full transition-all duration-500" style={{ width: '25%' }}></div>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">Analytics dashboard is currently in development</p>
+            </div>
+
+            {/* Back Button */}
             <button
               onClick={() => window.history.back()}
-              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-xl hover:from-slate-700 hover:to-slate-800 transition-all shadow-lg hover:shadow-xl"
             >
+              <ArrowLeft className="w-4 h-4" />
               Go Back
             </button>
           </div>

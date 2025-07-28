@@ -2,6 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Users,
+  Clock,
+  CheckCircle,
+  UserX,
+  Activity,
+  TrendingUp,
+  FileText,
+  Shield,
+  AlertCircle,
+  BarChart3,
+  Eye,
+  Settings,
+  Calendar,
+  Star,
+  ArrowUp,
+  ArrowDown
+} from 'lucide-react';
 
 interface DashboardStats {
   totalDoctors: number;
@@ -91,10 +109,16 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="h-full bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+          <div className="relative mb-6">
+            <div className="w-20 h-20 mx-auto">
+              <div className="absolute inset-0 rounded-full border-4 border-teal-200 dark:border-teal-800 opacity-20"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin"></div>
+            </div>
+          </div>
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Loading Dashboard</h3>
+          <p className="text-slate-600 dark:text-slate-300">Preparing your admin control center...</p>
         </div>
       </div>
     );
@@ -104,89 +128,130 @@ export default function AdminDashboard() {
     {
       title: 'Total Doctors',
       value: stats?.totalDoctors || 0,
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
-      color: 'bg-blue-500',
-      textColor: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      icon: Users,
+      change: '+12%',
+      changeType: 'positive' as const,
+      description: 'Active medical professionals',
+      color: 'blue'
     },
     {
       title: 'Pending Verifications',
       value: stats?.pendingVerifications || 0,
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      color: 'bg-yellow-500',
-      textColor: 'text-yellow-600',
-      bgColor: 'bg-yellow-50',
+      icon: Clock,
+      change: '-5%',
+      changeType: 'negative' as const,
+      description: 'Awaiting review',
+      color: 'amber',
       clickable: true,
-      onClick: () => router.push('/admin/verification'),
+      onClick: () => router.push('/admin/verification')
     },
     {
       title: 'Approved Doctors',
       value: stats?.approvedDoctors || 0,
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      color: 'bg-green-500',
-      textColor: 'text-green-600',
-      bgColor: 'bg-green-50',
+      icon: CheckCircle,
+      change: '+8%',
+      changeType: 'positive' as const,
+      description: 'Verified professionals',
+      color: 'emerald'
     },
     {
       title: 'Total Patients',
       value: stats?.totalPatients || 0,
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-        </svg>
-      ),
-      color: 'bg-purple-500',
-      textColor: 'text-purple-600',
-      bgColor: 'bg-purple-50',
+      icon: Activity,
+      change: '+23%',
+      changeType: 'positive' as const,
+      description: 'Registered users',
+      color: 'purple'
     },
   ];
+
+  const quickActions = [
+    {
+      title: 'Review Verifications',
+      description: 'Manage doctor verification requests',
+      icon: Shield,
+      action: () => router.push('/admin/verification'),
+      color: 'teal',
+      count: stats?.pendingVerifications || 0
+    },
+    {
+      title: 'View Analytics',
+      description: 'Platform insights and metrics',
+      icon: BarChart3,
+      action: () => router.push('/admin/analytics'),
+      color: 'blue',
+      isNew: true
+    },
+    {
+      title: 'System Settings',
+      description: 'Configure platform settings',
+      icon: Settings,
+      action: () => alert('Settings coming soon!'),
+      color: 'slate',
+      disabled: true
+    },
+    {
+      title: 'User Management',
+      description: 'Manage users and permissions',
+      icon: Users,
+      action: () => alert('User management coming soon!'),
+      color: 'purple',
+      disabled: true
+    }
+  ];
+
+  const getColorClasses = (color: string) => {
+    const colors = {
+      blue: {
+        bg: 'bg-blue-100 dark:bg-blue-900/30',
+        icon: 'text-blue-600 dark:text-blue-400',
+        accent: 'border-blue-200 dark:border-blue-800',
+        hover: 'hover:bg-blue-200 dark:hover:bg-blue-800/50'
+      },
+      amber: {
+        bg: 'bg-amber-100 dark:bg-amber-900/30',
+        icon: 'text-amber-600 dark:text-amber-400',
+        accent: 'border-amber-200 dark:border-amber-800',
+        hover: 'hover:bg-amber-200 dark:hover:bg-amber-800/50'
+      },
+      emerald: {
+        bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+        icon: 'text-emerald-600 dark:text-emerald-400',
+        accent: 'border-emerald-200 dark:border-emerald-800',
+        hover: 'hover:bg-emerald-200 dark:hover:bg-emerald-800/50'
+      },
+      purple: {
+        bg: 'bg-purple-100 dark:bg-purple-900/30',
+        icon: 'text-purple-600 dark:text-purple-400',
+        accent: 'border-purple-200 dark:border-purple-800',
+        hover: 'hover:bg-purple-200 dark:hover:bg-purple-800/50'
+      },
+      teal: {
+        bg: 'bg-teal-100 dark:bg-teal-900/30',
+        icon: 'text-teal-600 dark:text-teal-400',
+        accent: 'border-teal-200 dark:border-teal-800',
+        hover: 'hover:bg-teal-200 dark:hover:bg-teal-800/50'
+      },
+      slate: {
+        bg: 'bg-slate-100 dark:bg-slate-700/50',
+        icon: 'text-slate-600 dark:text-slate-400',
+        accent: 'border-slate-200 dark:border-slate-600',
+        hover: 'hover:bg-slate-200 dark:hover:bg-slate-600/50'
+      }
+    };
+    return colors[color as keyof typeof colors] || colors.blue;
+  };
 
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'verification_submitted':
-        return (
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-          </div>
-        );
+        return <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
       case 'verification_approved':
-        return (
-          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        );
+        return <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />;
       case 'doctor_registered':
-        return (
-          <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-        );
+        return <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
       default:
-        return (
-          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        );
+        return <AlertCircle className="w-5 h-5 text-slate-600 dark:text-slate-400" />;
     }
   };
 
@@ -196,87 +261,180 @@ export default function AdminDashboard() {
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
     if (diffInMinutes < 60) {
-      return `${diffInMinutes} minutes ago`;
+      return `${diffInMinutes}m ago`;
     } else if (diffInMinutes < 1440) {
-      return `${Math.floor(diffInMinutes / 60)} hours ago`;
+      return `${Math.floor(diffInMinutes / 60)}h ago`;
     } else {
       return date.toLocaleDateString();
     }
   };
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome to the Tabeeb Admin Panel</p>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {statCards.map((card, index) => (
-          <div
-            key={index}
-            className={`${card.bgColor} rounded-lg p-6 ${card.clickable ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
-            onClick={card.onClick}
-          >
-            <div className="flex items-center">
-              <div className={`${card.color} text-white p-3 rounded-md`}>
-                {card.icon}
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">{card.title}</p>
-                <p className={`text-2xl font-bold ${card.textColor}`}>
-                  {card.value}
-                </p>
+    <div className="h-full bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 overflow-auto">
+      <div className="p-8 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">
+              Admin Dashboard
+            </h1>
+            <p className="text-xl text-slate-600 dark:text-slate-300">
+              Welcome back, manage your healthcare platform
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-white/20 dark:border-slate-700/50 rounded-xl px-4 py-2">
+              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                <Calendar className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  {new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </span>
               </div>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="space-y-3">
-            <button
-              onClick={() => router.push('/admin/verification')}
-              className="w-full flex items-center p-3 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
-            >
-              <svg className="w-5 h-5 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-blue-900 font-medium">Review Doctor Verifications</span>
-            </button>
-            
-            <button
-              onClick={() => alert('Analytics coming soon!')}
-              className="w-full flex items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <svg className="w-5 h-5 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 002 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 002 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <span className="text-gray-700 font-medium">View Analytics</span>
-              <span className="ml-auto text-xs text-gray-500">Coming Soon</span>
-            </button>
-          </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-          <div className="space-y-4">
-            {stats?.recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-start space-x-3">
-                {getActivityIcon(activity.type)}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900">{activity.message}</p>
-                  <p className="text-xs text-gray-500">{formatTimestamp(activity.timestamp)}</p>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          {statCards.map((card, index) => {
+            const colors = getColorClasses(card.color);
+            return (
+              <div
+                key={index}
+                className={`
+                  bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-white/20 dark:border-slate-700/50 rounded-2xl p-6 
+                  hover:bg-white/80 dark:hover:bg-slate-800/80 transition-all duration-300 group shadow-lg hover:shadow-xl
+                  ${card.clickable ? 'cursor-pointer hover:scale-105' : ''}
+                `}
+                onClick={card.onClick}
+              >
+                <div className="flex items-start justify-between mb-6">
+                  <div className={`p-3 ${colors.bg} ${colors.accent} border rounded-xl`}>
+                    <card.icon className={`w-6 h-6 ${colors.icon}`} />
+                  </div>
+                  <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg ${
+                    card.changeType === 'positive' 
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' 
+                      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
+                  }`}>
+                    {card.changeType === 'positive' ? 
+                      <ArrowUp className="w-3 h-3" /> : 
+                      <ArrowDown className="w-3 h-3" />
+                    }
+                    {card.change}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                    {card.title}
+                  </h3>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-slate-900 dark:text-white">
+                      {card.value.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    {card.description}
+                  </p>
                 </div>
               </div>
-            ))}
+            );
+          })}
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Quick Actions */}
+          <div className="xl:col-span-2">
+            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-white/20 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-teal-100 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-800 rounded-xl">
+                  <Settings className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Quick Actions</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {quickActions.map((action, index) => {
+                  const colors = getColorClasses(action.color);
+                  return (
+                    <button
+                      key={index}
+                      onClick={action.action}
+                      disabled={action.disabled}
+                      className={`
+                        relative p-6 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-left
+                        transition-all duration-300 group hover:shadow-lg
+                        ${!action.disabled ? 'hover:bg-slate-100 dark:hover:bg-slate-700/70 hover:scale-105' : 'opacity-50 cursor-not-allowed'}
+                      `}
+                    >
+                      {action.count && action.count > 0 && (
+                        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                          {action.count}
+                        </div>
+                      )}
+                      {action.isNew && (
+                        <div className="absolute -top-2 -right-2 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          NEW
+                        </div>
+                      )}
+                      <div className="flex items-start gap-4">
+                        <div className={`p-3 ${colors.bg} ${colors.accent} border rounded-xl flex-shrink-0`}>
+                          <action.icon className={`w-6 h-6 ${colors.icon}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-slate-900 dark:text-white mb-1 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                            {action.title}
+                          </h4>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
+                            {action.description}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="xl:col-span-1">
+            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-white/20 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-xl">
+                  <Activity className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Recent Activity</h3>
+              </div>
+              <div className="space-y-4">
+                {stats?.recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-200 dark:border-slate-600">
+                    <div className="p-2 bg-white dark:bg-slate-600 rounded-lg flex-shrink-0 border border-slate-200 dark:border-slate-500">
+                      {getActivityIcon(activity.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 dark:text-white mb-1 leading-relaxed">
+                        {activity.message}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {formatTimestamp(activity.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {(!stats?.recentActivity || stats.recentActivity.length === 0) && (
+                  <div className="text-center py-8">
+                    <AlertCircle className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
+                    <p className="text-slate-500 dark:text-slate-400">No recent activity</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
