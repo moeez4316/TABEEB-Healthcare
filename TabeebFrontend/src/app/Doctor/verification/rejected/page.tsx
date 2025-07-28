@@ -31,12 +31,6 @@ export default function VerificationRejectedPage() {
     }
   };
 
-  // Redirect if user is not authenticated
-  if (!authLoading && !user) {
-    router.push('/auth');
-    return null;
-  }
-
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">

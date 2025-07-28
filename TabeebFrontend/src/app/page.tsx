@@ -4,9 +4,10 @@ import { useAuth } from '../lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
+import { getDoctorRedirectPath } from '../lib/doctorRedirect';
 
 export default function Home() {
-  const { user, role, loading, roleLoading } = useAuth();
+  const { user, role, loading, roleLoading, verificationStatus, verificationLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -30,8 +31,14 @@ export default function Home() {
     }
 
     if (role === 'doctor') {
-      console.log("[Root] Redirecting to Doctor Dashboard");
-      router.replace('/Doctor/Dashboard');
+      // Wait for verification status before redirecting doctors
+      if (verificationLoading) {
+        console.log("[Root] Verification status loading...");
+        return;
+      }
+      
+      console.log("[Root] Redirecting doctor based on verification status");
+      router.replace(getDoctorRedirectPath(verificationStatus));
     } else if (role === 'patient') {
       console.log("[Root] Redirecting to Patient dashboard");
       router.replace('/Patient/dashboard');
@@ -40,7 +47,7 @@ export default function Home() {
       console.log("[Root] User has no role, redirecting to select-role");
       router.replace('/select-role');
     }
-  }, [user, role, loading, roleLoading, router]);
+  }, [user, role, loading, roleLoading, verificationStatus, verificationLoading, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">

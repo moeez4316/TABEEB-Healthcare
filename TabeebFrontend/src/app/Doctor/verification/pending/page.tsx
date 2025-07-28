@@ -19,20 +19,6 @@ export default function VerificationPendingPage() {
     }
   }, [user, authLoading, token]);
 
-  // Check verification status and redirect if approved/rejected
-  useEffect(() => {
-    if (!authLoading && verificationStatus) {
-      if (verificationStatus === 'approved') {
-        router.push('/Doctor/Dashboard');
-        return;
-      }
-      if (verificationStatus === 'rejected') {
-        router.push('/Doctor/verification/rejected');
-        return;
-      }
-    }
-  }, [verificationStatus, authLoading, router]);
-
   const fetchVerificationData = async () => {
     try {
       if (!token) return;
@@ -58,12 +44,6 @@ export default function VerificationPendingPage() {
       setRefreshing(false);
     }
   };
-
-  // Redirect if user is not authenticated
-  if (!authLoading && !user) {
-    router.push('/auth');
-    return null;
-  }
 
   if (authLoading || loading) {
     return (

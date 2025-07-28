@@ -30,18 +30,6 @@ export default function DoctorVerificationPage() {
     certificate: false,
   });
 
-  // Redirect if user is not authenticated  
-  if (!authLoading && !user) {
-    router.push('/auth');
-    return null;
-  }
-
-  // Redirect if user is not a doctor
-  if (!authLoading && user && role && role !== 'doctor') {
-    router.push('/select-role');
-    return null;
-  }
-
   // Show loading state while determining auth status, role, or verification status
   if (authLoading || !user || !role || (role === 'doctor' && (verificationLoading || verificationStatus === null))) {
     return (
@@ -53,27 +41,6 @@ export default function DoctorVerificationPage() {
       </div>
     );
   }
-
-  // Redirect based on verification status
-  useEffect(() => {
-    if (!authLoading && user && role === 'doctor' && verificationStatus) {
-      if (verificationStatus === 'pending') {
-        router.push('/Doctor/verification/pending');
-        return;
-      }
-      
-      if (verificationStatus === 'approved') {
-        router.push('/Doctor/Dashboard');
-        return;
-      }
-      
-      // Allow access to verification form when rejected for resubmission
-      // if (verificationStatus === 'rejected') {
-      //   router.push('/Doctor/verification/rejected');
-      //   return;
-      // }
-    }
-  }, [authLoading, user, role, verificationStatus, router]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     setToast({ show: true, message, type });
