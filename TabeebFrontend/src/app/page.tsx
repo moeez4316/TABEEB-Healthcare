@@ -11,6 +11,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+
     // Wait for auth to be fully initialized
     if (loading) {
       console.log("[Root] Auth still loading...");
@@ -31,13 +32,15 @@ export default function Home() {
     }
 
     if (role === 'doctor') {
-      // Wait for verification status before redirecting doctors
-      if (verificationLoading) {
-        console.log("[Root] Verification status loading...");
+      // For doctors, wait for verification status to be loaded
+      // Since fetchVerificationStatus always sets a status (never leaves it null),
+      // we can simply wait for loading to complete
+      if (verificationLoading || verificationStatus === null) {
+        console.log("[Root] Waiting for verification status to be determined...");
         return;
       }
       
-      console.log("[Root] Redirecting doctor based on verification status");
+      console.log("[Root] Redirecting doctor with verification status:", verificationStatus);
       router.replace(getDoctorRedirectPath(verificationStatus));
     } else if (role === 'patient') {
       console.log("[Root] Redirecting to Patient dashboard");
