@@ -30,8 +30,6 @@ export default function AdminLoginPage() {
 
     try {
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/admin/login`;
-      console.log('🚀 Making admin login request to:', apiUrl);
-      console.log('📝 Request body:', formData);
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -40,20 +38,13 @@ export default function AdminLoginPage() {
         },
         body: JSON.stringify(formData),
       });
-
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', response.headers);
       
       const responseText = await response.text();
-      console.log('📄 Raw response text:', responseText);
 
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log('✅ Parsed JSON data:', data);
       } catch (parseError) {
-        console.error('❌ Failed to parse response as JSON:', parseError);
-        console.error('📄 Response was:', responseText);
         throw new Error('Server returned invalid JSON response');
       }
 
@@ -70,7 +61,6 @@ export default function AdminLoginPage() {
 
       router.push('/admin/dashboard');
     } catch (error: any) {
-      console.error('Admin login error:', error);
       setError(error.message || 'Login failed');
     } finally {
       setLoading(false);
