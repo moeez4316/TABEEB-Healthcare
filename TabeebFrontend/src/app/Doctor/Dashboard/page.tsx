@@ -1,27 +1,12 @@
 "use client";
 
-import { LogOut, User, Mail, Calendar, AlertTriangle, Stethoscope, Clock, Users, Activity, CheckCircle } from 'lucide-react';
+import { User, Mail, Calendar, Stethoscope, Clock, Users, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
-import { useState } from 'react';
 import Link from 'next/link';
 
 export default function DoctorDashboard() {
-  const { user, signOut, verificationStatus } = useAuth();
-  const [signOutError, setSignOutError] = useState<string>('');
-
-  const handleSignOut = async () => {
-    try {
-      setSignOutError('');
-      await signOut();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to sign out. Please try again.';
-      setSignOutError(errorMessage);
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Sign-out error:', error);
-      }
-    }
-  };
+  const { user, verificationStatus } = useAuth();
 
   if (!user) return null;
 
@@ -84,35 +69,8 @@ export default function DoctorDashboard() {
                 Dashboard
               </h1>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-slate-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign out
-            </button>
           </div>
         </div>
-        
-        {/* Error Banner */}
-        {signOutError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-              <div className="flex items-start">
-                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mr-2 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm text-red-600 dark:text-red-400">{signOutError}</p>
-                  <button
-                    onClick={() => setSignOutError('')}
-                    className="text-xs text-red-500 dark:text-red-300 hover:text-red-700 dark:hover:text-red-100 mt-1"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </header>
 
       {/* Main Content */}
