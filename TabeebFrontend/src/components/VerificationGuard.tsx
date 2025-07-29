@@ -48,7 +48,12 @@ export default function VerificationGuard({ children }: VerificationGuardProps) 
       return;
     }
 
-    // Redirect based on verification status for non-verification pages
+    // For approved doctors, allow access to all doctor routes except verification pages
+    if (verificationStatus === 'approved') {
+      return; // No redirect needed for approved doctors on doctor routes
+    }
+
+    // For non-approved doctors on non-verification pages, redirect to appropriate verification page
     router.push(getDoctorRedirectPath(verificationStatus));
   }, [user, verificationStatus, loading, verificationLoading, role, pathname, router]);
 
@@ -77,12 +82,12 @@ export default function VerificationGuard({ children }: VerificationGuardProps) 
     return <>{children}</>;
   }
 
-  // For doctors with approved verification, render children
+  // For approved doctors, allow access to all doctor routes
   if (verificationStatus === 'approved') {
     return <>{children}</>;
   }
 
-  // For doctors on verification pages, check if they're on the correct page
+  // For non-approved doctors on verification pages, check if they're on the correct page
   if (pathname.startsWith('/Doctor/verification')) {
     const isOnCorrectPage = 
       (pathname === '/Doctor/verification' && (verificationStatus === 'not-submitted' || verificationStatus === 'rejected')) ||
@@ -94,6 +99,6 @@ export default function VerificationGuard({ children }: VerificationGuardProps) 
     }
   }
 
-  // Show loading while redirect is happening
+  // Show loading while redirect is happening for non-approved doctors
   return <LoadingScreen message="Redirecting..." />;
 }
