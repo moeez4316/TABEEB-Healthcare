@@ -13,7 +13,9 @@ import {
   X,
   Shield,
   Users,
-  Activity
+  Activity,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface SidebarAdminProps {
@@ -24,6 +26,7 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const navigation = [
     {
@@ -53,56 +56,81 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
     router.push('/admin/login');
   };
 
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
   const isActiveRoute = (href: string) => {
     return pathname === href || pathname.startsWith(href + '/');
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
+      {/* Toggle Button */}
+      <div className="absolute -right-3 top-8 z-10">
+        <button
+          onClick={toggleSidebar}
+          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-200 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+        >
+          {isCollapsed ? <ChevronRight className="text-sm w-4 h-4" /> : <ChevronLeft className="text-sm w-4 h-4" />}
+        </button>
+      </div>
+
       {/* Header */}
-      <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden bg-gradient-to-r from-teal-500 to-emerald-500">
+      <div className={`border-b border-slate-200 dark:border-slate-700 transition-all duration-300 ${
+        isCollapsed ? 'p-4' : 'p-6'
+      }`}>
+        <div className={`flex items-center transition-all duration-300 ${
+          isCollapsed ? 'justify-center' : 'space-x-3'
+        }`}>
+          <div className={`rounded-xl flex items-center justify-center shadow-lg overflow-hidden bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-300 ${
+            isCollapsed ? 'w-8 h-8' : 'w-10 h-10'
+          }`}>
             <Image
               src="/tabeeb_logo.png"
               alt="TABEEB Logo"
-              width={32}
-              height={32}
-              className="object-contain"
+              width={isCollapsed ? 24 : 32}
+              height={isCollapsed ? 24 : 32}
+              className="object-contain transition-all duration-300"
             />
           </div>
-          <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">
-              TABEEB
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-              Admin Console
-            </p>
-          </div>
+          {!isCollapsed && (
+            <div className="transition-opacity duration-300">
+              <h1 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">
+                TABEEB
+              </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                Admin Console
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Admin Badge */}
-      <div className="p-4">
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
-              <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
-                Administrator
-              </p>
-              <p className="text-xs text-indigo-600 dark:text-indigo-400">
-                Full Access
-              </p>
+      {!isCollapsed && (
+        <div className="p-4 transition-opacity duration-300">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
+                <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
+                  Administrator
+                </p>
+                <p className="text-xs text-indigo-600 dark:text-indigo-400">
+                  Full Access
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 space-y-2">
+      <nav className={`flex-1 space-y-2 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-4'}`}>
         {navigation.map((item) => {
           const Icon = item.icon;
           const isActive = isActiveRoute(item.href);
@@ -117,30 +145,43 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
                 }
               }}
               disabled={item.disabled}
-              className={`w-full group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
+              className={`w-full group flex items-center text-sm font-medium rounded-xl transition-all duration-200 relative ${
+                isCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-3'
+              } ${
                 isActive
                   ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-lg shadow-teal-500/25'
                   : item.disabled
                   ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
               }`}
+              title={isCollapsed ? item.name : ''}
             >
-              <Icon className={`w-5 h-5 mr-3 transition-transform duration-200 ${
+              <Icon className={`transition-transform duration-200 flex-shrink-0 ${
+                isCollapsed ? 'w-5 h-5' : 'w-5 h-5 mr-3'
+              } ${
                 isActive ? 'scale-110' : 'group-hover:scale-105'
               }`} />
-              <div className="flex-1 text-left">
-                <div className="font-semibold">{item.name}</div>
-                <div className={`text-xs ${
-                  isActive 
-                    ? 'text-white/80' 
-                    : 'text-slate-500 dark:text-slate-400'
-                }`}>
-                  {item.description}
+              {!isCollapsed && (
+                <div className="flex-1 text-left transition-opacity duration-300">
+                  <div className="font-semibold">{item.name}</div>
+                  <div className={`text-xs ${
+                    isActive 
+                      ? 'text-white/80' 
+                      : 'text-slate-500 dark:text-slate-400'
+                  }`}>
+                    {item.description}
+                  </div>
                 </div>
-              </div>
-              {item.disabled && (
+              )}
+              {!isCollapsed && item.disabled && (
                 <span className="ml-2 px-2 py-1 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-md font-medium">
                   Soon
+                </span>
+              )}
+              {isCollapsed && (
+                <span className="absolute left-full ml-2 px-3 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg">
+                  <div className="font-semibold">{item.name}</div>
+                  <div className="text-xs opacity-75">{item.description}</div>
                 </span>
               )}
             </button>
@@ -149,29 +190,45 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       </nav>
 
       {/* Stats */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-700">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
-            <Users className="w-4 h-4 text-teal-600 dark:text-teal-400 mx-auto mb-1" />
-            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Online</div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white">127</div>
-          </div>
-          <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
-            <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
-            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Active</div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white">89</div>
+      {!isCollapsed && (
+        <div className="p-4 border-t border-slate-200 dark:border-slate-700 transition-opacity duration-300">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
+              <Users className="w-4 h-4 text-teal-600 dark:text-teal-400 mx-auto mb-1" />
+              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Online</div>
+              <div className="text-sm font-bold text-slate-900 dark:text-white">127</div>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
+              <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
+              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Active</div>
+              <div className="text-sm font-bold text-slate-900 dark:text-white">89</div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Logout */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+      <div className={`border-t border-slate-200 dark:border-slate-700 transition-all duration-300 ${
+        isCollapsed ? 'p-2' : 'p-4'
+      }`}>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200 group"
+          className={`w-full flex items-center text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200 group ${
+            isCollapsed ? 'justify-center px-3 py-3' : 'justify-center px-4 py-3'
+          }`}
+          title={isCollapsed ? 'Sign Out' : ''}
         >
-          <LogOut className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform duration-200" />
-          Sign Out
+          <LogOut className={`group-hover:scale-110 transition-transform duration-200 ${
+            isCollapsed ? 'w-5 h-5' : 'w-5 h-5 mr-2'
+          }`} />
+          {!isCollapsed && (
+            <span className="transition-opacity duration-300">Sign Out</span>
+          )}
+          {isCollapsed && (
+            <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+              Sign Out
+            </span>
+          )}
         </button>
       </div>
     </div>
@@ -201,7 +258,9 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
 
       {/* Desktop Sidebar */}
       <div className={`hidden lg:flex lg:flex-shrink-0 ${className}`}>
-        <div className="w-80 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-xl">
+        <div className={`bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-xl transition-all duration-300 ease-in-out ${
+          isCollapsed ? 'w-20' : 'w-80'
+        }`}>
           <SidebarContent />
         </div>
       </div>

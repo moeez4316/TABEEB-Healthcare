@@ -70,3 +70,108 @@ export const deleteDoctor = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to delete doctor profile' });
   }
 };
+
+// Get all verified doctors for patients to browse
+export const getVerifiedDoctors = async (req: Request, res: Response) => {
+  try {
+    const { specialization, experience, search, sortBy = 'name', order = 'asc' } = req.query;
+    
+    // Build where clause for filtering
+    const where: any = {
+      verification: {
+        status: 'approved',
+        isVerified: true
+      }
+    };
+
+    // Add specialization filter
+    if (specialization && specialization !== 'all') {
+      where.specialization = {
+        contains: specialization as string,
+        mode: 'insensitive'
+      };
+    }
+
+    // Add experience filter
+    if (experience) {
+      const expValue = parseInt(experience as string);
+      if (!isNaN(expValue)) {
+        where.experience = {
+          gte: expValue
+        };
+      }
+    }
+
+    // Add search filter (name or specialization)
+    if (search) {
+      where.OR = [
+        {
+          name: {
+            contains: search as string,
+            mode: 'insensitive'
+          }
+        },
+        {
+          specialization: {
+            contains: search as string,
+            mode: 'insensitive'
+          }
+        }
+      ];
+    }
+
+    // Build orderBy clause
+    const orderBy: any = {};
+    if (sortBy === 'experience') {
+      orderBy.experience = order;
+    } else if (sortBy === 'specialization') {
+      orderBy.specialization = order;
+    } else {
+      orderBy.name = order;
+    }
+
+    const doctors = await prisma.doctor.findMany({
+      where,
+      orderBy,
+      select: {
+        uid: true,
+        name: true,
+        specialization: true,
+        qualification: true,
+        experience: true,
+        createdAt: true,
+        verification: {
+          select: {
+            status: true,
+            isVerified: true
+          }
+        }
+      }
+    });
+
+    // Get unique specializations for filter options
+    const specializations = await prisma.doctor.findMany({
+      where: {
+        verification: {
+          status: 'approved',
+          isVerified: true
+        }
+      },
+      select: {
+        specialization: true
+      },
+      distinct: ['specialization']
+    });
+
+    res.json({
+      doctors,
+      filterOptions: {
+        specializations: specializations.map(s => s.specialization).sort()
+      },
+      total: doctors.length
+    });
+  } catch (error) {
+    console.error('Error fetching verified doctors:', error);
+    res.status(500).json({ error: 'Failed to fetch doctors' });
+  }
+};
