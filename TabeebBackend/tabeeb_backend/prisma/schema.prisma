@@ -5,26 +5,26 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 
 model User {
-  uid  String @id
-  role String // 'doctor' or 'patient'
+  uid  String @id @db.VarChar(255)
+  role String @db.VarChar(50) // 'doctor' or 'patient'
 
   doctor  Doctor?
   patient Patient?
 }
 
 model Doctor {
-  uid            String   @id
-  name           String
-  email          String   @unique
-  phone          String?
-  specialization String
-  qualification  String
+  uid            String   @id @db.VarChar(255)
+  name           String   @db.VarChar(255)
+  email          String   @unique @db.VarChar(255)
+  phone          String?  @db.VarChar(20)
+  specialization String   @db.VarChar(100)
+  qualification  String   @db.Text
   experience     Int?
   createdAt      DateTime @default(now())
 
@@ -34,29 +34,29 @@ model Doctor {
 }
 
 model Patient {
-  uid            String   @id
-  name           String
-  email          String   @unique
-  phone          String?
+  uid            String   @id @db.VarChar(255)
+  name           String   @db.VarChar(255)
+  email          String   @unique @db.VarChar(255)
+  phone          String?  @db.VarChar(20)
   dob            DateTime 
-  gender         String
-  medicalHistory String?
+  gender         String   @db.VarChar(10)
+  medicalHistory String?  @db.Text
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [uid], references: [uid])
 }
 
 model Verification {
-  doctorUid      String   @id
+  doctorUid      String   @id @db.VarChar(255)
   isVerified     Boolean  @default(false)
-  status         String   @default("pending") // "pending", "approved", "rejected"
-  cnic           String   // Cloudinary URL
-  pmdcNumber     String
-  certificate    String?  // Cloudinary URL
-  adminComments  String?  // Rejection reason or admin notes
+  status         String   @default("pending") @db.VarChar(20) // "pending", "approved", "rejected"
+  cnic           String   @db.Text // Cloudinary URL
+  pmdcNumber     String   @db.VarChar(50)
+  certificate    String?  @db.Text // Cloudinary URL
+  adminComments  String?  @db.Text // Rejection reason or admin notes
   submittedAt    DateTime @default(now())
   reviewedAt     DateTime?
-  reviewedBy     String?  // Admin who reviewed
+  reviewedBy     String?  @db.VarChar(255) // Admin who reviewed
 
   doctor         Doctor   @relation(fields: [doctorUid], references: [uid])
 }
