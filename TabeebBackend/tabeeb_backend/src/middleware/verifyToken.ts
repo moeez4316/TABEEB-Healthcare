@@ -8,6 +8,10 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
 
   try {
     const decoded = await admin.auth().verifyIdToken(token);
+    
+    // Simple token log for Firebase testing
+    console.log('🔥 Firebase Token:', token);
+    
     req.user = { uid: decoded.uid };
     next();
   } catch (err) {
