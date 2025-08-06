@@ -79,7 +79,7 @@ model DoctorAvailability {
   updatedAt     DateTime @updatedAt
 
   doctor        Doctor   @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
-  timeSlots     TimeSlot[]
+  // Removed timeSlots relation - using on-demand generation now
 
   @@unique([doctorUid, date])
   @@index([doctorUid])
@@ -87,29 +87,13 @@ model DoctorAvailability {
   @@map("doctor_availability")
 }
 
-model TimeSlot {
-  id               String   @id @default(cuid())
-  availabilityId   String   @db.VarChar(255)
-  startTime        String   @db.VarChar(8)  // "09:00"
-  endTime          String   @db.VarChar(8)  // "09:30"
-  isBooked         Boolean  @default(false)
-  createdAt        DateTime @default(now())
-
-  availability     DoctorAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
-  appointment      Appointment?
-
-  @@index([availabilityId])
-  @@index([isBooked])
-  @@map("time_slots")
-}
-
 model Appointment {
   id              String            @id @default(cuid())
   doctorUid       String            @db.VarChar(255)
   patientUid      String            @db.VarChar(255)
-  timeSlotId      String            @unique @db.VarChar(255)
   appointmentDate DateTime          @db.Date
-  appointmentTime String            @db.VarChar(8)  // "09:00"
+  startTime       String            @db.VarChar(8)  // "09:00" - actual booked time
+  endTime         String            @db.VarChar(8)  // "09:30" - calculated end time
   duration        Int               @default(30)    // minutes
   status          AppointmentStatus @default(PENDING)
   patientNotes    String?           @db.Text        // Patient's reason for visit
@@ -122,19 +106,21 @@ model Appointment {
 
   doctor          Doctor            @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
   patient         Patient           @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
-  timeSlot        TimeSlot          @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+  // Removed timeSlot relation - storing time directly in appointment
 
   @@index([doctorUid])
   @@index([patientUid])
   @@index([appointmentDate])
   @@index([status])
+  @@index([startTime]) // New index for slot filtering
   @@map("appointments")
 }
 
 enum AppointmentStatus {
   PENDING
   CONFIRMED
-  CANCELLED
+  IN_PROGRESS
   COMPLETED
+  CANCELLED
   NO_SHOW
 }

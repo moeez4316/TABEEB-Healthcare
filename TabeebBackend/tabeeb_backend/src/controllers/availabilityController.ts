@@ -1,133 +1,91 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { generateTimeSlots } from '../utils/timeSlotGenerator';
 
-// Doctor sets availability for a specific date
+// Set doctor availability (simplified - no time slot generation)
 export const setDoctorAvailability = async (req: Request, res: Response) => {
-  const doctorUid = req.user?.uid;
-  const { date, startTime, endTime, slotDuration = 30, breakStartTime, breakEndTime } = req.body;
-
-  if (!doctorUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    const doctorUid = req.user!.uid;
+    const { date, startTime, endTime, slotDuration = 30, breakStartTime, breakEndTime, isAvailable = true } = req.body;
+
+    // Basic validation
+    if (!date || !startTime || !endTime) {
+      return res.status(400).json({ error: 'Date, start time, and end time are required' });
+    }
+
     // Check if availability already exists for this date
-    const existingAvailability = await prisma.doctorAvailability.findUnique({
+    const existingAvailability = await prisma.doctorAvailability.findFirst({
       where: {
-        doctorUid_date: {
-          doctorUid,
-          date: new Date(date)
+        doctorUid,
+        date: new Date(date)
+      }
+    });
+
+    if (existingAvailability) {
+      return res.status(400).json({ error: 'Availability already exists for this date. Use update endpoint.' });
+    }
+
+    // Create availability record (no time slots generated - done on-demand)
+    const availability = await prisma.doctorAvailability.create({
+      data: {
+        doctorUid,
+        date: new Date(date),
+        startTime,
+        endTime,
+        slotDuration,
+        breakStartTime: breakStartTime || null,
+        breakEndTime: breakEndTime || null,
+        isAvailable
+      },
+      include: {
+        doctor: {
+          select: {
+            name: true,
+            specialization: true,
+            consultationFees: true
+          }
         }
       }
     });
 
-    let availability;
-    
-    if (existingAvailability) {
-      // Update existing availability
-      availability = await prisma.doctorAvailability.update({
-        where: { id: existingAvailability.id },
-        data: {
-          startTime,
-          endTime,
-          slotDuration,
-          breakStartTime,
-          breakEndTime,
-          isAvailable: true,
-          updatedAt: new Date()
-        }
-      });
-
-      // Delete existing time slots
-      await prisma.timeSlot.deleteMany({
-        where: { availabilityId: availability.id }
-      });
-    } else {
-      // Create new availability
-      availability = await prisma.doctorAvailability.create({
-        data: {
-          doctorUid,
-          date: new Date(date),
-          startTime,
-          endTime,
-          slotDuration,
-          breakStartTime,
-          breakEndTime,
-          isAvailable: true
-        }
-      });
-    }
-
-    // Generate time slots
-    const timeSlots = generateTimeSlots(startTime, endTime, slotDuration, breakStartTime, breakEndTime);
-    
-    // Create time slots in database
-    const createdSlots = await Promise.all(
-      timeSlots.map(slot => 
-        prisma.timeSlot.create({
-          data: {
-            availabilityId: availability.id,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            isBooked: false
-          }
-        })
-      )
-    );
-
     res.status(201).json({
       availability,
-      timeSlots: createdSlots,
-      message: 'Availability set successfully'
+      message: 'Availability set successfully',
+      note: 'Time slots are generated on-demand when requested'
     });
 
   } catch (error) {
-    console.error('Error setting availability:', error);
+    console.error('Error setting doctor availability:', error);
     res.status(500).json({ error: 'Failed to set availability' });
   }
 };
 
-// Get doctor's availability for a specific date range
+// Get doctor availability
 export const getDoctorAvailability = async (req: Request, res: Response) => {
-  const { doctorUid } = req.params;
-  const { date, startDate, endDate } = req.query;
-  
-  // Determine which doctor's availability to fetch:
-  // 1. If doctorUid is provided in params, use it (for patients viewing doctor availability)
-  // 2. If no doctorUid in params, use authenticated user's UID (for doctors viewing their own)
-  let targetDoctorUid: string;
-  
-  if (doctorUid) {
-    // Patient or admin viewing specific doctor's availability
-    targetDoctorUid = doctorUid;
-  } else {
-    // Doctor viewing their own availability
-    if (!req.user?.uid) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    targetDoctorUid = req.user.uid;
-  }
-
   try {
+    const { doctorUid } = req.params;
+    const { date, startDate, endDate } = req.query;
+    
+    // Use provided doctorUid or authenticated user's UID
+    const targetDoctorUid = doctorUid || req.user!.uid;
+
     let whereClause: any = {
       doctorUid: targetDoctorUid,
       isAvailable: true
     };
 
-    // Handle date filtering
+    // Date filtering
     if (date) {
-      // Single date query
-      whereClause.date = new Date(date as string);
+      const queryDate = new Date(date as string);
+      if (isNaN(queryDate.getTime())) {
+        return res.status(400).json({ error: 'Invalid date format' });
+      }
+      whereClause.date = queryDate;
     } else if (startDate && endDate) {
-      // Date range query
       const start = new Date(startDate as string);
       const end = new Date(endDate as string);
-      
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return res.status(400).json({ error: 'Invalid date format' });
       }
-      
       whereClause.date = {
         gte: start,
         lte: end
@@ -137,12 +95,11 @@ export const getDoctorAvailability = async (req: Request, res: Response) => {
     const availability = await prisma.doctorAvailability.findMany({
       where: whereClause,
       include: {
-        timeSlots: {
-          where: {
-            isBooked: false
-          },
-          orderBy: {
-            startTime: 'asc'
+        doctor: {
+          select: {
+            name: true,
+            specialization: true,
+            consultationFees: true
           }
         }
       },
@@ -152,135 +109,40 @@ export const getDoctorAvailability = async (req: Request, res: Response) => {
     });
 
     res.json(availability);
+
   } catch (error) {
-    console.error('Error fetching availability:', error);
+    console.error('Error fetching doctor availability:', error);
     res.status(500).json({ error: 'Failed to fetch availability' });
   }
 };
 
-// Public endpoint for patients to view doctor availability (no auth required)
-export const getPublicDoctorAvailability = async (req: Request, res: Response) => {
-  const { doctorUid } = req.params;
-  const { date, startDate, endDate } = req.query;
-  
-  if (!doctorUid) {
-    return res.status(400).json({ error: 'Doctor UID is required' });
-  }
-
-  try {
-    let whereClause: any = {
-      doctorUid: doctorUid,
-      isAvailable: true
-    };
-
-    // Handle date filtering
-    if (date) {
-      // Single date query with validation
-      const queryDate = new Date(date as string);
-      if (isNaN(queryDate.getTime())) {
-        return res.status(400).json({ error: 'Invalid date format' });
-      }
-      whereClause.date = queryDate;
-    } else if (startDate && endDate) {
-      // Date range query with validation
-      const start = new Date(startDate as string);
-      const end = new Date(endDate as string);
-      
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        return res.status(400).json({ error: 'Invalid date format' });
-      }
-      
-      whereClause.date = {
-        gte: start,
-        lte: end
-      };
-    }
-
-    const availability = await prisma.doctorAvailability.findMany({
-      where: whereClause,
-      include: {
-        timeSlots: {
-          where: {
-            isBooked: false
-          },
-          orderBy: {
-            startTime: 'asc'
-          }
-        },
-        doctor: {
-          select: {
-            name: true,
-            specialization: true,
-            consultationFees: true
-          }
-        }
-      },
-      orderBy: {
-        date: 'asc'
-      }
-    });
-
-    if (availability.length === 0) {
-      return res.json({
-        message: 'No availability found for this doctor',
-        doctor: null,
-        availability: []
-      });
-    }
-
-    res.json({
-      doctor: availability[0].doctor,
-      availability: availability.map(slot => ({
-        id: slot.id,
-        date: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        availableSlots: slot.timeSlots.length,
-        timeSlots: slot.timeSlots
-      }))
-    });
-
-  } catch (error) {
-    console.error('Error fetching public doctor availability:', error);
-    res.status(500).json({ error: 'Failed to fetch doctor availability' });
-  }
-};
-
-// Get available time slots for a specific doctor and date (Public endpoint for patients)
+// Get available slots (simplified version)
 export const getAvailableSlots = async (req: Request, res: Response) => {
-  const { doctorUid } = req.params;
-  const { date } = req.query;
-
-  if (!doctorUid) {
-    return res.status(400).json({ error: 'Doctor UID is required' });
-  }
-
-  if (!date) {
-    return res.status(400).json({ error: 'Date is required' });
-  }
-
   try {
+    const { doctorUid } = req.params;
+    const { date } = req.query;
+
+    if (!doctorUid) {
+      return res.status(400).json({ error: 'Doctor UID is required' });
+    }
+
+    if (!date) {
+      return res.status(400).json({ error: 'Date parameter is required' });
+    }
+
     const queryDate = new Date(date as string);
     if (isNaN(queryDate.getTime())) {
       return res.status(400).json({ error: 'Invalid date format' });
     }
 
-    const availability = await prisma.doctorAvailability.findUnique({
+    // Get doctor availability for the specified date
+    const availability = await prisma.doctorAvailability.findFirst({
       where: {
-        doctorUid_date: {
-          doctorUid,
-          date: queryDate
-        }
+        doctorUid,
+        date: queryDate,
+        isAvailable: true
       },
       include: {
-        timeSlots: {
-          where: {
-            isBooked: false
-          },
-          orderBy: {
-            startTime: 'asc'
-          }
-        },
         doctor: {
           select: {
             name: true,
@@ -291,21 +153,116 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
       }
     });
 
-    if (!availability || !availability.isAvailable) {
-      return res.status(404).json({ 
-        message: 'No available slots found for this doctor on this date',
-        doctor: null,
+    if (!availability) {
+      return res.json({
+        availableSlots: [],
+        message: 'No availability found for this date',
         date: queryDate,
-        slots: [],
-        consultationFees: null
+        doctor: null,
+        statistics: {
+          totalSlots: 0,
+          bookedSlots: 0,
+          availableSlots: 0,
+          utilization: '0%'
+        }
       });
     }
 
+    // Get existing appointments for this date to check which slots are booked
+    const existingAppointments = await prisma.appointment.findMany({
+      where: {
+        doctorUid,
+        appointmentDate: queryDate,
+        status: {
+          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
+        }
+      },
+      select: {
+        startTime: true,
+        endTime: true
+      }
+    });
+
+    // Generate time slots on-demand
+    const slots = [];
+    const [startHour, startMinute] = availability.startTime.split(':').map(Number);
+    const [endHour, endMinute] = availability.endTime.split(':').map(Number);
+    
+    let currentTime = startHour * 60 + startMinute; // Convert to minutes
+    const endTime = endHour * 60 + endMinute;
+    
+    // Break time handling
+    let breakStart = null;
+    let breakEnd = null;
+    if (availability.breakStartTime && availability.breakEndTime) {
+      const [bsHour, bsMinute] = availability.breakStartTime.split(':').map(Number);
+      const [beHour, beMinute] = availability.breakEndTime.split(':').map(Number);
+      breakStart = bsHour * 60 + bsMinute;
+      breakEnd = beHour * 60 + beMinute;
+    }
+
+    while (currentTime + availability.slotDuration <= endTime) {
+      const slotEndTime = currentTime + availability.slotDuration;
+      
+      // Skip if slot is in break time
+      if (breakStart && breakEnd && 
+          ((currentTime >= breakStart && currentTime < breakEnd) ||
+           (slotEndTime > breakStart && slotEndTime <= breakEnd))) {
+        currentTime += availability.slotDuration;
+        continue;
+      }
+
+      // Convert back to time format
+      const hour = Math.floor(currentTime / 60);
+      const minute = currentTime % 60;
+      const slotStartTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      
+      const endHourSlot = Math.floor(slotEndTime / 60);
+      const endMinuteSlot = slotEndTime % 60;
+      const slotEndTimeStr = `${endHourSlot.toString().padStart(2, '0')}:${endMinuteSlot.toString().padStart(2, '0')}`;
+
+      // Check if slot is booked
+      const isBooked = existingAppointments.some(apt => 
+        apt.startTime === slotStartTime
+      );
+
+      slots.push({
+        startTime: slotStartTime,
+        endTime: slotEndTimeStr,
+        duration: availability.slotDuration,
+        isAvailable: !isBooked,
+        isBooked: isBooked
+      });
+
+      currentTime += availability.slotDuration;
+    }
+
+    // Calculate statistics
+    const totalSlots = slots.length;
+    const bookedSlots = slots.filter(slot => slot.isBooked).length;
+    const availableSlots = totalSlots - bookedSlots;
+    const utilization = totalSlots > 0 ? ((bookedSlots / totalSlots) * 100).toFixed(1) : '0';
+
     res.json({
+      date: queryDate,
       doctor: availability.doctor,
-      date: availability.date,
-      slots: availability.timeSlots,
-      consultationFees: availability.doctor.consultationFees
+      schedule: {
+        startTime: availability.startTime,
+        endTime: availability.endTime,
+        slotDuration: availability.slotDuration,
+        breakTime: availability.breakStartTime && availability.breakEndTime 
+          ? `${availability.breakStartTime}-${availability.breakEndTime}` 
+          : null
+      },
+      availableSlots: slots.filter(slot => slot.isAvailable),
+      allSlots: slots,
+      statistics: {
+        totalSlots,
+        bookedSlots,
+        availableSlots,
+        utilization: `${utilization}%`
+      },
+      message: 'Slots generated successfully on-demand'
     });
 
   } catch (error) {
@@ -314,18 +271,14 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
   }
 };
 
-// Update existing availability
+// Update availability (simplified)
 export const updateAvailability = async (req: Request, res: Response) => {
-  const doctorUid = req.user?.uid;
-  const { id } = req.params;
-  const { startTime, endTime, slotDuration, breakStartTime, breakEndTime, isAvailable } = req.body;
-
-  if (!doctorUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
-    // Verify ownership
+    const { id } = req.params;
+    const doctorUid = req.user!.uid;
+    const { date, startTime, endTime, slotDuration, breakStartTime, breakEndTime, isAvailable } = req.body;
+
+    // Find existing availability
     const availability = await prisma.doctorAvailability.findFirst({
       where: {
         id,
@@ -341,50 +294,28 @@ export const updateAvailability = async (req: Request, res: Response) => {
     const updatedAvailability = await prisma.doctorAvailability.update({
       where: { id },
       data: {
-        startTime,
-        endTime,
-        slotDuration,
-        breakStartTime,
-        breakEndTime,
-        isAvailable,
-        updatedAt: new Date()
+        ...(date && { date: new Date(date) }),
+        ...(startTime && { startTime }),
+        ...(endTime && { endTime }),
+        ...(slotDuration && { slotDuration }),
+        ...(breakStartTime !== undefined && { breakStartTime: breakStartTime || null }),
+        ...(breakEndTime !== undefined && { breakEndTime: breakEndTime || null }),
+        ...(isAvailable !== undefined && { isAvailable })
+      },
+      include: {
+        doctor: {
+          select: {
+            name: true,
+            specialization: true
+          }
+        }
       }
     });
 
-    // If time or break time changed, regenerate slots
-    if (startTime !== availability.startTime || 
-        endTime !== availability.endTime || 
-        slotDuration !== availability.slotDuration ||
-        breakStartTime !== availability.breakStartTime ||
-        breakEndTime !== availability.breakEndTime) {
-      // Delete existing unbooked slots
-      await prisma.timeSlot.deleteMany({
-        where: {
-          availabilityId: id,
-          isBooked: false
-        }
-      });
-
-      // Generate new time slots
-      const timeSlots = generateTimeSlots(startTime, endTime, slotDuration, breakStartTime, breakEndTime);
-      
-      await Promise.all(
-        timeSlots.map(slot => 
-          prisma.timeSlot.create({
-            data: {
-              availabilityId: id,
-              startTime: slot.startTime,
-              endTime: slot.endTime,
-              isBooked: false
-            }
-          })
-        )
-      );
-    }
-
     res.json({
       availability: updatedAvailability,
-      message: 'Availability updated successfully'
+      message: 'Availability updated successfully',
+      note: 'Time slots are generated on-demand when requested'
     });
 
   } catch (error) {
@@ -395,26 +326,15 @@ export const updateAvailability = async (req: Request, res: Response) => {
 
 // Delete availability
 export const deleteAvailability = async (req: Request, res: Response) => {
-  const doctorUid = req.user?.uid;
-  const { id } = req.params;
-
-  if (!doctorUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
-    // Verify ownership and check for existing appointments
+    const { id } = req.params;
+    const doctorUid = req.user!.uid;
+
+    // Find availability
     const availability = await prisma.doctorAvailability.findFirst({
       where: {
         id,
         doctorUid
-      },
-      include: {
-        timeSlots: {
-          include: {
-            appointment: true
-          }
-        }
       }
     });
 
@@ -422,16 +342,25 @@ export const deleteAvailability = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Availability not found' });
     }
 
-    // Check if any slots have appointments
-    const hasAppointments = availability.timeSlots.some(slot => slot.appointment);
-    
-    if (hasAppointments) {
+    // Check for booked appointments
+    const bookedAppointments = await prisma.appointment.findMany({
+      where: {
+        doctorUid,
+        appointmentDate: availability.date,
+        status: {
+          notIn: ['CANCELLED', 'NO_SHOW']
+        }
+      }
+    });
+
+    if (bookedAppointments.length > 0) {
       return res.status(400).json({ 
-        error: 'Cannot delete availability with existing appointments' 
+        error: 'Cannot delete availability with booked appointments',
+        bookedAppointments: bookedAppointments.length
       });
     }
 
-    // Delete availability (cascades to time slots)
+    // Delete availability
     await prisma.doctorAvailability.delete({
       where: { id }
     });
@@ -444,44 +373,31 @@ export const deleteAvailability = async (req: Request, res: Response) => {
   }
 };
 
-// Get doctor's weekly schedule
+// Get weekly schedule (simplified)
 export const getWeeklySchedule = async (req: Request, res: Response) => {
-  const doctorUid = req.user?.uid;
-  const { startDate } = req.query;
-
-  if (!doctorUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
-    const start = new Date(startDate as string);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6); // Get 7 days
+    const { doctorUid } = req.params;
+    const { week } = req.query; // Start of week date
+
+    const targetDoctorUid = doctorUid || req.user!.uid;
+    const weekStart = new Date(week as string);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
 
     const availability = await prisma.doctorAvailability.findMany({
       where: {
-        doctorUid,
+        doctorUid: targetDoctorUid,
         date: {
-          gte: start,
-          lte: end
-        }
+          gte: weekStart,
+          lte: weekEnd
+        },
+        isAvailable: true
       },
       include: {
-        timeSlots: {
-          include: {
-            appointment: {
-              include: {
-                patient: {
-                  select: {
-                    name: true,
-                    phone: true
-                  }
-                }
-              }
-            }
-          },
-          orderBy: {
-            startTime: 'asc'
+        doctor: {
+          select: {
+            name: true,
+            specialization: true
           }
         }
       },
@@ -490,7 +406,14 @@ export const getWeeklySchedule = async (req: Request, res: Response) => {
       }
     });
 
-    res.json(availability);
+    res.json({
+      week: {
+        start: weekStart,
+        end: weekEnd
+      },
+      schedule: availability,
+      message: 'Weekly schedule (simplified version)'
+    });
 
   } catch (error) {
     console.error('Error fetching weekly schedule:', error);

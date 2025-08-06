@@ -14,13 +14,19 @@ import {
   getWeeklySchedule
 } from '../controllers/availabilityController';
 
+console.log('Imported functions:', { 
+  setDoctorAvailability: typeof setDoctorAvailability,
+  getDoctorAvailability: typeof getDoctorAvailability,
+  getAvailableSlots: typeof getAvailableSlots
+});
+
 const router = express.Router();
 
 // Apply authentication middleware to all routes
 router.use(verifyToken);
 
 // Doctor availability management routes
-router.post('/set', validateSetAvailability, setDoctorAvailability);
+router.post('/set', setDoctorAvailability);
 router.get('/doctor/:doctorUid', getDoctorAvailability);
 router.get('/doctor', getDoctorAvailability);
 router.put('/:id', validateCUID('id'), validateSetAvailability, updateAvailability);

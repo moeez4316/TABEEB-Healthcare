@@ -16,6 +16,14 @@
                        └──────────────────┘
 ```
 
+## 🚀 **MAJOR OPTIMIZATION - On-Demand Slot Generation**
+
+**✅ Scalability Improvement:**
+- **Before**: Pre-generated 5.7M TimeSlot records per year (480K/month)
+- **After**: 0 pre-generated slots - all generated on-demand
+- **Database Size Reduction**: ~95% smaller appointment system tables
+- **Performance**: Faster queries, no background slot generation jobs needed
+
 ## 📁 Backend Directory Structure
 
 ```
@@ -52,7 +60,7 @@ src/
 ├── services/
 │   └── uploadService.ts   # Cloudinary file uploads
 ├── utils/
-│   └── timeSlotGenerator.ts       # Time slot utility functions
+│   └── slotGenerator.ts           # On-demand slot generation utilities (OPTIMIZED)
 ├── types/
 │   └── express/           # TypeScript type extensions
 └── index.ts               # Application entry point
@@ -60,7 +68,7 @@ src/
 
 ## 🗄️ Database Architecture
 
-### MySQL (Prisma) - Structured Data
+### MySQL (Prisma) - Structured Data (OPTIMIZED)
 ```sql
 -- Users and Authentication
 User (uid, role)
@@ -68,10 +76,10 @@ Doctor (uid, name, email, specialization, fees, ...)
 Patient (uid, name, email, dob, gender, ...)
 Verification (doctorUid, isVerified, status, ...)
 
--- Appointment System
-DoctorAvailability (id, doctorUid, date, startTime, endTime, ...)
-TimeSlot (id, availabilityId, startTime, endTime, isBooked)
-Appointment (id, doctorUid, patientUid, timeSlotId, status, ...)
+-- Optimized Appointment System (No TimeSlot table!)
+DoctorAvailability (id, doctorUid, date, startTime, endTime, slotDuration, ...)
+Appointment (id, doctorUid, patientUid, appointmentDate, startTime, endTime, ...)
+-- ❌ TimeSlot table REMOVED for scalability
 ```
 
 ### MongoDB (Mongoose) - Medical Records

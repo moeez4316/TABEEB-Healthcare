@@ -1,100 +1,134 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { generateAvailableSlots, isSlotAvailable, calculateEndTime, getSlotsStatistics } from '../utils/slotGenerator';
 
-// Patient books an appointment
+// Book appointment (updated to work without TimeSlot)
 export const bookAppointment = async (req: Request, res: Response) => {
-  const patientUid = req.user?.uid;
-  const { doctorUid, timeSlotId, appointmentDate, patientNotes } = req.body;
-
-  if (!patientUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
-    // Verify the time slot is available
-    const timeSlot = await prisma.timeSlot.findUnique({
-      where: { id: timeSlotId },
+    const patientUid = req.user!.uid;
+    const { doctorUid, appointmentDate, startTime, patientNotes } = req.body;
+
+    // Validate required fields
+    if (!doctorUid || !appointmentDate || !startTime) {
+      return res.status(400).json({ error: 'Doctor UID, appointment date, and start time are required' });
+    }
+
+    // Check if appointment date is in the future
+    const appointmentDateObj = new Date(appointmentDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (appointmentDateObj < today) {
+      return res.status(400).json({ error: 'Cannot book appointments in the past' });
+    }
+
+    // Check if appointment is too far in the future (3 months)
+    const threeMonthsFromNow = new Date();
+    threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+    
+    if (appointmentDateObj > threeMonthsFromNow) {
+      return res.status(400).json({ error: 'Cannot book appointments more than 3 months in advance' });
+    }
+
+    // Get doctor availability for the date
+    const availability = await prisma.doctorAvailability.findFirst({
+      where: {
+        doctorUid,
+        date: appointmentDateObj,
+        isAvailable: true
+      }
+    });
+
+    if (!availability) {
+      return res.status(400).json({ error: 'Doctor is not available on this date' });
+    }
+
+    // Get existing appointments to check slot availability
+    const existingAppointments = await prisma.appointment.findMany({
+      where: {
+        doctorUid,
+        appointmentDate: appointmentDateObj,
+        status: {
+          notIn: ['CANCELLED', 'NO_SHOW']
+        }
+      },
+      select: {
+        startTime: true,
+        endTime: true
+      }
+    });
+
+    // Check if the requested slot is available
+    if (!isSlotAvailable(startTime, availability, existingAppointments)) {
+      const availableSlots = generateAvailableSlots(availability, existingAppointments);
+      return res.status(400).json({ 
+        error: 'Requested time slot is not available',
+        availableSlots: availableSlots.map(slot => slot.startTime)
+      });
+    }
+
+    // Calculate end time
+    const endTime = calculateEndTime(startTime, availability.slotDuration);
+
+    // Get doctor and patient details
+    const [doctor, patient] = await Promise.all([
+      prisma.doctor.findUnique({
+        where: { uid: doctorUid },
+        select: {
+          name: true,
+          specialization: true,
+          consultationFees: true
+        }
+      }),
+      prisma.patient.findUnique({
+        where: { uid: patientUid },
+        select: {
+          name: true,
+          phone: true
+        }
+      })
+    ]);
+
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    if (!patient) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    // Create appointment
+    const appointment = await prisma.appointment.create({
+      data: {
+        doctorUid,
+        patientUid,
+        appointmentDate: appointmentDateObj,
+        startTime,
+        endTime,
+        duration: availability.slotDuration,
+        status: 'PENDING',
+        patientNotes,
+        consultationFees: doctor.consultationFees
+      },
       include: {
-        availability: {
-          include: {
-            doctor: {
-              select: {
-                name: true,
-                specialization: true,
-                consultationFees: true
-              }
-            }
+        doctor: {
+          select: {
+            name: true,
+            specialization: true,
+            consultationFees: true
+          }
+        },
+        patient: {
+          select: {
+            name: true,
+            phone: true
           }
         }
       }
     });
 
-    if (!timeSlot) {
-      return res.status(404).json({ error: 'Time slot not found' });
-    }
-
-    if (timeSlot.isBooked) {
-      return res.status(400).json({ error: 'Time slot is already booked' });
-    }
-
-    if (timeSlot.availability.doctorUid !== doctorUid) {
-      return res.status(400).json({ error: 'Time slot does not belong to the specified doctor' });
-    }
-
-    // Check if appointment date matches the availability date
-    const slotDate = new Date(timeSlot.availability.date);
-    const reqDate = new Date(appointmentDate);
-    
-    if (slotDate.toDateString() !== reqDate.toDateString()) {
-      return res.status(400).json({ error: 'Appointment date does not match time slot date' });
-    }
-
-    // Create appointment and mark slot as booked in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Create appointment
-      const appointment = await tx.appointment.create({
-        data: {
-          doctorUid,
-          patientUid,
-          timeSlotId,
-          appointmentDate: new Date(appointmentDate),
-          appointmentTime: timeSlot.startTime,
-          duration: timeSlot.availability.slotDuration,
-          patientNotes,
-          consultationFees: timeSlot.availability.doctor.consultationFees,
-          status: 'PENDING'
-        },
-        include: {
-          doctor: {
-            select: {
-              name: true,
-              specialization: true,
-              phone: true,
-              email: true
-            }
-          },
-          patient: {
-            select: {
-              name: true,
-              phone: true,
-              email: true
-            }
-          },
-          timeSlot: true
-        }
-      });
-
-      // Mark time slot as booked
-      await tx.timeSlot.update({
-        where: { id: timeSlotId },
-        data: { isBooked: true }
-      });
-
-      return appointment;
-    });
-
     res.status(201).json({
-      appointment: result,
+      appointment,
       message: 'Appointment booked successfully'
     });
 
@@ -104,62 +138,56 @@ export const bookAppointment = async (req: Request, res: Response) => {
   }
 };
 
-// Get appointments for a doctor
+// Get doctor appointments (updated)
 export const getDoctorAppointments = async (req: Request, res: Response) => {
-  const doctorUid = req.user?.uid;
-  const { status, date, page = 1, limit = 10 } = req.query;
-
-  if (!doctorUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
-    const where: any = { doctorUid };
+    const doctorUid = req.user!.uid;
+    const { status, date, page = 1, limit = 10 } = req.query;
 
-    // Filter by status if provided
+    const pageNum = parseInt(page as string);
+    const limitNum = Math.min(parseInt(limit as string), 100); // Max 100 items per page
+    const skip = (pageNum - 1) * limitNum;
+
+    let whereClause: any = { doctorUid };
+
     if (status) {
-      where.status = status;
+      whereClause.status = status;
     }
 
-    // Filter by date if provided
     if (date) {
-      const filterDate = new Date(date as string);
-      where.appointmentDate = filterDate;
+      whereClause.appointmentDate = new Date(date as string);
     }
 
-    // Get total count for pagination
-    const totalCount = await prisma.appointment.count({ where });
-
-    // Get appointments with pagination
-    const appointments = await prisma.appointment.findMany({
-      where,
-      include: {
-        patient: {
-          select: {
-            name: true,
-            phone: true,
-            email: true,
-            gender: true,
-            dob: true
+    const [appointments, total] = await Promise.all([
+      prisma.appointment.findMany({
+        where: whereClause,
+        include: {
+          patient: {
+            select: {
+              name: true,
+              phone: true,
+              dob: true,
+              gender: true
+            }
           }
         },
-        timeSlot: true
-      },
-      orderBy: [
-        { appointmentDate: 'asc' },
-        { appointmentTime: 'asc' }
-      ],
-      skip: (Number(page) - 1) * Number(limit),
-      take: Number(limit)
-    });
+        orderBy: [
+          { appointmentDate: 'asc' },
+          { startTime: 'asc' }
+        ],
+        skip,
+        take: limitNum
+      }),
+      prisma.appointment.count({ where: whereClause })
+    ]);
 
     res.json({
       appointments,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / Number(limit))
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
       }
     });
 
@@ -169,47 +197,38 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
   }
 };
 
-// Get appointments for a patient
+// Get patient appointments (updated)
 export const getPatientAppointments = async (req: Request, res: Response) => {
-  const patientUid = req.user?.uid;
-  const { status, upcoming } = req.query;
-
-  if (!patientUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
-    const where: any = { patientUid };
+    const patientUid = req.user!.uid;
+    const { status, upcoming } = req.query;
 
-    // Filter by status if provided
+    let whereClause: any = { patientUid };
+
     if (status) {
-      where.status = status;
+      whereClause.status = status;
     }
 
-    // Filter upcoming appointments
     if (upcoming === 'true') {
-      where.appointmentDate = {
+      whereClause.appointmentDate = {
         gte: new Date()
       };
     }
 
     const appointments = await prisma.appointment.findMany({
-      where,
+      where: whereClause,
       include: {
         doctor: {
           select: {
             name: true,
             specialization: true,
-            phone: true,
-            email: true,
             consultationFees: true
           }
-        },
-        timeSlot: true
+        }
       },
       orderBy: [
         { appointmentDate: 'asc' },
-        { appointmentTime: 'asc' }
+        { startTime: 'asc' }
       ]
     });
 
@@ -221,18 +240,20 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
   }
 };
 
-// Update appointment status (Doctor only)
+// Update appointment status
 export const updateAppointmentStatus = async (req: Request, res: Response) => {
-  const doctorUid = req.user?.uid;
-  const { id } = req.params;
-  const { status, doctorNotes, cancelReason } = req.body;
-
-  if (!doctorUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
-    // Verify appointment belongs to the doctor
+    const { id } = req.params;
+    const doctorUid = req.user!.uid;
+    const { status, doctorNotes, cancelReason } = req.body;
+
+    // Validate status
+    const validStatuses = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // Find appointment
     const appointment = await prisma.appointment.findFirst({
       where: {
         id,
@@ -244,49 +265,38 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
+    // Validate status transition
+    if (appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED') {
+      return res.status(400).json({ error: 'Cannot update completed or cancelled appointment' });
+    }
+
+    if (status === 'CANCELLED' && !cancelReason) {
+      return res.status(400).json({ error: 'Cancel reason is required when cancelling appointment' });
+    }
+
     // Update appointment
-    const updateData: any = {
-      status,
-      updatedAt: new Date()
-    };
-
-    if (doctorNotes) {
-      updateData.doctorNotes = doctorNotes;
-    }
-
-    if (cancelReason) {
-      updateData.cancelReason = cancelReason;
-    }
-
-    if (status === 'COMPLETED') {
-      updateData.completedAt = new Date();
-    }
-
-    const updatedAppointment = await prisma.$transaction(async (tx) => {
-      const updated = await tx.appointment.update({
-        where: { id },
-        data: updateData,
-        include: {
-          patient: {
-            select: {
-              name: true,
-              phone: true,
-              email: true
-            }
-          },
-          timeSlot: true
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id },
+      data: {
+        status,
+        doctorNotes,
+        cancelReason,
+        ...(status === 'COMPLETED' && { completedAt: new Date() })
+      },
+      include: {
+        patient: {
+          select: {
+            name: true,
+            phone: true
+          }
+        },
+        doctor: {
+          select: {
+            name: true,
+            specialization: true
+          }
         }
-      });
-
-      // If cancelled, free up the time slot
-      if (status === 'CANCELLED') {
-        await tx.timeSlot.update({
-          where: { id: appointment.timeSlotId },
-          data: { isBooked: false }
-        });
       }
-
-      return updated;
     });
 
     res.json({
@@ -300,24 +310,24 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
   }
 };
 
-// Cancel appointment (Patient or Doctor)
+// Cancel appointment
 export const cancelAppointment = async (req: Request, res: Response) => {
-  const userUid = req.user?.uid;
-  const { id } = req.params;
-  const { cancelReason } = req.body;
-
-  if (!userUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
-    // Find appointment and verify ownership
+    const { id } = req.params;
+    const userUid = req.user!.uid;
+    const { cancelReason } = req.body;
+
+    if (!cancelReason) {
+      return res.status(400).json({ error: 'Cancel reason is required' });
+    }
+
+    // Find appointment (can be cancelled by patient or doctor)
     const appointment = await prisma.appointment.findFirst({
       where: {
         id,
         OR: [
-          { doctorUid: userUid },
-          { patientUid: userUid }
+          { patientUid: userUid },
+          { doctorUid: userUid }
         ]
       }
     });
@@ -326,50 +336,33 @@ export const cancelAppointment = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    if (appointment.status === 'CANCELLED') {
-      return res.status(400).json({ error: 'Appointment is already cancelled' });
+    if (appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED') {
+      return res.status(400).json({ error: 'Cannot cancel completed or already cancelled appointment' });
     }
 
-    if (appointment.status === 'COMPLETED') {
-      return res.status(400).json({ error: 'Cannot cancel a completed appointment' });
-    }
-
-    // Cancel appointment and free up the time slot
-    const cancelledAppointment = await prisma.$transaction(async (tx) => {
-      const updated = await tx.appointment.update({
-        where: { id },
-        data: {
-          status: 'CANCELLED',
-          cancelReason,
-          updatedAt: new Date()
+    // Update appointment
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id },
+      data: {
+        status: 'CANCELLED',
+        cancelReason
+      },
+      include: {
+        patient: {
+          select: {
+            name: true
+          }
         },
-        include: {
-          doctor: {
-            select: {
-              name: true,
-              specialization: true
-            }
-          },
-          patient: {
-            select: {
-              name: true,
-              phone: true
-            }
+        doctor: {
+          select: {
+            name: true
           }
         }
-      });
-
-      // Free up the time slot
-      await tx.timeSlot.update({
-        where: { id: appointment.timeSlotId },
-        data: { isBooked: false }
-      });
-
-      return updated;
+      }
     });
 
     res.json({
-      appointment: cancelledAppointment,
+      appointment: updatedAppointment,
       message: 'Appointment cancelled successfully'
     });
 
@@ -381,20 +374,16 @@ export const cancelAppointment = async (req: Request, res: Response) => {
 
 // Get appointment details
 export const getAppointmentDetails = async (req: Request, res: Response) => {
-  const userUid = req.user?.uid;
-  const { id } = req.params;
-
-  if (!userUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    const { id } = req.params;
+    const userUid = req.user!.uid;
+
     const appointment = await prisma.appointment.findFirst({
       where: {
         id,
         OR: [
-          { doctorUid: userUid },
-          { patientUid: userUid }
+          { patientUid: userUid },
+          { doctorUid: userUid }
         ]
       },
       include: {
@@ -402,9 +391,6 @@ export const getAppointmentDetails = async (req: Request, res: Response) => {
           select: {
             name: true,
             specialization: true,
-            qualification: true,
-            phone: true,
-            email: true,
             consultationFees: true
           }
         },
@@ -412,15 +398,8 @@ export const getAppointmentDetails = async (req: Request, res: Response) => {
           select: {
             name: true,
             phone: true,
-            email: true,
-            gender: true,
             dob: true,
-            medicalHistory: true
-          }
-        },
-        timeSlot: {
-          include: {
-            availability: true
+            gender: true
           }
         }
       }
@@ -438,21 +417,15 @@ export const getAppointmentDetails = async (req: Request, res: Response) => {
   }
 };
 
-// Get appointment statistics for dashboard
+// Get appointment statistics
 export const getAppointmentStats = async (req: Request, res: Response) => {
-  const userUid = req.user?.uid;
-  const userRole = req.user?.role;
-
-  if (!userUid) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    const doctorUid = req.user!.uid;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
+    
     const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
     const thisWeekStart = new Date(today);
     thisWeekStart.setDate(today.getDate() - today.getDay());
@@ -460,71 +433,59 @@ export const getAppointmentStats = async (req: Request, res: Response) => {
     const thisWeekEnd = new Date(thisWeekStart);
     thisWeekEnd.setDate(thisWeekStart.getDate() + 6);
 
-    const whereClause = userRole === 'doctor' 
-      ? { doctorUid: userUid }
-      : { patientUid: userUid };
-
-    const [
-      totalAppointments,
-      todayAppointments,
-      upcomingAppointments,
-      pendingAppointments,
-      completedAppointments,
-      thisWeekAppointments
-    ] = await Promise.all([
-      prisma.appointment.count({ where: whereClause }),
-      
+    const [total, todayCount, upcoming, pending, completed, thisWeek] = await Promise.all([
+      prisma.appointment.count({
+        where: { doctorUid }
+      }),
       prisma.appointment.count({
         where: {
-          ...whereClause,
-          appointmentDate: today
+          doctorUid,
+          appointmentDate: today,
+          status: { notIn: ['CANCELLED', 'NO_SHOW'] }
         }
       }),
-      
       prisma.appointment.count({
         where: {
-          ...whereClause,
+          doctorUid,
           appointmentDate: { gte: today },
-          status: { not: 'CANCELLED' }
+          status: { notIn: ['CANCELLED', 'NO_SHOW', 'COMPLETED'] }
         }
       }),
-      
       prisma.appointment.count({
         where: {
-          ...whereClause,
+          doctorUid,
           status: 'PENDING'
         }
       }),
-      
       prisma.appointment.count({
         where: {
-          ...whereClause,
+          doctorUid,
           status: 'COMPLETED'
         }
       }),
-      
       prisma.appointment.count({
         where: {
-          ...whereClause,
+          doctorUid,
           appointmentDate: {
             gte: thisWeekStart,
             lte: thisWeekEnd
-          }
+          },
+          status: { notIn: ['CANCELLED', 'NO_SHOW'] }
         }
       })
     ]);
 
     res.json({
-      total: totalAppointments,
-      today: todayAppointments,
-      upcoming: upcomingAppointments,
-      pending: pendingAppointments,
-      completed: completedAppointments,
-      thisWeek: thisWeekAppointments
+      total,
+      today: todayCount,
+      upcoming,
+      pending,
+      completed,
+      thisWeek
     });
 
   } catch (error) {
-    console.error('Error fetching appointment stats:', error);
+    console.error('Error fetching appointment statistics:', error);
     res.status(500).json({ error: 'Failed to fetch appointment statistics' });
   }
 };

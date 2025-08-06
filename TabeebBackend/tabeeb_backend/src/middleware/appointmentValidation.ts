@@ -1,20 +1,26 @@
 import { Request, Response, NextFunction } from 'express';
 
-// Validate appointment booking request
+// Validate appointment booking request (OPTIMIZED)
 export const validateBookAppointment = (req: Request, res: Response, next: NextFunction) => {
-  const { doctorUid, timeSlotId, appointmentDate } = req.body;
+  const { doctorUid, startTime, appointmentDate } = req.body;
 
   // Check required fields
   if (!doctorUid) {
     return res.status(400).json({ error: 'Doctor UID is required' });
   }
 
-  if (!timeSlotId) {
-    return res.status(400).json({ error: 'Time slot ID is required' });
+  if (!startTime) {
+    return res.status(400).json({ error: 'Start time is required' });
   }
 
   if (!appointmentDate) {
     return res.status(400).json({ error: 'Appointment date is required' });
+  }
+
+  // Validate time format (HH:MM)
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  if (!timeRegex.test(startTime)) {
+    return res.status(400).json({ error: 'Invalid start time format. Use HH:MM (e.g., 09:00)' });
   }
 
   // Validate date format
