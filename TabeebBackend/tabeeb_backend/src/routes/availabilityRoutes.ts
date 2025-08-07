@@ -14,26 +14,23 @@ import {
   getWeeklySchedule
 } from '../controllers/availabilityController';
 
-console.log('Imported functions:', { 
-  setDoctorAvailability: typeof setDoctorAvailability,
-  getDoctorAvailability: typeof getDoctorAvailability,
-  getAvailableSlots: typeof getAvailableSlots
-});
-
 const router = express.Router();
 
-// Apply authentication middleware to all routes
+// Public routes for patients (no authentication required)
+// Get available slots for booking
+router.get('/slots/:doctorUid', getAvailableSlots);
+
+// Get doctor availability for calendar display (public for patients)
+router.get('/doctor/:doctorUid', getDoctorAvailability);
+
+// Apply authentication middleware to protected routes
 router.use(verifyToken);
 
-// Doctor availability management routes
+// Authenticated routes for doctor availability management
 router.post('/set', setDoctorAvailability);
-router.get('/doctor/:doctorUid', getDoctorAvailability);
-router.get('/doctor', getDoctorAvailability);
+router.get('/doctor', getDoctorAvailability); // Get own availability (authenticated)
 router.put('/:id', validateCUID('id'), validateSetAvailability, updateAvailability);
 router.delete('/:id', validateCUID('id'), deleteAvailability);
-
-// Get available slots for booking (public for patients)
-router.get('/slots/:doctorUid', getAvailableSlots);
 
 // Get weekly schedule view
 router.get('/schedule/:doctorUid', getWeeklySchedule);

@@ -10,7 +10,8 @@ import { useState } from "react";
 const navItems = [
   { label: "Dashboard", href: "/Patient/dashboard", icon: <FaTachometerAlt /> },
   { label: "Find Doctors", href: "/Patient/doctors", icon: <FaUserMd /> },
-  { label: "Appointments", href: "/Patient/appointments", icon: <FaCalendarAlt /> },
+  { label: "Book Appointment", href: "/Patient/book-appointment", icon: <FaCalendarAlt /> },
+  { label: "My Appointments", href: "/Patient/appointments", icon: <FaCalendarAlt /> },
   { label: "Medical Records", href: "/Patient/medical-records", icon: <FaFileMedical /> },
   { label: "Medication", href: "/Patient/medication", icon: <FaPills /> },
   { label: "AI Chat", href: "/Patient/ai-chat", icon: <FaRobot /> },

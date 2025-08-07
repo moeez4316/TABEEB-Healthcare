@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { FaSearch, FaFilter, FaSort, FaUserMd, FaStar, FaCalendarAlt } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth-context';
 
@@ -27,6 +28,7 @@ interface DoctorsResponse {
 
 export default function DoctorsPage() {
   const { token } = useAuth();
+  const router = useRouter();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,8 +120,7 @@ export default function DoctorsPage() {
 
   const handleBookAppointment = (doctorUid: string) => {
     // Navigate to appointment booking with doctor pre-selected
-    // This can be implemented later when appointment booking is enhanced
-    console.log('Book appointment with doctor:', doctorUid);
+    router.push(`/Patient/book-appointment?doctorId=${doctorUid}`);
   };
 
   if (loading) {
