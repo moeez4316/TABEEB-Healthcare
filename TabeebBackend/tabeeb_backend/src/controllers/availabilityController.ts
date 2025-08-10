@@ -90,6 +90,13 @@ export const getDoctorAvailability = async (req: Request, res: Response) => {
         gte: start,
         lte: end
       };
+    } else {
+      // If no specific date range is provided, only return today and future dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of today
+      whereClause.date = {
+        gte: today
+      };
     }
 
     const availability = await prisma.doctorAvailability.findMany({
@@ -191,6 +198,27 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
     let currentTime = startHour * 60 + startMinute; // Convert to minutes
     const endTime = endHour * 60 + endMinute;
     
+    // Check if the appointment date is today and filter past slots
+    const isToday = queryDate.toDateString() === new Date().toDateString();
+    let minCurrentTime = currentTime;
+    
+    if (isToday) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentTimeInMinutes = currentHour * 60 + currentMinute;
+      
+      // For today, start from the next available slot that hasn't passed
+      // Add buffer of 15 minutes to allow for booking time
+      minCurrentTime = Math.max(currentTime, currentTimeInMinutes + 15);
+      
+      // Round up to the next slot boundary
+      const remainder = minCurrentTime % availability.slotDuration;
+      if (remainder !== 0) {
+        minCurrentTime += availability.slotDuration - remainder;
+      }
+    }
+    
     // Break time handling
     let breakStart = null;
     let breakEnd = null;
@@ -200,6 +228,9 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
       breakStart = bsHour * 60 + bsMinute;
       breakEnd = beHour * 60 + beMinute;
     }
+
+    // Start from the calculated minimum time (current time for today, start time for future dates)
+    currentTime = Math.max(currentTime, minCurrentTime);
 
     while (currentTime + availability.slotDuration <= endTime) {
       const slotEndTime = currentTime + availability.slotDuration;
