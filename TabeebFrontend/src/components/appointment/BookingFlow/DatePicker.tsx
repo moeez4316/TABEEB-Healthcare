@@ -24,11 +24,17 @@ interface DatePickerProps {
 export const DatePicker: React.FC<DatePickerProps> = ({
   selectedDate,
   onDateSelect,
-  minDate = new Date(),
+  minDate,
   maxDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
   className = '',
   availableDates = []
 }) => {
+  // Set default minDate to today at 00:00:00 if not provided
+  const defaultMinDate = minDate || (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  })();
   const [currentMonth, setCurrentMonth] = useState(
     selectedDate || new Date()
   );
@@ -59,9 +65,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const isDateDisabled = (date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    date.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
     
-    return date < today || date < minDate || date > maxDate;
+    // Allow today and future dates (date should be >= today, not > today)
+    return checkDate < today || checkDate < defaultMinDate || checkDate > maxDate;
   };
 
   const isDateSelected = (date: Date) => {
@@ -102,7 +110,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     { label: 'Today', date: new Date() },
     { label: 'Tomorrow', date: new Date(Date.now() + 24 * 60 * 60 * 1000) },
     { label: 'Next Week', date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
-  ].filter(button => !isDateDisabled(button.date)); // Only show non-disabled dates
+  ].filter(button => {
+    const buttonDate = new Date(button.date);
+    buttonDate.setHours(0, 0, 0, 0);
+    return !isDateDisabled(buttonDate);
+  }); // Only show non-disabled dates
 
   const days = getDaysInMonth(currentMonth);
 

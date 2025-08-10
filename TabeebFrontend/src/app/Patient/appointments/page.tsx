@@ -63,14 +63,20 @@ export default function PatientAppointmentsPage() {
 
   const filterAppointments = () => {
     const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of today
+    
     return appointments.filter(appointment => {
       const appointmentDate = new Date(appointment.appointmentDate);
+      appointmentDate.setHours(0, 0, 0, 0); // Set to start of appointment day
       
       switch (filter) {
         case 'upcoming':
-          return appointmentDate >= now && appointment.status !== 'CANCELLED' && appointment.status !== 'COMPLETED';
+          // Include today's appointments and future appointments, exclude cancelled/completed
+          return appointmentDate >= today && appointment.status !== 'CANCELLED' && appointment.status !== 'COMPLETED';
         case 'past':
-          return appointmentDate < now || appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED';
+          // Include past dates OR completed/cancelled appointments
+          return appointmentDate < today || appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED';
         default:
           return true;
       }

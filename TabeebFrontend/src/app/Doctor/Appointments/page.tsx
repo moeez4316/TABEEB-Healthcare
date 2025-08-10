@@ -84,11 +84,8 @@ export default function DoctorAppointmentsPage() {
   };
 
   const handleCancelClick = (appointmentId: string) => {
-    console.log('Cancel button clicked for appointment:', appointmentId);
-    console.log('Current showCancelModal state:', showCancelModal);
     setAppointmentToCancel(appointmentId);
     setShowCancelModal(true);
-    console.log('Modal should now be visible');
   };
 
   const handleCancelConfirm = async () => {
@@ -471,10 +468,6 @@ export default function DoctorAppointmentsPage() {
       </main>
 
       {/* Cancellation Modal */}
-      {(() => {
-        console.log('Rendering - showCancelModal:', showCancelModal);
-        return null;
-      })()}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-800 rounded-lg max-w-md w-full mx-4 p-6 shadow-xl">
