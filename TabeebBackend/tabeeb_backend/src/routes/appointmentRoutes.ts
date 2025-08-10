@@ -13,7 +13,10 @@ import {
   updateAppointmentStatus,
   cancelAppointment,
   getAppointmentDetails,
-  getAppointmentStats
+  getAppointmentStats,
+  shareDocumentsWithAppointment,
+  unshareDocumentFromAppointment,
+  getAppointmentSharedDocuments
 } from '../controllers/appointmentController';
 
 const router = express.Router();
@@ -33,5 +36,10 @@ router.patch('/:id/status', validateCUID('id'), validateStatusUpdate, updateAppo
 router.get('/stats/overview', getAppointmentStats);
 router.get('/:id', validateCUID('id'), getAppointmentDetails);
 router.patch('/:id/cancel', validateCUID('id'), cancelAppointment);
+
+// Document sharing routes
+router.post('/:id/share-documents', validateCUID('id'), shareDocumentsWithAppointment);
+router.delete('/:id/shared-documents/:documentId', validateCUID('id'), unshareDocumentFromAppointment);
+router.get('/:id/shared-documents', validateCUID('id'), getAppointmentSharedDocuments);
 
 export default router;

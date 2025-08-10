@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
-import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaEye } from 'react-icons/fa';
+import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaEye, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { SharedDocumentsView } from '@/components/appointment/SharedDocumentsView';
 
 export default function DoctorAppointmentsPage() {
   const { token } = useAuth();
@@ -13,6 +14,7 @@ export default function DoctorAppointmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'today' | 'pending' | 'confirmed'>('today');
   const [updating, setUpdating] = useState<string | null>(null);
+  const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAppointments();
@@ -333,10 +335,20 @@ export default function DoctorAppointmentsPage() {
                   {/* Action Buttons */}
                   <div className="flex flex-col space-y-2 ml-4">
                     <button
+                      onClick={() => setExpandedAppointment(expandedAppointment === appointment.id ? null : appointment.id)}
                       className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-3 py-2 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
                     >
-                      <FaEye className="w-3 h-3" />
-                      <span className="text-sm">View Details</span>
+                      {expandedAppointment === appointment.id ? (
+                        <>
+                          <FaChevronUp className="w-3 h-3" />
+                          <span className="text-sm">Hide Details</span>
+                        </>
+                      ) : (
+                        <>
+                          <FaChevronDown className="w-3 h-3" />
+                          <span className="text-sm">View Details</span>
+                        </>
+                      )}
                     </button>
                     
                     {appointment.status === 'PENDING' && (
@@ -366,6 +378,59 @@ export default function DoctorAppointmentsPage() {
                     )}
                   </div>
                 </div>
+                
+                {/* Expanded Content - Shared Documents */}
+                {expandedAppointment === appointment.id && (
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+                    <SharedDocumentsView 
+                      appointmentId={appointment.id}
+                      className="mb-4"
+                    />
+                    
+                    {/* Additional Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
+                        <h5 className="font-medium text-gray-900 dark:text-white mb-2">Appointment Information</h5>
+                        <div className="space-y-2 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-600 dark:text-gray-400">Appointment ID:</span>
+                            <span className="ml-2 text-gray-800 dark:text-gray-200">{appointment.id}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600 dark:text-gray-400">Created:</span>
+                            <span className="ml-2 text-gray-800 dark:text-gray-200">
+                              {new Date(appointment.createdAt || appointment.appointmentDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {appointment.updatedAt && appointment.updatedAt !== appointment.createdAt && (
+                            <div>
+                              <span className="font-medium text-gray-600 dark:text-gray-400">Last Updated:</span>
+                              <span className="ml-2 text-gray-800 dark:text-gray-200">
+                                {new Date(appointment.updatedAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
+                        <h5 className="font-medium text-gray-900 dark:text-white mb-2">Patient Contact</h5>
+                        <div className="space-y-2 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-600 dark:text-gray-400">Name:</span>
+                            <span className="ml-2 text-gray-800 dark:text-gray-200">{appointment.patient?.name || 'N/A'}</span>
+                          </div>
+                          {appointment.patient?.phone && (
+                            <div>
+                              <span className="font-medium text-gray-600 dark:text-gray-400">Phone:</span>
+                              <span className="ml-2 text-gray-800 dark:text-gray-200">{appointment.patient.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

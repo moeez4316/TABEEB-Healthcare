@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import { Doctor, TimeSlot, AppointmentBooking } from '@/types/appointment';
 import { formatTime, formatDate, formatDateForAPI } from '@/lib/dateUtils';
+import { DocumentSelector } from '@/components/appointment/DocumentSelector';
 
 interface BookingFormProps {
   doctor: Doctor;
   selectedDate: Date;
   selectedSlot: TimeSlot;
-  onBookingSubmit: (booking: AppointmentBooking & { patientNotes: string }) => Promise<void>;
+  onBookingSubmit: (booking: AppointmentBooking & { patientNotes: string; sharedDocumentIds?: string[] }) => Promise<void>;
   loading?: boolean;
 }
 
@@ -22,6 +23,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const [patientNotes, setPatientNotes] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +37,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       doctorUid: doctor.uid,
       appointmentDate: formatDateForAPI(selectedDate),
       startTime: selectedSlot.startTime,
-      patientNotes: patientNotes || 'No specific notes provided'
+      patientNotes: patientNotes || 'No specific notes provided',
+      sharedDocumentIds: selectedDocuments.length > 0 ? selectedDocuments : undefined
     };
 
     await onBookingSubmit(booking);
@@ -112,6 +115,14 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             onChange={(e) => setEmergencyContact(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Emergency contact name and phone number"
+          />
+        </div>
+
+        {/* Document Sharing */}
+        <div>
+          <DocumentSelector
+            selectedDocuments={selectedDocuments}
+            onSelectionChange={setSelectedDocuments}
           />
         </div>
 

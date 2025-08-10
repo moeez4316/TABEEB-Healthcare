@@ -106,6 +106,7 @@ model Appointment {
 
   doctor          Doctor            @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
   patient         Patient           @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
+  sharedDocuments AppointmentSharedDocument[]
   // Removed timeSlot relation - storing time directly in appointment
 
   @@index([doctorUid])
@@ -114,6 +115,23 @@ model Appointment {
   @@index([status])
   @@index([startTime]) // New index for slot filtering
   @@map("appointments")
+}
+
+model AppointmentSharedDocument {
+  id            String      @id @default(cuid())
+  appointmentId String      @db.VarChar(255)
+  documentId    String      @db.VarChar(255) // MongoDB Medical Record _id
+  sharedAt      DateTime    @default(now())
+  isVisible     Boolean     @default(true)
+  sharedBy      String      @db.VarChar(255) // Patient UID who shared it
+  
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  
+  @@unique([appointmentId, documentId])
+  @@index([appointmentId])
+  @@index([documentId])
+  @@index([sharedBy])
+  @@map("appointment_shared_documents")
 }
 
 enum AppointmentStatus {

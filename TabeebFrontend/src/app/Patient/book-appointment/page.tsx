@@ -139,7 +139,7 @@ export default function BookAppointmentPage() {
     setCurrentStep('details');
   };
 
-  const handleBookingSubmit = async (bookingData: AppointmentBooking & { patientNotes: string }) => {
+  const handleBookingSubmit = async (bookingData: AppointmentBooking & { patientNotes: string; sharedDocumentIds?: string[] }) => {
     setLoading(true);
     setError(null);
 

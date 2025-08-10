@@ -1,12 +1,13 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { generateAvailableSlots, isSlotAvailable, calculateEndTime, getSlotsStatistics } from '../utils/slotGenerator';
+import MedicalRecord from '../models/MedicalRecord';
 
 // Book appointment (updated to work without TimeSlot)
 export const bookAppointment = async (req: Request, res: Response) => {
   try {
     const patientUid = req.user!.uid;
-    const { doctorUid, appointmentDate, startTime, patientNotes } = req.body;
+    const { doctorUid, appointmentDate, startTime, patientNotes, sharedDocumentIds } = req.body;
 
     // Validate required fields
     if (!doctorUid || !appointmentDate || !startTime) {
@@ -127,8 +128,33 @@ export const bookAppointment = async (req: Request, res: Response) => {
       }
     });
 
+    // Handle document sharing if provided
+    if (sharedDocumentIds && Array.isArray(sharedDocumentIds) && sharedDocumentIds.length > 0) {
+      // Validate that documents belong to the patient
+      const patientDocuments = await MedicalRecord.find({
+        _id: { $in: sharedDocumentIds },
+        userId: patientUid
+      }).select('_id');
+
+      const validDocumentIds = patientDocuments.map(doc => doc._id.toString());
+      
+      if (validDocumentIds.length > 0) {
+        // Create shared document records
+        const sharedDocumentsData = validDocumentIds.map(documentId => ({
+          appointmentId: appointment.id,
+          documentId,
+          sharedBy: patientUid
+        }));
+  
+        await prisma.appointmentSharedDocument.createMany({
+          data: sharedDocumentsData
+        });
+      }
+    }
+
     res.status(201).json({
       appointment,
+      sharedDocumentsCount: sharedDocumentIds?.length || 0,
       message: 'Appointment booked successfully'
     });
 
@@ -487,5 +513,168 @@ export const getAppointmentStats = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching appointment statistics:', error);
     res.status(500).json({ error: 'Failed to fetch appointment statistics' });
+  }
+};
+
+// Share documents with appointment
+export const shareDocumentsWithAppointment = async (req: Request, res: Response) => {
+  try {
+    const { id: appointmentId } = req.params;
+    const patientUid = req.user!.uid;
+    const { documentIds } = req.body;
+
+    if (!Array.isArray(documentIds) || documentIds.length === 0) {
+      return res.status(400).json({ error: 'Document IDs array is required' });
+    }
+
+    // Verify appointment belongs to patient
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        patientUid
+      }
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    // Validate that documents belong to the patient
+    const patientDocuments = await MedicalRecord.find({
+      _id: { $in: documentIds },
+      userId: patientUid
+    }).select('_id');
+
+    const validDocumentIds = patientDocuments.map(doc => doc._id.toString());
+    
+    if (validDocumentIds.length === 0) {
+      return res.status(400).json({ error: 'No valid documents found' });
+    }
+
+    // Create shared document records (avoid duplicates)
+    const sharedDocumentsData = validDocumentIds.map(documentId => ({
+      appointmentId,
+      documentId,
+      sharedBy: patientUid
+    }));
+
+    const result = await prisma.appointmentSharedDocument.createMany({
+      data: sharedDocumentsData,
+      skipDuplicates: true
+    });
+
+    res.status(201).json({
+      message: 'Documents shared successfully',
+      sharedCount: result.count,
+      validDocumentsCount: validDocumentIds.length
+    });
+
+  } catch (error) {
+    console.error('Error sharing documents:', error);
+    res.status(500).json({ error: 'Failed to share documents' });
+  }
+};
+
+// Unshare document from appointment
+export const unshareDocumentFromAppointment = async (req: Request, res: Response) => {
+  try {
+    const { id: appointmentId, documentId } = req.params;
+    const patientUid = req.user!.uid;
+
+    // Find and delete the shared document record
+    const deletedRecord = await prisma.appointmentSharedDocument.deleteMany({
+      where: {
+        appointmentId,
+        documentId,
+        sharedBy: patientUid
+      }
+    });
+
+    if (deletedRecord.count === 0) {
+      return res.status(404).json({ error: 'Shared document not found' });
+    }
+
+    res.json({ message: 'Document unshared successfully' });
+
+  } catch (error) {
+    console.error('Error unsharing document:', error);
+    res.status(500).json({ error: 'Failed to unshare document' });
+  }
+};
+
+// Get shared documents for appointment
+export const getAppointmentSharedDocuments = async (req: Request, res: Response) => {
+  try {
+    const { id: appointmentId } = req.params;
+    const userUid = req.user!.uid;
+
+    // Verify user has access to this appointment
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        OR: [
+          { patientUid: userUid },
+          { doctorUid: userUid }
+        ]
+      }
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    // Get shared documents
+    const sharedDocuments = await prisma.appointmentSharedDocument.findMany({
+      where: {
+        appointmentId,
+        isVisible: true
+      },
+      select: {
+        id: true,
+        documentId: true,
+        sharedAt: true,
+        sharedBy: true
+      }
+    });
+
+    // Fetch medical record details from MongoDB
+    let documentsWithDetails: any[] = [];
+    if (sharedDocuments.length > 0) {
+      const documentIds = sharedDocuments.map((doc: any) => doc.documentId);
+      
+      const medicalRecords = await MedicalRecord.find({
+        _id: { $in: documentIds }
+      }).select('_id fileUrl fileType tags notes uploadedAt');
+
+      documentsWithDetails = sharedDocuments.map((sharedDoc: any) => {
+        const medicalRecord = medicalRecords.find(
+          record => record._id.toString() === sharedDoc.documentId
+        );
+        
+        return {
+          sharedDocumentId: sharedDoc.id,
+          documentId: sharedDoc.documentId,
+          sharedAt: sharedDoc.sharedAt,
+          sharedBy: sharedDoc.sharedBy,
+          ...(medicalRecord && {
+            fileUrl: medicalRecord.fileUrl,
+            fileType: medicalRecord.fileType,
+            tags: medicalRecord.tags,
+            notes: medicalRecord.notes,
+            uploadedAt: medicalRecord.uploadedAt
+          })
+        };
+      });
+    }
+
+    res.json({
+      appointmentId,
+      sharedDocuments: documentsWithDetails,
+      totalCount: documentsWithDetails.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching shared documents:', error);
+    res.status(500).json({ error: 'Failed to fetch shared documents' });
   }
 };
