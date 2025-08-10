@@ -12,6 +12,8 @@ interface Availability {
   endTime: string;
   isAvailable: boolean;
   slotDuration?: number;
+  breakStartTime?: string;
+  breakEndTime?: string;
 }
 
 export default function DoctorAvailabilityPage() {
@@ -27,7 +29,9 @@ export default function DoctorAvailabilityPage() {
     startTime: '09:00',
     endTime: '17:00',
     isAvailable: true,
-    slotDuration: 30
+    slotDuration: 30,
+    breakStartTime: '',
+    breakEndTime: ''
   });
 
   useEffect(() => {
@@ -84,7 +88,9 @@ export default function DoctorAvailabilityPage() {
           startTime: newAvailability.startTime,
           endTime: newAvailability.endTime,
           slotDuration: newAvailability.slotDuration || 30,
-          isAvailable: newAvailability.isAvailable
+          isAvailable: newAvailability.isAvailable,
+          breakStartTime: newAvailability.breakStartTime || null,
+          breakEndTime: newAvailability.breakEndTime || null
         }),
       });
 
@@ -98,7 +104,9 @@ export default function DoctorAvailabilityPage() {
         startTime: '09:00',
         endTime: '17:00',
         isAvailable: true,
-        slotDuration: 30
+        slotDuration: 30,
+        breakStartTime: '',
+        breakEndTime: ''
       });
       
       fetchAvailability();
@@ -278,6 +286,48 @@ export default function DoctorAvailabilityPage() {
               </div>
             </div>
             
+            {/* Break Time Section */}
+            <div className="mb-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Break Time (Optional)</h3>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Set lunch break or other unavailable periods
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                    Break Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={newAvailability.breakStartTime || ''}
+                    onChange={(e) => setNewAvailability(prev => ({ ...prev, breakStartTime: e.target.value }))}
+                    className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                    placeholder="e.g., 12:00"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                    Break End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={newAvailability.breakEndTime || ''}
+                    onChange={(e) => setNewAvailability(prev => ({ ...prev, breakEndTime: e.target.value }))}
+                    className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                    placeholder="e.g., 13:00"
+                  />
+                </div>
+              </div>
+              {newAvailability.breakStartTime && newAvailability.breakEndTime && (
+                <div className="mt-2 text-xs text-teal-600 dark:text-teal-400">
+                  Break time: {newAvailability.breakStartTime} - {newAvailability.breakEndTime}
+                </div>
+              )}
+            </div>
+            
             <div className="flex justify-between items-center">
               <div className="flex flex-wrap gap-2">
                 <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Quick select:</span>
@@ -346,11 +396,24 @@ export default function DoctorAvailabilityPage() {
                         })}
                       </div>
                       
-                      <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
-                        <FaClock className="text-gray-400 dark:text-gray-500" />
-                        <span>
-                          {availability.startTime} - {availability.endTime}
-                        </span>
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
+                          <FaClock className="text-gray-400 dark:text-gray-500" />
+                          <span>
+                            {availability.startTime} - {availability.endTime}
+                          </span>
+                        </div>
+                        
+                        {availability.breakStartTime && availability.breakEndTime && (
+                          <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-500 text-sm">
+                            <span className="w-4 h-4 flex items-center justify-center">
+                              <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                            </span>
+                            <span>
+                              Break: {availability.breakStartTime} - {availability.breakEndTime}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       
                       <div className={`px-2 py-1 rounded-full text-xs font-medium ${
