@@ -355,7 +355,7 @@ export const updateAvailability = async (req: Request, res: Response) => {
   }
 };
 
-// Delete availability
+// Delete availability (updated to allow deletion with existing appointments)
 export const deleteAvailability = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -373,8 +373,8 @@ export const deleteAvailability = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Availability not found' });
     }
 
-    // Check for booked appointments
-    const bookedAppointments = await prisma.appointment.findMany({
+    // Check for existing appointments (for informational purposes)
+    const existingAppointments = await prisma.appointment.findMany({
       where: {
         doctorUid,
         appointmentDate: availability.date,
@@ -384,19 +384,25 @@ export const deleteAvailability = async (req: Request, res: Response) => {
       }
     });
 
-    if (bookedAppointments.length > 0) {
-      return res.status(400).json({ 
-        error: 'Cannot delete availability with booked appointments',
-        bookedAppointments: bookedAppointments.length
-      });
-    }
-
-    // Delete availability
+    // Delete availability (allowing deletion even with booked appointments)
     await prisma.doctorAvailability.delete({
       where: { id }
     });
 
-    res.json({ message: 'Availability deleted successfully' });
+    let message = 'Availability deleted successfully';
+    let warning = null;
+
+    if (existingAppointments.length > 0) {
+      warning = `${existingAppointments.length} existing appointment(s) will remain active. New patients cannot book for this date.`;
+      message = 'Availability deleted successfully. Existing appointments are preserved.';
+    }
+
+    res.json({ 
+      message,
+      warning,
+      existingAppointmentsCount: existingAppointments.length,
+      note: 'Existing appointments remain active and accessible to both doctor and patients'
+    });
 
   } catch (error) {
     console.error('Error deleting availability:', error);
