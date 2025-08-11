@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -27,6 +27,19 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if we're on mobile screen size
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const navigation = [
     {
@@ -66,36 +79,38 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full relative">
-      {/* Toggle Button */}
-      <div className="absolute -right-3 top-8 z-10">
-        <button
-          onClick={toggleSidebar}
-          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-200 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-        >
-          {isCollapsed ? <ChevronRight className="text-sm w-4 h-4" /> : <ChevronLeft className="text-sm w-4 h-4" />}
-        </button>
-      </div>
+      {/* Toggle Button - Only show on desktop */}
+      {!isMobile && (
+        <div className="absolute -right-3 top-8 z-10">
+          <button
+            onClick={toggleSidebar}
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-200 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+            title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          >
+            {isCollapsed ? <ChevronRight className="text-sm w-4 h-4" /> : <ChevronLeft className="text-sm w-4 h-4" />}
+          </button>
+        </div>
+      )}
 
       {/* Header */}
       <div className={`border-b border-slate-200 dark:border-slate-700 transition-all duration-300 ${
-        isCollapsed ? 'p-4' : 'p-6'
+        !isMobile && isCollapsed ? 'p-4' : 'p-6'
       }`}>
         <div className={`flex items-center transition-all duration-300 ${
-          isCollapsed ? 'justify-center' : 'space-x-3'
+          !isMobile && isCollapsed ? 'justify-center' : 'space-x-3'
         }`}>
           <div className={`rounded-xl flex items-center justify-center shadow-lg overflow-hidden bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-300 ${
-            isCollapsed ? 'w-8 h-8' : 'w-10 h-10'
+            !isMobile && isCollapsed ? 'w-8 h-8' : 'w-10 h-10'
           }`}>
             <Image
               src="/tabeeb_logo.png"
               alt="TABEEB Logo"
-              width={isCollapsed ? 24 : 32}
-              height={isCollapsed ? 24 : 32}
+              width={!isMobile && isCollapsed ? 24 : 32}
+              height={!isMobile && isCollapsed ? 24 : 32}
               className="object-contain transition-all duration-300"
             />
           </div>
-          {!isCollapsed && (
+          {(isMobile || !isCollapsed) && (
             <div className="transition-opacity duration-300">
               <h1 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">
                 TABEEB
@@ -109,7 +124,7 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       </div>
 
       {/* Admin Badge */}
-      {!isCollapsed && (
+      {(isMobile || !isCollapsed) && (
         <div className="p-4 transition-opacity duration-300">
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800">
             <div className="flex items-center space-x-3">
@@ -130,7 +145,7 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       )}
 
       {/* Navigation */}
-      <nav className={`flex-1 space-y-2 transition-all duration-300 ${isCollapsed ? 'px-2' : 'px-4'}`}>
+      <nav className={`flex-1 space-y-2 transition-all duration-300 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'}`}>
         {navigation.map((item) => {
           const Icon = item.icon;
           const isActive = isActiveRoute(item.href);
@@ -141,12 +156,14 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
               onClick={() => {
                 if (!item.disabled) {
                   router.push(item.href);
-                  setIsMobileMenuOpen(false);
+                  if (isMobile) {
+                    setIsMobileMenuOpen(false);
+                  }
                 }
               }}
               disabled={item.disabled}
               className={`w-full group flex items-center text-sm font-medium rounded-xl transition-all duration-200 relative ${
-                isCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-3'
+                !isMobile && isCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-3'
               } ${
                 isActive
                   ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-lg shadow-teal-500/25'
@@ -154,14 +171,14 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
                   ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
               }`}
-              title={isCollapsed ? item.name : ''}
+              title={!isMobile && isCollapsed ? item.name : ''}
             >
               <Icon className={`transition-transform duration-200 flex-shrink-0 ${
-                isCollapsed ? 'w-5 h-5' : 'w-5 h-5 mr-3'
+                !isMobile && isCollapsed ? 'w-5 h-5' : 'w-5 h-5 mr-3'
               } ${
                 isActive ? 'scale-110' : 'group-hover:scale-105'
               }`} />
-              {!isCollapsed && (
+              {(isMobile || !isCollapsed) && (
                 <div className="flex-1 text-left transition-opacity duration-300">
                   <div className="font-semibold">{item.name}</div>
                   <div className={`text-xs ${
@@ -173,12 +190,12 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
                   </div>
                 </div>
               )}
-              {!isCollapsed && item.disabled && (
+              {(isMobile || !isCollapsed) && item.disabled && (
                 <span className="ml-2 px-2 py-1 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-md font-medium">
                   Soon
                 </span>
               )}
-              {isCollapsed && (
+              {!isMobile && isCollapsed && (
                 <span className="absolute left-full ml-2 px-3 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg">
                   <div className="font-semibold">{item.name}</div>
                   <div className="text-xs opacity-75">{item.description}</div>
@@ -190,7 +207,7 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       </nav>
 
       {/* Stats */}
-      {!isCollapsed && (
+      {(isMobile || !isCollapsed) && (
         <div className="p-4 border-t border-slate-200 dark:border-slate-700 transition-opacity duration-300">
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
@@ -209,22 +226,22 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
 
       {/* Logout */}
       <div className={`border-t border-slate-200 dark:border-slate-700 transition-all duration-300 ${
-        isCollapsed ? 'p-2' : 'p-4'
+        !isMobile && isCollapsed ? 'p-2' : 'p-4'
       }`}>
         <button
           onClick={handleLogout}
           className={`w-full flex items-center text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200 group ${
-            isCollapsed ? 'justify-center px-3 py-3' : 'justify-center px-4 py-3'
+            !isMobile && isCollapsed ? 'justify-center px-3 py-3' : 'justify-center px-4 py-3'
           }`}
-          title={isCollapsed ? 'Sign Out' : ''}
+          title={!isMobile && isCollapsed ? 'Sign Out' : ''}
         >
           <LogOut className={`group-hover:scale-110 transition-transform duration-200 ${
-            isCollapsed ? 'w-5 h-5' : 'w-5 h-5 mr-2'
+            !isMobile && isCollapsed ? 'w-5 h-5' : 'w-5 h-5 mr-2'
           }`} />
-          {!isCollapsed && (
+          {(isMobile || !isCollapsed) && (
             <span className="transition-opacity duration-300">Sign Out</span>
           )}
-          {isCollapsed && (
+          {!isMobile && isCollapsed && (
             <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
               Sign Out
             </span>
@@ -236,41 +253,47 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700"
-      >
-        {isMobileMenuOpen ? (
-          <X className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-        ) : (
-          <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-        )}
-      </button>
+      {/* Mobile Menu Button - Only show on mobile */}
+      {isMobile && (
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700"
+        >
+          {isMobileMenuOpen ? (
+            <X className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+          ) : (
+            <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+          )}
+        </button>
+      )}
 
-      {/* Mobile Backdrop */}
-      {isMobileMenuOpen && (
+      {/* Mobile Backdrop - Only show on mobile */}
+      {isMobile && isMobileMenuOpen && (
         <div 
           className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
-      {/* Desktop Sidebar */}
-      <div className={`hidden lg:flex lg:flex-shrink-0 ${className}`}>
-        <div className={`bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-xl transition-all duration-300 ease-in-out ${
-          isCollapsed ? 'w-20' : 'w-80'
+      {/* Desktop Sidebar - Only show on desktop */}
+      {!isMobile && (
+        <div className={`hidden lg:flex lg:flex-shrink-0 ${className}`}>
+          <div className={`bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-xl transition-all duration-300 ease-in-out ${
+            isCollapsed ? 'w-20' : 'w-80'
+          }`}>
+            <SidebarContent />
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Sidebar - Only show on mobile */}
+      {isMobile && (
+        <div className={`lg:hidden fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-xl transform transition-transform duration-300 ease-in-out ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
           <SidebarContent />
         </div>
-      </div>
-
-      {/* Mobile Sidebar */}
-      <div className={`lg:hidden fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-xl transform transition-transform duration-300 ease-in-out ${
-        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        <SidebarContent />
-      </div>
+      )}
     </>
   );
 }
