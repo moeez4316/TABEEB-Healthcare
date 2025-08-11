@@ -1,7 +1,7 @@
 import express from 'express';
 import { verifyToken } from '../middleware/verifyToken';
 import {
-  validateSetAvailability,
+  validateAvailability,
   validatePagination,
   validateCUID
 } from '../middleware/appointmentValidation';
@@ -27,9 +27,9 @@ router.get('/doctor/:doctorUid', getDoctorAvailability);
 router.use(verifyToken);
 
 // Authenticated routes for doctor availability management
-router.post('/set', setDoctorAvailability);
+router.post('/set', validateAvailability, setDoctorAvailability);
 router.get('/doctor', getDoctorAvailability); // Get own availability (authenticated)
-router.put('/:id', validateCUID('id'), validateSetAvailability, updateAvailability);
+router.put('/:id', validateCUID('id'), validateAvailability, updateAvailability);
 router.delete('/:id', validateCUID('id'), deleteAvailability);
 
 // Get weekly schedule view

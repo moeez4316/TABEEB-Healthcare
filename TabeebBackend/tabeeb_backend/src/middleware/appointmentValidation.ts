@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 
+// Maximum number of break times allowed per availability
+const MAX_BREAK_TIMES = 4; // Reasonable limit: lunch + 3 other breaks (coffee, prayer, etc.)
+
 // Validate appointment booking request (OPTIMIZED)
 export const validateBookAppointment = (req: Request, res: Response, next: NextFunction) => {
   const { doctorUid, startTime, appointmentDate } = req.body;
@@ -48,42 +51,16 @@ export const validateBookAppointment = (req: Request, res: Response, next: NextF
   next();
 };
 
-// Validate availability setting request
-export const validateSetAvailability = (req: Request, res: Response, next: NextFunction) => {
-  const { date, startTime, endTime, slotDuration, breakStartTime, breakEndTime } = req.body;
+// Validate availability data
+export const validateAvailability = (req: Request, res: Response, next: NextFunction) => {
+  const { date, startTime, endTime, slotDuration, breakTimes } = req.body;
 
-  // Check required fields
-  if (!date) {
-    return res.status(400).json({ error: 'Date is required' });
+  // Basic required fields validation
+  if (!date || !startTime || !endTime) {
+    return res.status(400).json({ error: 'Date, start time, and end time are required' });
   }
 
-  if (!startTime) {
-    return res.status(400).json({ error: 'Start time is required' });
-  }
-
-  if (!endTime) {
-    return res.status(400).json({ error: 'End time is required' });
-  }
-
-  if (!slotDuration) {
-    return res.status(400).json({ error: 'Slot duration is required' });
-  }
-
-  // Validate date format
-  const availabilityDate = new Date(date);
-  if (isNaN(availabilityDate.getTime())) {
-    return res.status(400).json({ error: 'Invalid date format' });
-  }
-
-  // Check if date is in the future
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  if (availabilityDate < today) {
-    return res.status(400).json({ error: 'Availability date cannot be in the past' });
-  }
-
-  // Validate time format (HH:MM)
+  // Time format validation
   const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
   
   if (!timeRegex.test(startTime)) {
@@ -92,15 +69,6 @@ export const validateSetAvailability = (req: Request, res: Response, next: NextF
 
   if (!timeRegex.test(endTime)) {
     return res.status(400).json({ error: 'Invalid end time format. Use HH:MM' });
-  }
-
-  // Validate break times if provided
-  if (breakStartTime && !timeRegex.test(breakStartTime)) {
-    return res.status(400).json({ error: 'Invalid break start time format. Use HH:MM' });
-  }
-
-  if (breakEndTime && !timeRegex.test(breakEndTime)) {
-    return res.status(400).json({ error: 'Invalid break end time format. Use HH:MM' });
   }
 
   // Check if start time is before end time
@@ -117,18 +85,84 @@ export const validateSetAvailability = (req: Request, res: Response, next: NextF
     return res.status(400).json({ error: 'Slot duration must be between 15 and 180 minutes' });
   }
 
-  // Validate break times if both are provided
-  if (breakStartTime && breakEndTime) {
-    const breakStart = new Date(`2000-01-01T${breakStartTime}:00`);
-    const breakEnd = new Date(`2000-01-01T${breakEndTime}:00`);
-    
-    if (breakStart >= breakEnd) {
-      return res.status(400).json({ error: 'Break start time must be before break end time' });
+  // Validate multiple break times if provided
+  if (breakTimes) {
+    if (!Array.isArray(breakTimes)) {
+      return res.status(400).json({ error: 'Break times must be an array' });
     }
 
-    // Check if break times are within working hours
-    if (breakStart < start || breakEnd > end) {
-      return res.status(400).json({ error: 'Break times must be within working hours' });
+    if (breakTimes.length > MAX_BREAK_TIMES) {
+      return res.status(400).json({ 
+        error: `Maximum ${MAX_BREAK_TIMES} break times allowed per day` 
+      });
+    }
+
+    // Validate each break time
+    for (let i = 0; i < breakTimes.length; i++) {
+      const breakTime = breakTimes[i];
+      
+      if (!breakTime.startTime || !breakTime.endTime) {
+        return res.status(400).json({ 
+          error: `Break time ${i + 1} must have both start and end time` 
+        });
+      }
+
+      if (!timeRegex.test(breakTime.startTime) || !timeRegex.test(breakTime.endTime)) {
+        return res.status(400).json({ 
+          error: `Break time ${i + 1} has invalid time format. Use HH:MM` 
+        });
+      }
+
+      const bStart = new Date(`2000-01-01T${breakTime.startTime}:00`);
+      const bEnd = new Date(`2000-01-01T${breakTime.endTime}:00`);
+      
+      if (bStart >= bEnd) {
+        return res.status(400).json({ 
+          error: `Break time ${i + 1}: start time must be before end time` 
+        });
+      }
+
+      if (bStart < start || bEnd > end) {
+        return res.status(400).json({ 
+          error: `Break time ${i + 1} must be within working hours` 
+        });
+      }
+    }
+
+    // Check for overlapping break times
+    for (let i = 0; i < breakTimes.length; i++) {
+      for (let j = i + 1; j < breakTimes.length; j++) {
+        const break1Start = new Date(`2000-01-01T${breakTimes[i].startTime}:00`);
+        const break1End = new Date(`2000-01-01T${breakTimes[i].endTime}:00`);
+        const break2Start = new Date(`2000-01-01T${breakTimes[j].startTime}:00`);
+        const break2End = new Date(`2000-01-01T${breakTimes[j].endTime}:00`);
+
+        if (break1Start < break2End && break2Start < break1End) {
+          return res.status(400).json({ 
+            error: `Break times ${i + 1} and ${j + 1} overlap` 
+          });
+        }
+      }
+    }
+
+    // Validate minimum gap between break times (15 minutes)
+    const sortedBreaks = breakTimes
+      .map(bt => ({
+        start: new Date(`2000-01-01T${bt.startTime}:00`),
+        end: new Date(`2000-01-01T${bt.endTime}:00`)
+      }))
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    for (let i = 0; i < sortedBreaks.length - 1; i++) {
+      const currentEnd = sortedBreaks[i].end;
+      const nextStart = sortedBreaks[i + 1].start;
+      const gapMinutes = (nextStart.getTime() - currentEnd.getTime()) / (1000 * 60);
+      
+      if (gapMinutes < 15) {
+        return res.status(400).json({ 
+          error: 'Minimum 15 minutes gap required between break times' 
+        });
+      }
     }
   }
 

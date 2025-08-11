@@ -50,7 +50,13 @@ export default function SidebarDoctor() {
   };
 
   const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
+    const newCollapsed = !isCollapsed;
+    setIsCollapsed(newCollapsed);
+    
+    // Dispatch custom event for layout to listen to
+    window.dispatchEvent(new CustomEvent('sidebarToggle', { 
+      detail: { collapsed: newCollapsed } 
+    }));
   };
 
   const SidebarContent = () => (
@@ -62,7 +68,7 @@ export default function SidebarDoctor() {
         <div className="absolute -right-3 top-8 z-10">
           <button
             onClick={toggleSidebar}
-            className="bg-white dark:bg-[#18181b] border border-gray-200 dark:border-gray-800 rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-200 text-[#1e293b] dark:text-[#ededed] hover:bg-gray-50 dark:hover:bg-[#23232a]"
+            className="bg-white dark:bg-slate-800 rounded-full p-2 shadow-md hover:shadow-lg transition-all duration-200 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
             title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
             {isCollapsed ? <FaChevronRight className="text-sm" /> : <FaChevronLeft className="text-sm" />}
@@ -83,7 +89,7 @@ export default function SidebarDoctor() {
           />
           {(isMobile || !isCollapsed) && (
             <>
-              <span className="text-xl font-bold tracking-wide text-[#1e293b] dark:text-[#ededed] transition-opacity duration-300">
+              <span className="text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200 transition-opacity duration-300">
                 TABEEB
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1 transition-opacity duration-300">
@@ -103,7 +109,7 @@ export default function SidebarDoctor() {
                       setIsMobileMenuOpen(false);
                     }
                   }}
-                  className={`flex items-center gap-3 rounded-lg text-base font-medium text-[#1e293b] dark:text-[#ededed] hover:bg-[#f1f5f9] dark:hover:bg-[#171717] transition-all duration-200 w-full group ${
+                  className={`flex items-center gap-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-200 w-full group ${
                     !isMobile && isCollapsed ? 'px-3 py-3 justify-center' : 'px-6 py-3'
                   }`}
                   title={!isMobile && isCollapsed ? item.label : ''}
@@ -129,7 +135,7 @@ export default function SidebarDoctor() {
                 {user && (isMobile || !isCollapsed) && (
           <div className="mb-4 p-3 bg-white/10 rounded-lg transition-opacity duration-300">
             <p className="text-sm text-gray-600 dark:text-gray-400">Signed in as:</p>
-            <p className="text-sm font-medium text-[#1e293b] dark:text-[#ededed] truncate">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
               {user.displayName || user.email}
             </p>
           </div>
@@ -171,12 +177,12 @@ export default function SidebarDoctor() {
       {isMobile && (
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-[#18181b] rounded-xl shadow-lg border border-gray-200 dark:border-gray-800"
+          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-slate-800 rounded-xl shadow-md"
         >
           {isMobileMenuOpen ? (
-            <FaTimes className="w-5 h-5 text-[#1e293b] dark:text-[#ededed]" />
+            <FaTimes className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           ) : (
-            <FaBars className="w-5 h-5 text-[#1e293b] dark:text-[#ededed]" />
+            <FaBars className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           )}
         </button>
       )}
@@ -191,10 +197,10 @@ export default function SidebarDoctor() {
 
       {/* Desktop Sidebar - Only show on desktop */}
       {!isMobile && (
-        <div className="hidden lg:flex lg:flex-shrink-0 sticky top-0">
-          <div className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 shadow-lg border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out ${
-            isCollapsed ? 'w-20' : 'w-60'
-          }`}>
+        <div className={`hidden lg:flex lg:flex-shrink-0 fixed inset-y-0 left-0 z-30 transition-all duration-300 ease-in-out ${
+          isCollapsed ? 'w-20' : 'w-60'
+        }`}>
+          <div className="w-full bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-gray-700">
             <SidebarContent />
           </div>
         </div>
@@ -205,7 +211,7 @@ export default function SidebarDoctor() {
         <div className={`lg:hidden fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 shadow-lg border-r border-gray-200 dark:border-gray-800 w-60">
+          <div className="bg-white dark:bg-slate-900 w-60">
             <SidebarContent />
           </div>
         </div>

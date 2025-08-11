@@ -5,6 +5,11 @@ import { useAuth } from '@/lib/auth-context';
 import { formatDateForAPI, getTodayForAPI } from '@/lib/dateUtils';
 import { FaClock, FaPlus, FaTimes, FaSave, FaCalendarAlt } from 'react-icons/fa';
 
+interface BreakTime {
+  startTime: string;
+  endTime: string;
+}
+
 interface Availability {
   id?: string;
   date: string;
@@ -12,8 +17,7 @@ interface Availability {
   endTime: string;
   isAvailable: boolean;
   slotDuration?: number;
-  breakStartTime?: string;
-  breakEndTime?: string;
+  breakTimes?: BreakTime[];
 }
 
 export default function DoctorAvailabilityPage() {
@@ -22,6 +26,7 @@ export default function DoctorAvailabilityPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   
   // Form for adding new availability
   const [newAvailability, setNewAvailability] = useState<Availability>({
@@ -30,9 +35,12 @@ export default function DoctorAvailabilityPage() {
     endTime: '17:00',
     isAvailable: true,
     slotDuration: 30,
-    breakStartTime: '',
-    breakEndTime: ''
+    breakTimes: []
   });
+
+  // State for managing break times during form input
+  const [newBreakTime, setNewBreakTime] = useState({ startTime: '', endTime: '' });
+  const MAX_BREAK_TIMES = 4;
 
   useEffect(() => {
     fetchAvailability();
@@ -40,10 +48,11 @@ export default function DoctorAvailabilityPage() {
 
   const fetchAvailability = async () => {
     if (!token) return;
-    
+
     setLoading(true);
     setError(null);
-
+    // Keep success message if it exists, only clear error
+    
     try {
       const response = await fetch('http://localhost:5002/api/availability/doctor', {
         headers: {
@@ -65,16 +74,16 @@ export default function DoctorAvailabilityPage() {
       console.error('Error fetching availability:', err);
       setError('Failed to load availability. Please try again.');
       setAvailabilities([]);
+      setSuccess(null);
     } finally {
       setLoading(false);
     }
-  };
-
-  const addAvailability = async () => {
+  };  const addAvailability = async () => {
     if (!token || !newAvailability.date) return;
     
     setSaving(true);
     setError(null);
+    setSuccess(null);
 
     try {
       const response = await fetch('http://localhost:5002/api/availability/set', {
@@ -89,15 +98,14 @@ export default function DoctorAvailabilityPage() {
           endTime: newAvailability.endTime,
           slotDuration: newAvailability.slotDuration || 30,
           isAvailable: newAvailability.isAvailable,
-          breakStartTime: newAvailability.breakStartTime || null,
-          breakEndTime: newAvailability.breakEndTime || null
+          breakTimes: newAvailability.breakTimes || []
         }),
       });
 
       if (!response.ok) {
         // Extract specific error message from backend
         const errorData = await response.json();
-        const errorMessage = errorData.error || 'Failed to add availability';
+        const errorMessage = errorData.error || errorData.message || 'Failed to add availability';
         throw new Error(errorMessage);
       }
 
@@ -108,15 +116,18 @@ export default function DoctorAvailabilityPage() {
         endTime: '17:00',
         isAvailable: true,
         slotDuration: 30,
-        breakStartTime: '',
-        breakEndTime: ''
+        breakTimes: []
       });
+      
+      setNewBreakTime({ startTime: '', endTime: '' });
+      setSuccess('Availability added successfully!');
       
       fetchAvailability();
       console.log('Availability added successfully');
     } catch (err) {
       console.error('Error adding availability:', err);
       setError(err instanceof Error ? err.message : 'Failed to add availability. Please try again.');
+      setSuccess(null);
     } finally {
       setSaving(false);
     }
@@ -124,6 +135,9 @@ export default function DoctorAvailabilityPage() {
 
   const deleteAvailability = async (id: string) => {
     if (!token) return;
+
+    setError(null);
+    setSuccess(null);
 
     try {
       const response = await fetch(`http://localhost:5002/api/availability/${id}`, {
@@ -145,6 +159,7 @@ export default function DoctorAvailabilityPage() {
       if (result.warning) {
         alert(`✅ ${result.message}\n\n⚠️ ${result.warning}`);
       } else {
+        setSuccess(result.message || 'Availability deleted successfully');
         console.log(result.message);
       }
 
@@ -152,6 +167,7 @@ export default function DoctorAvailabilityPage() {
     } catch (err) {
       console.error('Error deleting availability:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete availability. Please try again.');
+      setSuccess(null);
     }
   };
 
@@ -170,6 +186,93 @@ export default function DoctorAvailabilityPage() {
   };
 
   const quickDates = generateQuickDates();
+
+  // Functions for managing break times
+  const addBreakTime = () => {
+    // Clear any existing messages
+    setError(null);
+    setSuccess(null);
+
+    if (!newBreakTime.startTime || !newBreakTime.endTime) {
+      setError('Please fill in both start and end time for break');
+      return;
+    }
+
+    if (newBreakTime.startTime >= newBreakTime.endTime) {
+      setError('Break start time must be before end time');
+      return;
+    }
+
+    // Check if break times are within working hours
+    if (newAvailability.startTime && newAvailability.endTime) {
+      if (newBreakTime.startTime < newAvailability.startTime || newBreakTime.endTime > newAvailability.endTime) {
+        setError('Break times must be within working hours');
+        return;
+      }
+    }
+
+    const currentBreakTimes = newAvailability.breakTimes || [];
+    if (currentBreakTimes.length >= MAX_BREAK_TIMES) {
+      setError(`Maximum ${MAX_BREAK_TIMES} break times allowed per day`);
+      return;
+    }
+
+    // Check for overlaps
+    const newStart = newBreakTime.startTime;
+    const newEnd = newBreakTime.endTime;
+    const hasOverlap = currentBreakTimes.some(bt => 
+      (newStart < bt.endTime && newEnd > bt.startTime)
+    );
+
+    if (hasOverlap) {
+      setError('Break times cannot overlap');
+      return;
+    }
+
+    // Check minimum gap between break times (15 minutes)
+    const sortedBreaks = [...currentBreakTimes, newBreakTime].sort((a, b) => 
+      a.startTime.localeCompare(b.startTime)
+    );
+
+    for (let i = 0; i < sortedBreaks.length - 1; i++) {
+      const currentEnd = new Date(`2000-01-01T${sortedBreaks[i].endTime}:00`);
+      const nextStart = new Date(`2000-01-01T${sortedBreaks[i + 1].startTime}:00`);
+      const gapMinutes = (nextStart.getTime() - currentEnd.getTime()) / (1000 * 60);
+      
+      if (gapMinutes < 15 && gapMinutes > 0) {
+        setError('Minimum 15 minutes gap required between break times');
+        return;
+      }
+    }
+
+    // If all validations pass, add the break time
+    setNewAvailability(prev => ({
+      ...prev,
+      breakTimes: [...currentBreakTimes, { ...newBreakTime }]
+    }));
+
+    setNewBreakTime({ startTime: '', endTime: '' });
+    setError(null);
+  };
+
+  const removeBreakTime = (index: number) => {
+    // Clear any existing error/success messages when modifying break times
+    setError(null);
+    setSuccess(null);
+    
+    setNewAvailability(prev => ({
+      ...prev,
+      breakTimes: prev.breakTimes?.filter((_, i) => i !== index) || []
+    }));
+  };
+
+  // Helper function to clear messages when user starts interacting
+  const clearMessages = () => {
+    if (error || success) {
+      setError(null);
+      setSuccess(null);
+    }
+  };
 
   // Helper function to check if a date already has availability
   const hasAvailabilityForDate = (date: string) => {
@@ -205,7 +308,7 @@ export default function DoctorAvailabilityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Header */}
       <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -246,6 +349,19 @@ export default function DoctorAvailabilityPage() {
           </div>
         )}
 
+        {/* Success Display */}
+        {success && (
+          <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 shadow-lg">
+            <div className="text-green-800 dark:text-green-400">{success}</div>
+            <button
+              onClick={() => setSuccess(null)}
+              className="mt-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Add New Availability */}
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg mb-6 border border-gray-200 dark:border-slate-700">
           <div className="p-6 border-b border-gray-200 dark:border-slate-700">
@@ -264,7 +380,10 @@ export default function DoctorAvailabilityPage() {
                 <input
                   type="date"
                   value={newAvailability.date}
-                  onChange={(e) => setNewAvailability(prev => ({ ...prev, date: e.target.value }))}
+                  onChange={(e) => {
+                    clearMessages();
+                    setNewAvailability(prev => ({ ...prev, date: e.target.value }));
+                  }}
                   min={getTodayForAPI()}
                   className={`w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent ${
                     selectedDateHasAvailability 
@@ -287,7 +406,10 @@ export default function DoctorAvailabilityPage() {
                 <input
                   type="time"
                   value={newAvailability.startTime}
-                  onChange={(e) => setNewAvailability(prev => ({ ...prev, startTime: e.target.value }))}
+                  onChange={(e) => {
+                    clearMessages();
+                    setNewAvailability(prev => ({ ...prev, startTime: e.target.value }));
+                  }}
                   className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 />
               </div>
@@ -299,7 +421,10 @@ export default function DoctorAvailabilityPage() {
                 <input
                   type="time"
                   value={newAvailability.endTime}
-                  onChange={(e) => setNewAvailability(prev => ({ ...prev, endTime: e.target.value }))}
+                  onChange={(e) => {
+                    clearMessages();
+                    setNewAvailability(prev => ({ ...prev, endTime: e.target.value }));
+                  }}
                   className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 />
               </div>
@@ -310,7 +435,10 @@ export default function DoctorAvailabilityPage() {
                 </label>
                 <select
                   value={newAvailability.slotDuration}
-                  onChange={(e) => setNewAvailability(prev => ({ ...prev, slotDuration: parseInt(e.target.value) }))}
+                  onChange={(e) => {
+                    clearMessages();
+                    setNewAvailability(prev => ({ ...prev, slotDuration: parseInt(e.target.value) }));
+                  }}
                   className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 >
                   <option value={15}>15 minutes</option>
@@ -321,44 +449,104 @@ export default function DoctorAvailabilityPage() {
               </div>
             </div>
             
-            {/* Break Time Section */}
+            {/* Multiple Break Times Section */}
             <div className="mb-4">
-              <div className="flex items-center space-x-2 mb-3">
-                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Break Time (Optional)</h3>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Set lunch break or other unavailable periods
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                    Break Start Time
-                  </label>
-                  <input
-                    type="time"
-                    value={newAvailability.breakStartTime || ''}
-                    onChange={(e) => setNewAvailability(prev => ({ ...prev, breakStartTime: e.target.value }))}
-                    className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                    placeholder="e.g., 12:00"
-                  />
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Break Times (Optional)</h3>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Max {MAX_BREAK_TIMES} breaks per day
+                  </span>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                    Break End Time
-                  </label>
-                  <input
-                    type="time"
-                    value={newAvailability.breakEndTime || ''}
-                    onChange={(e) => setNewAvailability(prev => ({ ...prev, breakEndTime: e.target.value }))}
-                    className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                    placeholder="e.g., 13:00"
-                  />
+                <div className="text-xs text-gray-400">
+                  {newAvailability.breakTimes?.length || 0} of {MAX_BREAK_TIMES}
                 </div>
               </div>
-              {newAvailability.breakStartTime && newAvailability.breakEndTime && (
-                <div className="mt-2 text-xs text-teal-600 dark:text-teal-400">
-                  Break time: {newAvailability.breakStartTime} - {newAvailability.breakEndTime}
+
+              {/* Existing break times */}
+              {newAvailability.breakTimes && newAvailability.breakTimes.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {newAvailability.breakTimes.map((breakTime, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-slate-700 rounded-lg p-3">
+                      <div className="flex items-center space-x-3">
+                        <FaClock className="text-orange-500" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          Break {index + 1}: {breakTime.startTime} - {breakTime.endTime}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeBreakTime(index)}
+                        className="text-red-500 hover:text-red-700 p-1"
+                      >
+                        <FaTimes />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new break time */}
+              {(!newAvailability.breakTimes || newAvailability.breakTimes.length < MAX_BREAK_TIMES) && (
+                <div className="border border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                        Break Start Time
+                      </label>
+                      <input
+                        type="time"
+                        value={newBreakTime.startTime}
+                        onChange={(e) => {
+                          clearMessages();
+                          setNewBreakTime(prev => ({ ...prev, startTime: e.target.value }));
+                        }}
+                        className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        placeholder="e.g., 12:00"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                        Break End Time
+                      </label>
+                      <input
+                        type="time"
+                        value={newBreakTime.endTime}
+                        onChange={(e) => {
+                          clearMessages();
+                          setNewBreakTime(prev => ({ ...prev, endTime: e.target.value }));
+                        }}
+                        className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        placeholder="e.g., 13:00"
+                      />
+                    </div>
+
+                    <div>
+                      <button
+                        type="button"
+                        onClick={addBreakTime}
+                        disabled={!newBreakTime.startTime || !newBreakTime.endTime}
+                        className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <FaPlus className="text-sm" />
+                        <span>Add Break</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Break times summary */}
+              {newAvailability.breakTimes && newAvailability.breakTimes.length > 0 && (
+                <div className="mt-2 text-xs text-orange-600 dark:text-orange-400">
+                  Total break time: {
+                    newAvailability.breakTimes.reduce((total, bt) => {
+                      const start = new Date(`2000-01-01T${bt.startTime}:00`);
+                      const end = new Date(`2000-01-01T${bt.endTime}:00`);
+                      return total + (end.getTime() - start.getTime()) / (1000 * 60);
+                    }, 0)
+                  } minutes
                 </div>
               )}
             </div>
@@ -456,14 +644,18 @@ export default function DoctorAvailabilityPage() {
                             </span>
                           </div>
                           
-                          {availability.breakStartTime && availability.breakEndTime && (
-                            <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-500 text-sm">
-                              <span className="w-4 h-4 flex items-center justify-center">
-                                <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                              </span>
-                              <span>
-                                Break: {availability.breakStartTime} - {availability.breakEndTime}
-                              </span>
+                          {availability.breakTimes && availability.breakTimes.length > 0 && (
+                            <div className="space-y-1">
+                              {availability.breakTimes.map((breakTime, index) => (
+                                <div key={index} className="flex items-center space-x-2 text-gray-500 dark:text-gray-500 text-sm">
+                                  <span className="w-4 h-4 flex items-center justify-center">
+                                    <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                                  </span>
+                                  <span>
+                                    Break {index + 1}: {breakTime.startTime} - {breakTime.endTime}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>

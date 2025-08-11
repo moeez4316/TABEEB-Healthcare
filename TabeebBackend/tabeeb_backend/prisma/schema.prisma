@@ -73,18 +73,30 @@ model DoctorAvailability {
   endTime       String   @db.VarChar(8)   // "17:00"
   slotDuration  Int      @default(30)     // minutes
   isAvailable   Boolean  @default(true)
-  breakStartTime String? @db.VarChar(8)   // "12:00" for lunch break
-  breakEndTime   String? @db.VarChar(8)   // "13:00"
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   doctor        Doctor   @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+  breakTimes    DoctorBreakTime[]
   // Removed timeSlots relation - using on-demand generation now
 
   @@unique([doctorUid, date])
   @@index([doctorUid])
   @@index([date])
   @@map("doctor_availability")
+}
+
+model DoctorBreakTime {
+  id             String             @id @default(cuid())
+  availabilityId String             @db.VarChar(191)
+  startTime      String             @db.VarChar(8)   // "12:00"
+  endTime        String             @db.VarChar(8)   // "13:00"
+  createdAt      DateTime           @default(now())
+
+  availability   DoctorAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+
+  @@index([availabilityId])
+  @@map("doctor_break_times")
 }
 
 model Appointment {

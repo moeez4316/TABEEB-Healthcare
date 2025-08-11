@@ -8,12 +8,16 @@ interface TimeSlot {
   isAvailable: boolean;
 }
 
+interface BreakTime {
+  startTime: string;
+  endTime: string;
+}
+
 interface DoctorAvailability {
   startTime: string;
   endTime: string;
   slotDuration: number;
-  breakStartTime?: string | null;
-  breakEndTime?: string | null;
+  breakTimes?: BreakTime[];
 }
 
 interface BookedAppointment {
@@ -33,25 +37,42 @@ export function generateAvailableSlots(
     return [];
   }
 
-  const { startTime, endTime, slotDuration, breakStartTime, breakEndTime } = availability;
+  const { startTime, endTime, slotDuration } = availability;
   const slots: TimeSlot[] = [];
 
   // Convert time strings to minutes for easier calculation
   const startMinutes = timeToMinutes(startTime);
   const endMinutes = timeToMinutes(endTime);
-  const breakStart = breakStartTime ? timeToMinutes(breakStartTime) : null;
-  const breakEnd = breakEndTime ? timeToMinutes(breakEndTime) : null;
+  
+  // Prepare break times
+  const breakTimes: { start: number; end: number }[] = [];
+  
+  // Add multiple break times
+  if (availability.breakTimes && availability.breakTimes.length > 0) {
+    availability.breakTimes.forEach(breakTime => {
+      breakTimes.push({
+        start: timeToMinutes(breakTime.startTime),
+        end: timeToMinutes(breakTime.endTime)
+      });
+    });
+  }
 
   // Generate all possible slots
   for (let current = startMinutes; current + slotDuration <= endMinutes; current += slotDuration) {
     const slotStart = minutesToTime(current);
     const slotEnd = minutesToTime(current + slotDuration);
 
-    // Skip slots that overlap with break time
-    if (breakStart !== null && breakEnd !== null) {
-      if (current < breakEnd && current + slotDuration > breakStart) {
-        continue; // Skip this slot as it overlaps with break
+    // Skip slots that overlap with any break time
+    let skipSlot = false;
+    for (const breakTime of breakTimes) {
+      if (current < breakTime.end && current + slotDuration > breakTime.start) {
+        skipSlot = true;
+        break;
       }
+    }
+    
+    if (skipSlot) {
+      continue;
     }
 
     // Check if this slot is already booked
@@ -82,23 +103,40 @@ export function generateAllSlots(
     return [];
   }
 
-  const { startTime, endTime, slotDuration, breakStartTime, breakEndTime } = availability;
+  const { startTime, endTime, slotDuration } = availability;
   const slots: TimeSlot[] = [];
 
   const startMinutes = timeToMinutes(startTime);
   const endMinutes = timeToMinutes(endTime);
-  const breakStart = breakStartTime ? timeToMinutes(breakStartTime) : null;
-  const breakEnd = breakEndTime ? timeToMinutes(breakEndTime) : null;
+  
+  // Prepare break times
+  const breakTimes: { start: number; end: number }[] = [];
+  
+  // Add multiple break times
+  if (availability.breakTimes && availability.breakTimes.length > 0) {
+    availability.breakTimes.forEach(breakTime => {
+      breakTimes.push({
+        start: timeToMinutes(breakTime.startTime),
+        end: timeToMinutes(breakTime.endTime)
+      });
+    });
+  }
 
   for (let current = startMinutes; current + slotDuration <= endMinutes; current += slotDuration) {
     const slotStart = minutesToTime(current);
     const slotEnd = minutesToTime(current + slotDuration);
 
-    // Skip slots that overlap with break time
-    if (breakStart !== null && breakEnd !== null) {
-      if (current < breakEnd && current + slotDuration > breakStart) {
-        continue;
+    // Skip slots that overlap with any break time
+    let skipSlot = false;
+    for (const breakTime of breakTimes) {
+      if (current < breakTime.end && current + slotDuration > breakTime.start) {
+        skipSlot = true;
+        break;
       }
+    }
+    
+    if (skipSlot) {
+      continue;
     }
 
     const isBooked = bookedAppointments.some(appointment => 
@@ -122,16 +160,18 @@ export function generateAllSlots(
 export function calculateTotalSlots(availability: DoctorAvailability): number {
   if (!availability) return 0;
 
-  const { startTime, endTime, slotDuration, breakStartTime, breakEndTime } = availability;
+  const { startTime, endTime, slotDuration } = availability;
   const startMinutes = timeToMinutes(startTime);
   const endMinutes = timeToMinutes(endTime);
   
   let totalMinutes = endMinutes - startMinutes;
   
-  // Subtract break time if exists
-  if (breakStartTime && breakEndTime) {
-    const breakDuration = timeToMinutes(breakEndTime) - timeToMinutes(breakStartTime);
-    totalMinutes -= breakDuration;
+  // Subtract multiple break times if they exist
+  if (availability.breakTimes && availability.breakTimes.length > 0) {
+    availability.breakTimes.forEach(breakTime => {
+      const breakDuration = timeToMinutes(breakTime.endTime) - timeToMinutes(breakTime.startTime);
+      totalMinutes -= breakDuration;
+    });
   }
   
   return Math.floor(totalMinutes / slotDuration);
@@ -177,32 +217,56 @@ export function isValidTimeSlot(startTime: string, endTime: string, duration: nu
 }
 
 /**
- * Validate break time logic
+ * Validate multiple break times don't overlap and are within working hours
  */
-export function isValidBreakTime(
-  startTime: string, 
-  endTime: string, 
-  breakStartTime?: string, 
-  breakEndTime?: string
-): boolean {
-  if (!breakStartTime || !breakEndTime) {
-    return true; // No break time is valid
-  }
-
-  if (!isValidTimeFormat(breakStartTime) || !isValidTimeFormat(breakEndTime)) {
-    return false;
+export function validateMultipleBreakTimes(
+  startTime: string,
+  endTime: string,
+  breakTimes: { startTime: string; endTime: string }[]
+): { valid: boolean; error?: string } {
+  if (!breakTimes || breakTimes.length === 0) {
+    return { valid: true };
   }
 
   const start = timeToMinutes(startTime);
   const end = timeToMinutes(endTime);
-  const breakStart = timeToMinutes(breakStartTime);
-  const breakEnd = timeToMinutes(breakEndTime);
 
-  return (
-    breakEnd > breakStart && // Break end must be after break start
-    breakStart >= start && // Break must be within availability window
-    breakEnd <= end
-  );
+  // Validate each break time individually
+  for (let i = 0; i < breakTimes.length; i++) {
+    const breakTime = breakTimes[i];
+    
+    if (!isValidTimeFormat(breakTime.startTime) || !isValidTimeFormat(breakTime.endTime)) {
+      return { valid: false, error: `Break time ${i + 1} has invalid time format` };
+    }
+
+    const breakStart = timeToMinutes(breakTime.startTime);
+    const breakEnd = timeToMinutes(breakTime.endTime);
+
+    if (breakEnd <= breakStart) {
+      return { valid: false, error: `Break time ${i + 1}: end time must be after start time` };
+    }
+
+    if (breakStart < start || breakEnd > end) {
+      return { valid: false, error: `Break time ${i + 1} must be within working hours` };
+    }
+  }
+
+  // Check for overlapping break times
+  for (let i = 0; i < breakTimes.length; i++) {
+    for (let j = i + 1; j < breakTimes.length; j++) {
+      const break1Start = timeToMinutes(breakTimes[i].startTime);
+      const break1End = timeToMinutes(breakTimes[i].endTime);
+      const break2Start = timeToMinutes(breakTimes[j].startTime);
+      const break2End = timeToMinutes(breakTimes[j].endTime);
+
+      // Check if break times overlap
+      if (break1Start < break2End && break2Start < break1End) {
+        return { valid: false, error: `Break times ${i + 1} and ${j + 1} overlap` };
+      }
+    }
+  }
+
+  return { valid: true };
 }
 
 /**

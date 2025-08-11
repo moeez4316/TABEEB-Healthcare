@@ -24,7 +24,7 @@ export interface Schedule {
   startTime: string;
   endTime: string;
   slotDuration: number;
-  breakTime: string | null;
+  breakTimes: string[]; // Array of "HH:MM-HH:MM" formatted break times
 }
 
 export interface SlotResponse {
@@ -78,8 +78,7 @@ export interface AvailabilityData {
   startTime: string;
   endTime: string;
   consultationDuration: number;
-  breakStartTime?: string;
-  breakEndTime?: string;
+  breakTimes?: Array<{ startTime: string; endTime: string }>;
 }
 
 // API Response types

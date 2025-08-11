@@ -1,11 +1,19 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { generateAvailableSlots, generateAllSlots } from '../utils/slotGenerator';
 
 // Set doctor availability (simplified - no time slot generation)
 export const setDoctorAvailability = async (req: Request, res: Response) => {
   try {
     const doctorUid = req.user!.uid;
-    const { date, startTime, endTime, slotDuration = 30, breakStartTime, breakEndTime, isAvailable = true } = req.body;
+    const { 
+      date, 
+      startTime, 
+      endTime, 
+      slotDuration = 30, 
+      breakTimes,
+      isAvailable = true 
+    } = req.body;
 
     // Basic validation
     if (!date || !startTime || !endTime) {
@@ -32,8 +40,6 @@ export const setDoctorAvailability = async (req: Request, res: Response) => {
         startTime,
         endTime,
         slotDuration,
-        breakStartTime: breakStartTime || null,
-        breakEndTime: breakEndTime || null,
         isAvailable
       },
       include: {
@@ -47,9 +53,35 @@ export const setDoctorAvailability = async (req: Request, res: Response) => {
       }
     });
 
+    // Create multiple break times if provided
+    if (breakTimes && Array.isArray(breakTimes) && breakTimes.length > 0) {
+      await prisma.doctorBreakTime.createMany({
+        data: breakTimes.map((breakTime: { startTime: string; endTime: string }) => ({
+          availabilityId: availability.id,
+          startTime: breakTime.startTime,
+          endTime: breakTime.endTime
+        }))
+      });
+    }
+
+    // Fetch the created availability with break times
+    const availabilityWithBreakTimes = await prisma.doctorAvailability.findUnique({
+      where: { id: availability.id },
+      include: {
+        doctor: {
+          select: {
+            name: true,
+            specialization: true,
+            consultationFees: true
+          }
+        },
+        breakTimes: true
+      }
+    });
+
     res.status(201).json({
-      availability,
-      message: 'Availability set successfully',
+      availability: availabilityWithBreakTimes,
+      message: 'Availability set successfully with break times',
       note: 'Time slots are generated on-demand when requested'
     });
 
@@ -108,7 +140,8 @@ export const getDoctorAvailability = async (req: Request, res: Response) => {
             specialization: true,
             consultationFees: true
           }
-        }
+        },
+        breakTimes: true
       },
       orderBy: {
         date: 'asc'
@@ -123,7 +156,7 @@ export const getDoctorAvailability = async (req: Request, res: Response) => {
   }
 };
 
-// Get available slots (simplified version)
+// Get available slots (using on-demand slot generation)
 export const getAvailableSlots = async (req: Request, res: Response) => {
   try {
     const { doctorUid } = req.params;
@@ -156,9 +189,10 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
             specialization: true,
             consultationFees: true
           }
-        }
+        },
+        breakTimes: true
       }
-    });
+    }) as any; // Will be fixed once TypeScript cache updates
 
     if (!availability) {
       return res.json({
@@ -190,89 +224,40 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
       }
     });
 
-    // Generate time slots on-demand
-    const slots = [];
-    const [startHour, startMinute] = availability.startTime.split(':').map(Number);
-    const [endHour, endMinute] = availability.endTime.split(':').map(Number);
-    
-    let currentTime = startHour * 60 + startMinute; // Convert to minutes
-    const endTime = endHour * 60 + endMinute;
-    
-    // Check if the appointment date is today and filter past slots
+    // Use our slot generator utility
+    const availabilityData = {
+      startTime: availability.startTime,
+      endTime: availability.endTime,
+      slotDuration: availability.slotDuration,
+      breakTimes: availability.breakTimes || []
+    };
+
+    const allSlots = generateAllSlots(availabilityData, existingAppointments);
+    const availableSlots = generateAvailableSlots(availabilityData, existingAppointments);
+
+    // Filter slots for today (no past slots)
     const isToday = queryDate.toDateString() === new Date().toDateString();
-    let minCurrentTime = currentTime;
+    let filteredSlots = availableSlots;
     
     if (isToday) {
       const now = new Date();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      const currentTimeInMinutes = currentHour * 60 + currentMinute;
+      const currentTimeMinutes = now.getHours() * 60 + now.getMinutes() + 15; // 15-minute buffer
       
-      // For today, start from the next available slot that hasn't passed
-      // Add buffer of 15 minutes to allow for booking time
-      minCurrentTime = Math.max(currentTime, currentTimeInMinutes + 15);
-      
-      // Round up to the next slot boundary
-      const remainder = minCurrentTime % availability.slotDuration;
-      if (remainder !== 0) {
-        minCurrentTime += availability.slotDuration - remainder;
-      }
-    }
-    
-    // Break time handling
-    let breakStart = null;
-    let breakEnd = null;
-    if (availability.breakStartTime && availability.breakEndTime) {
-      const [bsHour, bsMinute] = availability.breakStartTime.split(':').map(Number);
-      const [beHour, beMinute] = availability.breakEndTime.split(':').map(Number);
-      breakStart = bsHour * 60 + bsMinute;
-      breakEnd = beHour * 60 + beMinute;
-    }
-
-    // Start from the calculated minimum time (current time for today, start time for future dates)
-    currentTime = Math.max(currentTime, minCurrentTime);
-
-    while (currentTime + availability.slotDuration <= endTime) {
-      const slotEndTime = currentTime + availability.slotDuration;
-      
-      // Skip if slot is in break time
-      if (breakStart && breakEnd && 
-          ((currentTime >= breakStart && currentTime < breakEnd) ||
-           (slotEndTime > breakStart && slotEndTime <= breakEnd))) {
-        currentTime += availability.slotDuration;
-        continue;
-      }
-
-      // Convert back to time format
-      const hour = Math.floor(currentTime / 60);
-      const minute = currentTime % 60;
-      const slotStartTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-      
-      const endHourSlot = Math.floor(slotEndTime / 60);
-      const endMinuteSlot = slotEndTime % 60;
-      const slotEndTimeStr = `${endHourSlot.toString().padStart(2, '0')}:${endMinuteSlot.toString().padStart(2, '0')}`;
-
-      // Check if slot is booked
-      const isBooked = existingAppointments.some(apt => 
-        apt.startTime === slotStartTime
-      );
-
-      slots.push({
-        startTime: slotStartTime,
-        endTime: slotEndTimeStr,
-        duration: availability.slotDuration,
-        isAvailable: !isBooked,
-        isBooked: isBooked
+      filteredSlots = availableSlots.filter(slot => {
+        const [hour, minute] = slot.startTime.split(':').map(Number);
+        const slotTimeMinutes = hour * 60 + minute;
+        return slotTimeMinutes >= currentTimeMinutes;
       });
-
-      currentTime += availability.slotDuration;
     }
 
     // Calculate statistics
-    const totalSlots = slots.length;
-    const bookedSlots = slots.filter(slot => slot.isBooked).length;
-    const availableSlots = totalSlots - bookedSlots;
+    const totalSlots = allSlots.length;
+    const bookedSlots = allSlots.filter(slot => !slot.isAvailable).length;
+    const availableSlotsCount = filteredSlots.length;
     const utilization = totalSlots > 0 ? ((bookedSlots / totalSlots) * 100).toFixed(1) : '0';
+
+    // Format break times for response
+    const breakTimeStrings = availability.breakTimes?.map((bt: any) => `${bt.startTime}-${bt.endTime}`) || [];
 
     res.json({
       date: queryDate,
@@ -281,16 +266,14 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
         startTime: availability.startTime,
         endTime: availability.endTime,
         slotDuration: availability.slotDuration,
-        breakTime: availability.breakStartTime && availability.breakEndTime 
-          ? `${availability.breakStartTime}-${availability.breakEndTime}` 
-          : null
+        breakTimes: breakTimeStrings
       },
-      availableSlots: slots.filter(slot => slot.isAvailable),
-      allSlots: slots,
+      availableSlots: filteredSlots,
+      allSlots: allSlots,
       statistics: {
         totalSlots,
         bookedSlots,
-        availableSlots,
+        availableSlots: availableSlotsCount,
         utilization: `${utilization}%`
       },
       message: 'Slots generated successfully on-demand'
@@ -302,12 +285,12 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
   }
 };
 
-// Update availability (simplified)
+// Update availability
 export const updateAvailability = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const doctorUid = req.user!.uid;
-    const { date, startTime, endTime, slotDuration, breakStartTime, breakEndTime, isAvailable } = req.body;
+    const { date, startTime, endTime, slotDuration, breakTimes, isAvailable } = req.body;
 
     // Find existing availability
     const availability = await prisma.doctorAvailability.findFirst({
@@ -329,23 +312,48 @@ export const updateAvailability = async (req: Request, res: Response) => {
         ...(startTime && { startTime }),
         ...(endTime && { endTime }),
         ...(slotDuration && { slotDuration }),
-        ...(breakStartTime !== undefined && { breakStartTime: breakStartTime || null }),
-        ...(breakEndTime !== undefined && { breakEndTime: breakEndTime || null }),
         ...(isAvailable !== undefined && { isAvailable })
-      },
+      }
+    });
+
+    // Update break times if provided
+    if (breakTimes !== undefined) {
+      // Delete existing break times
+      await (prisma as any).doctorBreakTime.deleteMany({
+        where: {
+          availabilityId: id
+        }
+      });
+
+      // Create new break times if provided
+      if (Array.isArray(breakTimes) && breakTimes.length > 0) {
+        await (prisma as any).doctorBreakTime.createMany({
+          data: breakTimes.map((breakTime: { startTime: string; endTime: string }) => ({
+            availabilityId: id,
+            startTime: breakTime.startTime,
+            endTime: breakTime.endTime
+          }))
+        });
+      }
+    }
+
+    // Fetch updated availability with break times
+    const finalAvailability = await prisma.doctorAvailability.findUnique({
+      where: { id },
       include: {
         doctor: {
           select: {
             name: true,
             specialization: true
           }
-        }
+        },
+        breakTimes: true
       }
-    });
+    }) as any; // Temporary type assertion
 
     res.json({
-      availability: updatedAvailability,
-      message: 'Availability updated successfully',
+      availability: finalAvailability,
+      message: 'Availability updated successfully with break times',
       note: 'Time slots are generated on-demand when requested'
     });
 
