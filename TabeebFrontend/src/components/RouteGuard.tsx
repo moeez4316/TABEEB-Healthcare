@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { getDoctorRedirectPath } from '@/lib/doctorRedirect';
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -20,7 +21,7 @@ export default function RouteGuard({
   allowedRoles = [],
   requireRole = true
 }: RouteGuardProps) {
-  const { user, role, loading, roleLoading } = useAuth();
+  const { user, role, loading, roleLoading, verificationStatus, verificationLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -63,7 +64,13 @@ export default function RouteGuard({
         console.log("[RouteGuard] User role", role, "not allowed. Allowed:", allowedRoles);
         // Redirect based on user's actual role
         if (role === 'doctor') {
-          router.replace('/Doctor/Dashboard');
+          // For doctors, check verification status to redirect to appropriate page
+          if (verificationLoading || verificationStatus === null) {
+            console.log("[RouteGuard] Verification loading for doctor, waiting...");
+            return;
+          }
+          
+          router.replace(getDoctorRedirectPath(verificationStatus));
         } else if (role === 'patient') {
           router.replace('/Patient/dashboard');
         } else {
@@ -72,16 +79,16 @@ export default function RouteGuard({
         return;
       }
     }
-  }, [user, role, loading, roleLoading, requireAuth, requireRole, allowedRoles, redirectTo, router]);
+  }, [user, role, loading, roleLoading, verificationStatus, verificationLoading, requireAuth, requireRole, allowedRoles, redirectTo, router]);
 
   // Show loading while authentication or role is being determined
-  if (loading || (user && requireAuth && (requireRole || allowedRoles.length > 0) && roleLoading)) {
+  if (loading || (user && requireAuth && (requireRole || allowedRoles.length > 0) && (roleLoading || (role === 'doctor' && verificationLoading)))) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400">
-            {loading ? 'Authenticating...' : 'Loading...'}
+            {loading ? 'Authenticating...' : roleLoading ? 'Loading role...' : 'Loading verification status...'}
           </p>
         </div>
       </div>

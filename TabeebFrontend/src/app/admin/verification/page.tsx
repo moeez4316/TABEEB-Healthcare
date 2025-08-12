@@ -3,12 +3,28 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { formatDate } from '@/lib/verification/utils';
+import { 
+  Search, 
+  Eye, 
+  FileText, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  Filter,
+  Download,
+  Calendar,
+  Mail,
+  User,
+  Shield,
+  X,
+  Check
+} from 'lucide-react';
 
 interface VerificationRecord {
   id: string;
   doctorUid: string;
-  doctorName: string;
-  doctorEmail: string;
+  doctorName?: string; // provided by current API
+  doctorEmail?: string; // provided by current API
   pmdcNumber: string;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
@@ -32,6 +48,7 @@ export default function AdminVerificationPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Image popup states
   const [imageModal, setImageModal] = useState(false);
@@ -111,7 +128,14 @@ export default function AdminVerificationPage() {
       const data = await response.json();
       
       // Backend returns array directly, not wrapped in object
-      setVerifications(Array.isArray(data) ? data : []);
+      // Set doctorName and doctorEmail to null for current API since they're not provided
+      const processedData = Array.isArray(data) ? data.map(verification => ({
+        ...verification,
+        doctorName: null, // Currently not provided by API
+        doctorEmail: null // Currently not provided by API
+      })) : [];
+      
+      setVerifications(processedData);
     } catch (error) {
       console.error('Error fetching verifications:', error);
       setVerifications([]);
@@ -198,19 +222,22 @@ export default function AdminVerificationPage() {
     switch (status) {
       case 'pending':
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+            <Clock className="w-3 h-3" />
             Pending
           </span>
         );
       case 'approved':
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            <CheckCircle className="w-3 h-3" />
             Approved
           </span>
         );
       case 'rejected':
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-red-100 to-rose-100 dark:from-red-900/30 dark:to-rose-900/30 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
+            <XCircle className="w-3 h-3" />
             Rejected
           </span>
         );
@@ -219,336 +246,391 @@ export default function AdminVerificationPage() {
     }
   };
 
+  const getFilterCounts = () => {
+    return {
+      all: verifications.length,
+      pending: verifications.filter(v => v.status === 'pending').length,
+      approved: verifications.filter(v => v.status === 'approved').length,
+      rejected: verifications.filter(v => v.status === 'rejected').length,
+    };
+  };
+
   const filteredVerifications = verifications.filter(verification => {
-    if (filter === 'all') return true;
-    return verification.status === filter;
+    const matchesFilter = filter === 'all' || verification.status === filter;
+    
+    // Future-proof search functionality:
+    // - Currently works on PMDC number and doctor UID 
+    // - Will automatically work on doctor name and email when API provides them
+    // - No code changes needed when backend is updated
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = searchTerm === '' || 
+      // Search by doctor name (when available in future)
+      (verification.doctorName && verification.doctorName.toLowerCase().includes(searchLower)) ||
+      // Search by doctor email (when available in future)
+      (verification.doctorEmail && verification.doctorEmail.toLowerCase().includes(searchLower)) ||
+      // Search by PMDC number (currently working)
+      (verification.pmdcNumber && verification.pmdcNumber.toLowerCase().includes(searchLower)) ||
+      // Search by doctor UID as fallback
+      (verification.doctorUid && verification.doctorUid.toLowerCase().includes(searchLower));
+    
+    return matchesFilter && matchesSearch;
   });
+
+  const counts = getFilterCounts();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading verifications...</p>
+          <div className="relative">
+            <div className="w-16 h-16 mx-auto mb-4">
+              <div className="absolute inset-0 rounded-full border-4 border-teal-200 dark:border-teal-800 opacity-20"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin"></div>
+            </div>
+          </div>
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">Loading Verifications</h3>
+          <p className="text-slate-600 dark:text-slate-300">Please wait while we fetch the data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 relative">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Doctor Verification Management</h1>
-        <p className="text-gray-600">Review and manage doctor verification submissions</p>
-      </div>
-
-      {/* Filters */}
-      <div className="mb-6">
-        <div className="flex space-x-4">
-          {(['all', 'pending', 'approved', 'rejected'] as const).map((filterOption) => (
-            <button
-              key={filterOption}
-              onClick={() => setFilter(filterOption)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                filter === filterOption
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)}
-              {filterOption !== 'all' && (
-                <span className="ml-2 bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-xs">
-                  {verifications.filter(v => v.status === filterOption).length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Verifications Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Doctor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  PMDC Number
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Submitted
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredVerifications.map((verification, index) => (
-                <tr key={`${verification.id}-${verification.doctorUid}-${index}`} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {verification.doctorName}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {verification.doctorEmail}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {verification.pmdcNumber}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(verification.status)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(verification.submittedAt)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => openReviewModal(verification)}
-                      className="text-blue-600 hover:text-blue-900 mr-3 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                    >
-                      Review
-                    </button>
-                    <button
-                      onClick={() => openImageModal(verification.cnic, `CNIC - ${verification.doctorName}`, verification.cnicFileType)}
-                      className="text-green-600 hover:text-green-900 mr-3 px-2 py-1 rounded hover:bg-green-50 transition-colors"
-                    >
-                      View CNIC
-                    </button>
-                    {verification.certificate && (
-                      <button
-                        onClick={() => openImageModal(verification.certificate!, `Certificate - ${verification.doctorName}`, verification.certificateFileType)}
-                        className="text-purple-600 hover:text-purple-900 px-2 py-1 rounded hover:bg-purple-50 transition-colors"
-                      >
-                        View Certificate
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredVerifications.length === 0 && (
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No verifications found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {filter === 'pending' ? 'No pending verifications at the moment.' : `No ${filter} verifications found.`}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Review Modal */}
-      {reviewModal && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onClick={closeReviewModal}
-        >
-          <div 
-            style={{
-              backgroundColor: 'white',
-              padding: '30px',
-              borderRadius: '10px',
-              maxWidth: '500px',
-              width: '90%',
-              maxHeight: '80vh',
-              overflow: 'auto'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ marginBottom: '20px', fontSize: '24px', fontWeight: 'bold' }}>
-              Review Verification
-            </h2>
-            
-            {selectedVerification && (
-              <div style={{ marginBottom: '20px' }}>
-                <p><strong>Doctor:</strong> {selectedVerification.doctorName}</p>
-                <p><strong>Email:</strong> {selectedVerification.doctorEmail}</p>
-                <p><strong>PMDC:</strong> {selectedVerification.pmdcNumber}</p>
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700">
+      <div className="p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-slate-700/50 shadow-lg">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl text-white">
+                <Shield className="w-6 h-6" />
               </div>
-            )}
-            
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
-                Decision:
-              </label>
-              <select 
-                value={reviewData.action}
-                onChange={(e) => setReviewData(prev => ({ ...prev, action: e.target.value as 'approve' | 'reject' }))}
-                style={{ 
-                  width: '100%', 
-                  padding: '10px', 
-                  border: '1px solid #ccc', 
-                  borderRadius: '5px',
-                  fontSize: '16px'
-                }}
-              >
-                <option value="">-- Select Decision --</option>
-                <option value="approve">✅ Approve</option>
-                <option value="reject">❌ Reject</option>
-              </select>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                Doctor Verification Management
+              </h1>
             </div>
-            
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
-                Comments:
-              </label>
-              <textarea 
-                value={reviewData.comments}
-                onChange={(e) => setReviewData(prev => ({ ...prev, comments: e.target.value }))}
-                rows={4}
-                style={{ 
-                  width: '100%', 
-                  padding: '10px', 
-                  border: '1px solid #ccc', 
-                  borderRadius: '5px',
-                  fontSize: '16px',
-                  resize: 'vertical'
-                }}
-                placeholder="Add your comments here..."
+            <p className="text-slate-600 dark:text-slate-300 ml-12">Review and manage doctor verification submissions</p>
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="mb-8 space-y-4">
+          {/* Search Bar */}
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-slate-700/50 shadow-lg">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search by PMDC number, doctor name, or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
               />
             </div>
-            
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={handleReview}
-                disabled={!reviewData.action || submitting}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: reviewData.action === 'approve' ? '#10B981' : reviewData.action === 'reject' ? '#EF4444' : '#6B7280',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: submitting || !reviewData.action ? 'not-allowed' : 'pointer',
-                  opacity: submitting || !reviewData.action ? 0.5 : 1,
-                  fontSize: '16px'
-                }}
-              >
-                {submitting ? 'Processing...' : 'Submit'}
-              </button>
-              
-              <button
-                onClick={closeReviewModal}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#6B7280',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  fontSize: '16px'
-                }}
-              >
-                Cancel
-              </button>
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-slate-700/50 shadow-lg">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Filter className="text-slate-500 dark:text-slate-400 w-5 h-5 mr-2" />
+              {(['all', 'pending', 'approved', 'rejected'] as const).map((filterOption) => (
+                <button
+                  key={filterOption}
+                  onClick={() => setFilter(filterOption)}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    filter === filterOption
+                      ? 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-lg'
+                      : 'bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/70'
+                  }`}
+                >
+                  {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)}
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                    filter === filterOption
+                      ? 'bg-white/20 text-white'
+                      : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300'
+                  }`}>
+                    {counts[filterOption]}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
-      )}
 
-      {/* Image/Document Modal */}
-      {imageModal && selectedImage && (
-        <div 
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm"
-          style={{ zIndex: 9999 }}
-          onClick={closeImageModal}
-        >
-          <div 
-            className="relative w-full max-w-5xl h-[90vh] flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-            style={{ zIndex: 10000 }}
-          >
-            <button
-              className="absolute top-4 right-4 bg-white text-gray-700 rounded-full p-2 shadow hover:bg-gray-100 focus:outline-none"
-              onClick={closeImageModal}
-              aria-label="Close preview"
-              style={{ zIndex: 10001 }}
+        {/* Verifications Grid */}
+        <div className="grid gap-6">
+          {filteredVerifications.map((verification, index) => (
+            <div 
+              key={`${verification.id}-${verification.doctorUid}-${index}`} 
+              className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-700/50 shadow-lg hover:shadow-xl transition-all duration-300"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            
-            <div className="w-full h-full flex items-center justify-center bg-white rounded-xl p-4 shadow-xl">
-              <div className="relative w-full h-full flex flex-col">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 text-center">
-                  {selectedImage.title}
-                </h3>
-                
-                <div className="flex-1 flex items-center justify-center overflow-hidden">
-                  {isImage(selectedImage.fileType) && (
-                    <Image
-                      src={selectedImage.url}
-                      alt={selectedImage.title}
-                      width={800}
-                      height={600}
-                      className="max-h-full max-w-full object-contain rounded-lg shadow"
-                      priority={true}
-                      onError={(e) => {
-                        console.error('Image failed to load:', selectedImage.url);
-                        // You can add fallback handling here
-                      }}
-                    />
-                  )}
-                  
-                  {isPDF(selectedImage.fileType) && (
-                    <iframe
-                      src={selectedImage.url}
-                      title={selectedImage.title}
-                      className="w-full h-full rounded-lg border shadow"
-                      style={{ minHeight: '70vh' }}
-                    />
-                  )}
-                  
-                  {!isImage(selectedImage.fileType) && !isPDF(selectedImage.fileType) && (
-                    <div className="flex flex-col items-center justify-center text-gray-500">
-                      <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <p className="text-lg font-medium mb-2">Unsupported file type</p>
-                      <p className="text-sm">File type: {selectedImage.fileType || 'Unknown'}</p>
-                      <a 
-                        href={selectedImage.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Open in new tab
-                      </a>
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-gradient-to-br from-teal-100 to-emerald-100 dark:from-teal-900/30 dark:to-emerald-900/30 rounded-xl border border-teal-200 dark:border-teal-800">
+                      <User className="w-6 h-6 text-teal-600 dark:text-teal-400" />
                     </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1">
+                        {verification.doctorName || 'Doctor Name Not Available'}
+                      </h3>
+                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 mb-2">
+                        <Mail className="w-4 h-4" />
+                        <span className="text-sm">{verification.doctorEmail || 'Email Not Available'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                        <Shield className="w-4 h-4" />
+                        <span className="text-sm font-mono">PMDC: {verification.pmdcNumber || 'Not Available'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {getStatusBadge(verification.status)}
+                    <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-2">
+                      <Calendar className="w-3 h-3" />
+                      {formatDate(verification.submittedAt)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => openReviewModal(verification)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Review
+                  </button>
+                  
+                  <button
+                    onClick={() => openImageModal(verification.cnic, `CNIC - ${verification.doctorName || 'Doctor'}`, verification.cnicFileType)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    <FileText className="w-4 h-4" />
+                    View CNIC
+                  </button>
+                  
+                  {verification.certificate && (
+                    <button
+                      onClick={() => openImageModal(verification.certificate!, `Certificate - ${verification.doctorName || 'Doctor'}`, verification.certificateFileType)}
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
+                    >
+                      <Download className="w-4 h-4" />
+                      View Certificate
+                    </button>
                   )}
                 </div>
               </div>
             </div>
-          </div>
+          ))}
         </div>
-      )}
+
+        {filteredVerifications.length === 0 && (
+          <div className="text-center py-16">
+            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-12 border border-white/20 dark:border-slate-700/50 shadow-lg max-w-md mx-auto">
+              <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 rounded-2xl flex items-center justify-center">
+                <FileText className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">No verifications found</h3>
+              <p className="text-slate-600 dark:text-slate-400">
+                {filter === 'pending' 
+                  ? 'No pending verifications at the moment.' 
+                  : searchTerm 
+                    ? `No ${filter !== 'all' ? filter : ''} verifications match your search.`
+                    : `No ${filter} verifications found.`
+                }
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Review Modal */}
+        {reviewModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-auto border border-white/20 dark:border-slate-700/50">
+              <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl text-white">
+                      <Eye className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Review Verification</h2>
+                  </div>
+                  <button
+                    onClick={closeReviewModal}
+                    className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {selectedVerification && (
+                  <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3 border border-slate-200 dark:border-slate-600">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Doctor:</span>
+                      <span className="text-slate-800 dark:text-white">{selectedVerification.doctorName || 'Name Not Available'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Email:</span>
+                      <span className="text-slate-800 dark:text-white">{selectedVerification.doctorEmail || 'Email Not Available'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">PMDC:</span>
+                      <span className="text-slate-800 dark:text-white font-mono">{selectedVerification.pmdcNumber || 'Not Available'}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                    Decision
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setReviewData(prev => ({ ...prev, action: 'approve' }))}
+                      className={`p-3 rounded-xl border-2 transition-all ${
+                        reviewData.action === 'approve'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                          : 'border-slate-200 dark:border-slate-600 hover:border-emerald-300 dark:hover:border-emerald-700 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      <Check className="w-5 h-5 mx-auto mb-1" />
+                      <span className="text-sm font-semibold">Approve</span>
+                    </button>
+                    <button
+                      onClick={() => setReviewData(prev => ({ ...prev, action: 'reject' }))}
+                      className={`p-3 rounded-xl border-2 transition-all ${
+                        reviewData.action === 'reject'
+                          ? 'border-red-500 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                          : 'border-slate-200 dark:border-slate-600 hover:border-red-300 dark:hover:border-red-700 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      <X className="w-5 h-5 mx-auto mb-1" />
+                      <span className="text-sm font-semibold">Reject</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                    Comments
+                  </label>
+                  <textarea
+                    value={reviewData.comments}
+                    onChange={(e) => setReviewData(prev => ({ ...prev, comments: e.target.value }))}
+                    rows={4}
+                    className="w-full p-3 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
+                    placeholder="Add your comments here..."
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={handleReview}
+                    disabled={!reviewData.action || submitting}
+                    className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all ${
+                      reviewData.action === 'approve'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-lg'
+                        : reviewData.action === 'reject'
+                        ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700 shadow-lg'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                    } ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {submitting ? 'Processing...' : 'Submit Decision'}
+                  </button>
+                  
+                  <button
+                    onClick={closeReviewModal}
+                    className="px-6 py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 font-semibold transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Image/Document Modal */}
+        {imageModal && selectedImage && (
+          <div 
+            className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50"
+            onClick={closeImageModal}
+          >
+            <div 
+              className="relative w-full max-w-6xl h-[90vh] flex items-center justify-center p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm text-white rounded-full p-3 hover:bg-white/20 focus:outline-none z-10 transition-all"
+                onClick={closeImageModal}
+                aria-label="Close preview"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              
+              <div className="w-full h-full flex items-center justify-center bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-white/20 dark:border-slate-700/50">
+                <div className="relative w-full h-full flex flex-col">
+                  <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-600 p-4 border-b border-slate-200 dark:border-slate-600">
+                    <h3 className="text-lg font-semibold text-slate-800 dark:text-white text-center">
+                      {selectedImage.title}
+                    </h3>
+                  </div>
+                  
+                  <div className="flex-1 flex items-center justify-center overflow-hidden p-4">
+                    {isImage(selectedImage.fileType) && (
+                      <Image
+                        src={selectedImage.url}
+                        alt={selectedImage.title}
+                        width={800}
+                        height={600}
+                        className="max-h-full max-w-full object-contain rounded-xl shadow-lg"
+                        priority={true}
+                        onError={(e) => {
+                          console.error('Image failed to load:', selectedImage.url);
+                        }}
+                      />
+                    )}
+                    
+                    {isPDF(selectedImage.fileType) && (
+                      <iframe
+                        src={selectedImage.url}
+                        title={selectedImage.title}
+                        className="w-full h-full rounded-xl border-0"
+                        style={{ minHeight: '70vh' }}
+                      />
+                    )}
+                    
+                    {!isImage(selectedImage.fileType) && !isPDF(selectedImage.fileType) && (
+                      <div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
+                        <div className="w-20 h-20 mb-6 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
+                          <FileText className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+                        </div>
+                        <p className="text-xl font-semibold mb-2 dark:text-slate-300">Unsupported file type</p>
+                        <p className="text-sm mb-6">File type: {selectedImage.fileType || 'Unknown'}</p>
+                        <a 
+                          href={selectedImage.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-xl hover:from-teal-600 hover:to-emerald-700 transition-all shadow-lg"
+                        >
+                          <Download className="w-4 h-4" />
+                          Open in new tab
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

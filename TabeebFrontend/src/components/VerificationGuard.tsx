@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { getDoctorRedirectPath } from '@/lib/doctorRedirect';
 
 interface VerificationGuardProps {
   children: React.ReactNode;
@@ -17,98 +18,87 @@ export default function VerificationGuard({ children }: VerificationGuardProps) 
     if (loading || !user || !role) return;
 
     // Wait for verification status to be loaded for doctors
-    if (role === 'doctor' && verificationLoading) {
-      console.log('[VerificationGuard] Still loading verification status, waiting...');
+    if (role === 'doctor' && (verificationLoading || verificationStatus === null)) {
       return;
     }
-
-    console.log('[VerificationGuard] Current status:', verificationStatus);
-    console.log('[VerificationGuard] Current pathname:', pathname);
-    console.log('[VerificationGuard] User role:', role);
 
     // Only apply verification guard to doctors
     if (role !== 'doctor') {
-      console.log('[VerificationGuard] User is not a doctor, allowing access');
       return;
     }
 
-    // Don't redirect if already on verification pages
+    // Handle verification page access based on status
     if (pathname.startsWith('/Doctor/verification')) {
-      console.log('[VerificationGuard] Already on verification page, no redirect needed');
+      const isMainVerificationPage = pathname === '/Doctor/verification';
+      const isPendingPage = pathname === '/Doctor/verification/pending';
+      const isRejectedPage = pathname === '/Doctor/verification/rejected';
+      
+      // Check if user is on the correct verification page for their status
+      const isOnCorrectPage = 
+        (isMainVerificationPage && (verificationStatus === 'not-submitted' || verificationStatus === 'rejected')) ||
+        (isPendingPage && verificationStatus === 'pending') ||
+        (isRejectedPage && verificationStatus === 'rejected');
+      
+      if (isOnCorrectPage) {
+        return; // User is on correct page, no redirect needed
+      }
+      
+      // Redirect to correct verification page based on status
+      router.push(getDoctorRedirectPath(verificationStatus));
       return;
     }
 
-    // Only redirect if we have a definitive status
-    if (verificationStatus === null) {
-      console.log('[VerificationGuard] Verification status is null, waiting...');
-      return;
+    // For approved doctors, allow access to all doctor routes except verification pages
+    if (verificationStatus === 'approved') {
+      return; // No redirect needed for approved doctors on doctor routes
     }
 
-    // Redirect based on verification status
-    switch (verificationStatus) {
-      case 'not-submitted':
-        console.log('[VerificationGuard] Redirecting to verification upload');
-        router.push('/Doctor/verification');
-        break;
-      case 'pending':
-        console.log('[VerificationGuard] Redirecting to pending page');
-        router.push('/Doctor/verification/pending');
-        break;
-      case 'rejected':
-        console.log('[VerificationGuard] Redirecting to rejected page');
-        router.push('/Doctor/verification/rejected');
-        break;
-      case 'approved':
-        console.log('[VerificationGuard] User is verified, allowing access');
-        // Allow access to all doctor pages
-        break;
-      default:
-        console.log('[VerificationGuard] Unknown status:', verificationStatus, 'redirecting to verification');
-        // Unknown status, redirect to verification
-        router.push('/Doctor/verification');
-        break;
-    }
+    // For non-approved doctors on non-verification pages, redirect to appropriate verification page
+    router.push(getDoctorRedirectPath(verificationStatus));
   }, [user, verificationStatus, loading, verificationLoading, role, pathname, router]);
 
-  // Show loading while checking auth status, role, or verification status
-  if (loading || !user || !role || (role === 'doctor' && verificationLoading)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Checking verification status...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show loading if verification status is being checked for doctors
-  if (role === 'doctor' && !verificationStatus) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading verification status...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Only render children if:
-  // 1. User is not a doctor (no verification needed), OR
-  // 2. User is a doctor with approved verification, OR  
-  // 3. User is on verification pages (to allow navigation within verification flow)
-  if (role !== 'doctor' || verificationStatus === 'approved' || pathname.startsWith('/Doctor/verification')) {
-    return <>{children}</>;
-  }
-
-  // Show loading while redirect is happening
-  return (
+  // Centralized loading component
+  const LoadingScreen = ({ message }: { message: string }) => (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Redirecting...</p>
+        <p className="mt-4 text-gray-600">{message}</p>
       </div>
     </div>
   );
+
+  // Show loading while checking auth status, role, or verification status
+  if (loading || !user || !role) {
+    return <LoadingScreen message="Checking authentication..." />;
+  }
+
+  // Show loading if verification status is being checked for doctors
+  if (role === 'doctor' && (verificationLoading || verificationStatus === null)) {
+    return <LoadingScreen message="Loading verification status..." />;
+  }
+
+  // For non-doctors, always render children
+  if (role !== 'doctor') {
+    return <>{children}</>;
+  }
+
+  // For approved doctors, allow access to all doctor routes
+  if (verificationStatus === 'approved') {
+    return <>{children}</>;
+  }
+
+  // For non-approved doctors on verification pages, check if they're on the correct page
+  if (pathname.startsWith('/Doctor/verification')) {
+    const isOnCorrectPage = 
+      (pathname === '/Doctor/verification' && (verificationStatus === 'not-submitted' || verificationStatus === 'rejected')) ||
+      (pathname === '/Doctor/verification/pending' && verificationStatus === 'pending') ||
+      (pathname === '/Doctor/verification/rejected' && verificationStatus === 'rejected');
+    
+    if (isOnCorrectPage) {
+      return <>{children}</>;
+    }
+  }
+
+  // Show loading while redirect is happening for non-approved doctors
+  return <LoadingScreen message="Redirecting..." />;
 }

@@ -5,58 +5,152 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 
 model User {
-  uid  String @id
-  role String // 'doctor' or 'patient'
+  uid  String @id @db.VarChar(255)
+  role String @db.VarChar(50) // 'doctor' or 'patient'
 
   doctor  Doctor?
   patient Patient?
 }
 
 model Doctor {
-  uid            String   @id
-  name           String
-  email          String   @unique
-  phone          String?
-  specialization String
-  qualification  String
+  uid            String   @id @db.VarChar(255)
+  name           String   @db.VarChar(255)
+  email          String   @unique @db.VarChar(255)
+  phone          String?  @db.VarChar(20)
+  specialization String   @db.VarChar(100)
+  qualification  String   @db.Text
   experience     Int?
+  consultationFees Decimal? @db.Decimal(10,2)
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [uid], references: [uid])
 
-  verification Verification?
+  verification   Verification?
+  availability   DoctorAvailability[]
+  appointments   Appointment[]
 }
 
 model Patient {
-  uid            String   @id
-  name           String
-  email          String   @unique
-  phone          String?
+  uid            String   @id @db.VarChar(255)
+  name           String   @db.VarChar(255)
+  email          String   @unique @db.VarChar(255)
+  phone          String?  @db.VarChar(20)
   dob            DateTime 
-  gender         String
-  medicalHistory String?
+  gender         String   @db.VarChar(10)
+  medicalHistory String?  @db.Text
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [uid], references: [uid])
+  appointments   Appointment[]
 }
 
 model Verification {
-  doctorUid      String   @id
+  doctorUid      String   @id @db.VarChar(255)
   isVerified     Boolean  @default(false)
-  status         String   @default("pending") // "pending", "approved", "rejected"
-  cnic           String   // Cloudinary URL
-  pmdcNumber     String
-  certificate    String?  // Cloudinary URL
-  adminComments  String?  // Rejection reason or admin notes
+  status         String   @default("pending") @db.VarChar(20) // "pending", "approved", "rejected"
+  cnic           String   @db.Text // Cloudinary URL
+  pmdcNumber     String   @db.VarChar(50)
+  certificate    String?  @db.Text // Cloudinary URL
+  adminComments  String?  @db.Text // Rejection reason or admin notes
   submittedAt    DateTime @default(now())
   reviewedAt     DateTime?
-  reviewedBy     String?  // Admin who reviewed
+  reviewedBy     String?  @db.VarChar(255) // Admin who reviewed
 
   doctor         Doctor   @relation(fields: [doctorUid], references: [uid])
+}
+
+model DoctorAvailability {
+  id            String   @id @default(cuid())
+  doctorUid     String   @db.VarChar(255)
+  date          DateTime @db.Date
+  startTime     String   @db.VarChar(8)   // "09:00"
+  endTime       String   @db.VarChar(8)   // "17:00"
+  slotDuration  Int      @default(30)     // minutes
+  isAvailable   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  doctor        Doctor   @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+  breakTimes    DoctorBreakTime[]
+  // Removed timeSlots relation - using on-demand generation now
+
+  @@unique([doctorUid, date])
+  @@index([doctorUid])
+  @@index([date])
+  @@map("doctor_availability")
+}
+
+model DoctorBreakTime {
+  id             String             @id @default(cuid())
+  availabilityId String             @db.VarChar(191)
+  startTime      String             @db.VarChar(8)   // "12:00"
+  endTime        String             @db.VarChar(8)   // "13:00"
+  createdAt      DateTime           @default(now())
+
+  availability   DoctorAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+
+  @@index([availabilityId])
+  @@map("doctor_break_times")
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  doctorUid       String            @db.VarChar(255)
+  patientUid      String            @db.VarChar(255)
+  appointmentDate DateTime          @db.Date
+  startTime       String            @db.VarChar(8)  // "09:00" - actual booked time
+  endTime         String            @db.VarChar(8)  // "09:30" - calculated end time
+  duration        Int               @default(30)    // minutes
+  status          AppointmentStatus @default(PENDING)
+  patientNotes    String?           @db.Text        // Patient's reason for visit
+  doctorNotes     String?           @db.Text        // Doctor's notes after consultation
+  cancelReason    String?           @db.Text        // Cancellation reason
+  consultationFees Decimal?         @db.Decimal(10,2) // Consultation fees
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  completedAt     DateTime?         // When appointment was marked complete
+
+  doctor          Doctor            @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+  patient         Patient           @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
+  sharedDocuments AppointmentSharedDocument[]
+  // Removed timeSlot relation - storing time directly in appointment
+
+  @@index([doctorUid])
+  @@index([patientUid])
+  @@index([appointmentDate])
+  @@index([status])
+  @@index([startTime]) // New index for slot filtering
+  @@map("appointments")
+}
+
+model AppointmentSharedDocument {
+  id            String      @id @default(cuid())
+  appointmentId String      @db.VarChar(255)
+  documentId    String      @db.VarChar(255) // MongoDB Medical Record _id
+  sharedAt      DateTime    @default(now())
+  isVisible     Boolean     @default(true)
+  sharedBy      String      @db.VarChar(255) // Patient UID who shared it
+  
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  
+  @@unique([appointmentId, documentId])
+  @@index([appointmentId])
+  @@index([documentId])
+  @@index([sharedBy])
+  @@map("appointment_shared_documents")
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
 }
