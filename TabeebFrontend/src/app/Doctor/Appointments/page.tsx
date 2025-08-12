@@ -12,7 +12,7 @@ export default function DoctorAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'today' | 'pending' | 'confirmed'>('today');
+  const [filter, setFilter] = useState<'all' | 'today' | 'upcoming' | 'pending' | 'confirmed'>('upcoming');
   const [updating, setUpdating] = useState<string | null>(null);
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -30,7 +30,7 @@ export default function DoctorAppointmentsPage() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:5002/api/appointments/doctor', {
+      const response = await fetch('http://localhost:5002/api/appointments/doctor?limit=100', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -123,13 +123,15 @@ export default function DoctorAppointmentsPage() {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    return appointments.filter(appointment => {
+    let filtered = appointments.filter(appointment => {
       const appointmentDate = new Date(appointment.appointmentDate);
       appointmentDate.setHours(0, 0, 0, 0);
       
       switch (filter) {
         case 'today':
           return appointmentDate.getTime() === today.getTime();
+        case 'upcoming':
+          return appointmentDate.getTime() >= tomorrow.getTime();
         case 'pending':
           return appointment.status === 'PENDING';
         case 'confirmed':
@@ -137,6 +139,19 @@ export default function DoctorAppointmentsPage() {
         default:
           return true;
       }
+    });
+
+    // Sort filtered appointments by date and time
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.appointmentDate);
+      const dateB = new Date(b.appointmentDate);
+      
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA.getTime() - dateB.getTime();
+      }
+      
+      // If dates are the same, sort by start time
+      return a.startTime.localeCompare(b.startTime);
     });
   };
 
@@ -200,7 +215,7 @@ export default function DoctorAppointmentsPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {/* Stats Cards */}
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-5 gap-4">
             {[
               { 
                 label: 'Today\'s Appointments', 
@@ -212,6 +227,21 @@ export default function DoctorAppointmentsPage() {
                 color: 'text-blue-600 dark:text-blue-400',
                 bgColor: 'bg-blue-50 dark:bg-blue-900/20',
                 borderColor: 'border-blue-200 dark:border-blue-800'
+              },
+              { 
+                label: 'Upcoming', 
+                value: appointments.filter(a => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const tomorrow = new Date(today);
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  const aptDate = new Date(a.appointmentDate);
+                  aptDate.setHours(0, 0, 0, 0);
+                  return aptDate.getTime() >= tomorrow.getTime();
+                }).length,
+                color: 'text-teal-600 dark:text-teal-400',
+                bgColor: 'bg-teal-50 dark:bg-teal-900/20',
+                borderColor: 'border-teal-200 dark:border-teal-800'
               },
               { 
                 label: 'Pending', 
@@ -252,6 +282,7 @@ export default function DoctorAppointmentsPage() {
           {/* Filter Tabs */}
           <div className="mb-6 flex space-x-1 bg-white dark:bg-slate-800 rounded-lg p-1 shadow-lg border border-gray-200 dark:border-slate-700">
             {[
+              { key: 'upcoming', label: 'Upcoming' },
               { key: 'today', label: 'Today' },
               { key: 'pending', label: 'Pending' },
               { key: 'confirmed', label: 'Confirmed' },
@@ -273,6 +304,18 @@ export default function DoctorAppointmentsPage() {
             ))}
           </div>
 
+        {/* Info Message for Upcoming Filter */}
+        {filter === 'upcoming' && filteredAppointments.length > 0 && (
+          <div className="mb-4 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg p-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 rounded-full bg-teal-500"></div>
+              <p className="text-teal-700 dark:text-teal-300 text-sm font-medium">
+                Showing appointments scheduled for tomorrow and beyond. These are future appointment requests from patients.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Error Display */}
         {error && (
           <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 shadow-lg">
@@ -291,10 +334,19 @@ export default function DoctorAppointmentsPage() {
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-12 text-center border border-gray-200 dark:border-slate-700">
             <FaCalendarCheck className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              No Appointments Found
+              {filter === 'today' ? 'No Appointments Today' :
+               filter === 'upcoming' ? 'No Upcoming Appointments' :
+               filter === 'pending' ? 'No Pending Appointments' :
+               filter === 'confirmed' ? 'No Confirmed Appointments' :
+               'No Appointments Found'}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              No appointments match the selected filter criteria.
+              {filter === 'upcoming' 
+                ? 'No appointments are scheduled for tomorrow or later. New appointment requests will appear here.'
+                : filter === 'today'
+                ? 'You don\'t have any appointments scheduled for today.'
+                : `No appointments match the ${filter} filter criteria.`
+              }
             </p>
           </div>
         ) : (
