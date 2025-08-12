@@ -169,10 +169,10 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
                   {slotData.schedule.slotDuration} minutes
                 </div>
               </div>
-              {slotData.schedule.breakTime && (
+              {slotData.schedule.breakTimes && (
                 <div className="col-span-2">
                   <span className="text-teal-700 dark:text-teal-300">Break Time:</span>
-                  <div className="font-medium text-teal-900 dark:text-teal-200">{slotData.schedule.breakTime}</div>
+                  <div className="font-medium text-teal-900 dark:text-teal-200">{slotData.schedule.breakTimes}</div>
                 </div>
               )}
             </>
