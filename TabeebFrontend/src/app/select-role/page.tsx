@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { User, UserCheck, Stethoscope, Heart, Mail, Phone, GraduationCap, Award, Calendar, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
+import { getDoctorRedirectPath } from "@/lib/doctorRedirect";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -30,7 +31,7 @@ type FormErrors = {
 };
 
 export default function SelectRolePage() {
-  const { token, role: userRole, setUserRole, loading, roleLoading, user } = useAuth();
+  const { token, role: userRole, setUserRole, loading, roleLoading, user, verificationStatus, verificationLoading } = useAuth();
   const [role, setRole] = useState<"doctor" | "patient" | "">("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -80,12 +81,14 @@ export default function SelectRolePage() {
     if (!loading && !roleLoading && userRole && userRole !== 'no-role') {
       console.log("[SelectRole] User already has role:", userRole);
       if (userRole === 'doctor') {
-        router.replace('/Doctor/Dashboard');
+        // Wait for verification status before redirecting doctors
+        if (verificationLoading) return;
+        router.replace(getDoctorRedirectPath(verificationStatus));
       } else if (userRole === 'patient') {
         router.replace('/Patient/dashboard');
       }
     }
-  }, [userRole, loading, roleLoading, router]);
+  }, [userRole, loading, roleLoading, verificationStatus, verificationLoading, router]);
 
   const validateDoctorForm = (): boolean => {
     const errors: FormErrors = {};
@@ -207,7 +210,7 @@ export default function SelectRolePage() {
         setUserRole(role);
         setSuccess("Profile created successfully! Redirecting...");
         setTimeout(() => {
-          router.replace(role === "doctor" ? "/Doctor/Dashboard" : "/Patient/dashboard");
+          router.replace(role === "doctor" ? getDoctorRedirectPath(null) : "/Patient/dashboard");
         }, 1500);
       } else {
         const errorData = await res.json().catch(() => ({}));

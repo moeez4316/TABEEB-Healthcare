@@ -344,6 +344,15 @@ const LandingPage = () => {
                     Contact
                   </button>
                 </li>
+                <li>
+                  <Link 
+                    href="/admin/login"
+                    className="hover:text-white transition-colors flex items-center space-x-1 group"
+                  >
+                    <span>Admin Panel</span>
+                    <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>

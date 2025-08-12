@@ -1,27 +1,12 @@
 "use client";
 
-import { LogOut, User, Mail, Calendar, AlertTriangle, Stethoscope, Clock, Users, Activity } from 'lucide-react';
+import { User, Mail, Calendar, Stethoscope, Clock, Users, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
-import { useState } from 'react';
 import Link from 'next/link';
 
 export default function DoctorDashboard() {
-  const { user, signOut } = useAuth();
-  const [signOutError, setSignOutError] = useState<string>('');
-
-  const handleSignOut = async () => {
-    try {
-      setSignOutError('');
-      await signOut();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to sign out. Please try again.';
-      setSignOutError(errorMessage);
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Sign-out error:', error);
-      }
-    }
-  };
+  const { user, verificationStatus } = useAuth();
 
   if (!user) return null;
 
@@ -84,35 +69,8 @@ export default function DoctorDashboard() {
                 Dashboard
               </h1>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-slate-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign out
-            </button>
           </div>
         </div>
-        
-        {/* Error Banner */}
-        {signOutError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-              <div className="flex items-start">
-                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mr-2 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm text-red-600 dark:text-red-400">{signOutError}</p>
-                  <button
-                    onClick={() => setSignOutError('')}
-                    className="text-xs text-red-500 dark:text-red-300 hover:text-red-700 dark:hover:text-red-100 mt-1"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </header>
 
       {/* Main Content */}
@@ -147,6 +105,54 @@ export default function DoctorDashboard() {
                   Ready to help your patients today. Here&apos;s your practice overview.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Verification Status */}
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className={`p-3 rounded-lg ${
+                  verificationStatus === 'approved' 
+                    ? 'bg-green-100 dark:bg-green-800' 
+                    : verificationStatus === 'pending'
+                    ? 'bg-yellow-100 dark:bg-yellow-800'
+                    : 'bg-red-100 dark:bg-red-800'
+                }`}>
+                  {verificationStatus === 'approved' ? (
+                    <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  ) : verificationStatus === 'pending' ? (
+                    <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                  ) : (
+                    <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  )}
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Verification Status
+                  </h3>
+                  <p className={`text-sm font-medium ${
+                    verificationStatus === 'approved' 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : verificationStatus === 'pending'
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {verificationStatus === 'approved' && 'Verified Doctor'}
+                    {verificationStatus === 'pending' && 'Under Review'}
+                    {verificationStatus === 'rejected' && 'Verification Required'}
+                    {verificationStatus === 'not-submitted' && 'Documents Required'}
+                  </p>
+                </div>
+              </div>
+              
+              {verificationStatus === 'approved' && (
+                <div className="text-right">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    You can now accept patients
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
