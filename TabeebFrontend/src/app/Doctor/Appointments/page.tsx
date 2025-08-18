@@ -30,7 +30,8 @@ export default function DoctorAppointmentsPage() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:5002/api/appointments/doctor?limit=100', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/appointments/doctor?limit=100`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -57,7 +58,8 @@ export default function DoctorAppointmentsPage() {
     setUpdating(appointmentId);
     
     try {
-      const response = await fetch(`http://localhost:5002/api/appointments/${appointmentId}/status`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/appointments/${appointmentId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
