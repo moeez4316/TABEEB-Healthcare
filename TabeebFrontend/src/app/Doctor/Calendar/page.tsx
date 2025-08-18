@@ -35,15 +35,16 @@ export default function DoctorCalendarPage() {
     setError(null);
 
     try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
       // Fetch both appointments and availability
       const [appointmentsResponse, availabilityResponse] = await Promise.all([
-        fetch('http://localhost:5002/api/appointments/doctor', {
+        fetch(`${API_URL}/api/appointments/doctor`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         }),
-        fetch('http://localhost:5002/api/availability/doctor', {
+        fetch(`${API_URL}/api/availability/doctor`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

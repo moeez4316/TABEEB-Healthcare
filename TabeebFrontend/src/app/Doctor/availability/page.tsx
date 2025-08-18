@@ -54,7 +54,8 @@ export default function DoctorAvailabilityPage() {
     // Keep success message if it exists, only clear error
     
     try {
-      const response = await fetch('http://localhost:5002/api/availability/doctor', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/availability/doctor`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -86,7 +87,8 @@ export default function DoctorAvailabilityPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch('http://localhost:5002/api/availability/set', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/availability/set`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -140,7 +142,8 @@ export default function DoctorAvailabilityPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch(`http://localhost:5002/api/availability/${id}`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/availability/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

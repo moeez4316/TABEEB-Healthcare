@@ -26,7 +26,8 @@ export default function PatientAppointmentsPage() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:5002/api/appointments/patient', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/appointments/patient`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

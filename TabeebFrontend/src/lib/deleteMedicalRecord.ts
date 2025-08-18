@@ -1,5 +1,6 @@
 export async function deleteMedicalRecord(id: string, token: string) {
-  const res = await fetch(`http://localhost:5002/api/records/${id}`, {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const res = await fetch(`${API_URL}/api/records/${id}`, {
     method: 'DELETE',
     headers: {
       Authorization: `Bearer ${token}`

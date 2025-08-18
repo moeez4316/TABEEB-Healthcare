@@ -1,10 +1,11 @@
 export async function uploadMedicalRecord(file: File, tags: string, notes: string, token: string) {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const formData = new FormData();
   formData.append("file", file);
   formData.append("tags", tags);
   formData.append("notes", notes);
 
-  const res = await fetch("http://localhost:5002/api/records", {
+  const res = await fetch(`${API_URL}/api/records`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`

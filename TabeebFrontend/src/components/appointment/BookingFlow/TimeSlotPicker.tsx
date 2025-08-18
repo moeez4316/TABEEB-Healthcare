@@ -34,9 +34,10 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
     setError(null);
 
     try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
       const dateStr = formatDateForAPI(selectedDate);
       const response = await fetch(
-        `http://localhost:5002/api/availability/slots/${doctorUid}?date=${dateStr}`,
+        `${API_URL}/api/availability/slots/${doctorUid}?date=${dateStr}`,
         {
           headers: {
             'Content-Type': 'application/json',

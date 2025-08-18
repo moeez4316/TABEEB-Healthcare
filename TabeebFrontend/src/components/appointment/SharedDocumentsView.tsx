@@ -41,8 +41,9 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
     setError(null);
     
     try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
       const response = await fetch(
-        `http://localhost:5002/api/appointments/${appointmentId}/shared-documents`,
+        `${API_URL}/api/appointments/${appointmentId}/shared-documents`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
