@@ -1,16 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { verificationAPI } from '@/lib/verification/api';
-import { validateVerificationForm, formatFileSize, formatVerificationStatus } from '@/lib/verification/utils';
+import { validateVerificationForm, formatFileSize } from '@/lib/verification/utils';
 import { VerificationFormData, FileUploadError } from '@/lib/verification/types';
 import { Toast } from '@/components/Toast';
 
 export default function DoctorVerificationPage() {
   const { user, verificationStatus, loading: authLoading, token, refreshVerificationStatus, verificationLoading, role } = useAuth();
-  const router = useRouter();
   
   const [formData, setFormData] = useState<VerificationFormData>({
     pmdcNumber: '',
@@ -145,17 +143,18 @@ export default function DoctorVerificationPage() {
       
       // Use window.location to force a fresh load
       window.location.href = '/Doctor/verification/pending';
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Verification submission error:', error);
       
       // Handle specific error cases
-      if (error.message.includes('already submitted')) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      if (errorMessage.includes('already submitted')) {
         showToast('Verification already submitted. Redirecting...', 'info');
         setTimeout(() => {
           window.location.href = '/Doctor/verification/pending';
         }, 2000);
       } else {
-        showToast(error.message || 'Failed to submit verification documents', 'error');
+        showToast(errorMessage || 'Failed to submit verification documents', 'error');
       }
     } finally {
       setIsSubmitting(false);

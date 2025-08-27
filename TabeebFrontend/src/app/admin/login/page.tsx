@@ -44,7 +44,7 @@ export default function AdminLoginPage() {
       let data;
       try {
         data = JSON.parse(responseText);
-      } catch (parseError) {
+      } catch {
         throw new Error('Server returned invalid JSON response');
       }
 
@@ -60,8 +60,9 @@ export default function AdminLoginPage() {
       }));
 
       router.push('/admin/dashboard');
-    } catch (error: any) {
-      setError(error.message || 'Login failed');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

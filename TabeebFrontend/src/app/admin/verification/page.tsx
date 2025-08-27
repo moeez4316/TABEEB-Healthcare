@@ -591,7 +591,7 @@ export default function AdminVerificationPage() {
                         height={600}
                         className="max-h-full max-w-full object-contain rounded-xl shadow-lg"
                         priority={true}
-                        onError={(e) => {
+                        onError={() => {
                           console.error('Image failed to load:', selectedImage.url);
                         }}
                       />

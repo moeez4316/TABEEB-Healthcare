@@ -1,24 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { verificationAPI } from '@/lib/verification/api';
+import { verificationAPI, VerificationData } from '@/lib/verification/api';
 import { formatDate } from '@/lib/verification/utils';
 
 export default function VerificationRejectedPage() {
-  const { user, verificationStatus, loading: authLoading, token } = useAuth();
-  const router = useRouter();
-  const [verificationData, setVerificationData] = useState<any>(null);
+  const { user, loading: authLoading, token } = useAuth();
+  const [verificationData, setVerificationData] = useState<VerificationData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!authLoading && user && token) {
-      fetchVerificationData();
-    }
-  }, [user, authLoading, token]);
-
-  const fetchVerificationData = async () => {
+  const fetchVerificationData = useCallback(async () => {
     try {
       if (!token) return;
 
@@ -29,7 +21,13 @@ export default function VerificationRejectedPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (!authLoading && user && token) {
+      fetchVerificationData();
+    }
+  }, [user, authLoading, token, fetchVerificationData]);
 
   if (authLoading || loading) {
     return (
@@ -43,7 +41,7 @@ export default function VerificationRejectedPage() {
   }
 
   const handleResubmit = () => {
-    router.push('/Doctor/verification');
+    window.location.href = '/Doctor/verification';
   };
 
   return (

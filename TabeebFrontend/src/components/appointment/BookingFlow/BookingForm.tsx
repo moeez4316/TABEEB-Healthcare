@@ -144,7 +144,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             <a href="#" className="text-blue-600 hover:text-blue-700 underline">
               Privacy Policy
             </a>
-            . I understand that this appointment is subject to doctor's availability and confirmation.
+            . I understand that this appointment is subject to doctor&apos;s availability and confirmation.
           </label>
         </div>
 
