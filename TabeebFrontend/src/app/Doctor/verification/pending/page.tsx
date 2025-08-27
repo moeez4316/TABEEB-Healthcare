@@ -1,25 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { verificationAPI } from '@/lib/verification/api';
+import { verificationAPI, VerificationData } from '@/lib/verification/api';
 import { formatDate, getEstimatedReviewTime } from '@/lib/verification/utils';
 
 export default function VerificationPendingPage() {
-  const { user, verificationStatus, loading: authLoading, token, refreshVerificationStatus } = useAuth();
-  const router = useRouter();
-  const [verificationData, setVerificationData] = useState<any>(null);
+  const { user, loading: authLoading, token, refreshVerificationStatus } = useAuth();
+  const [verificationData, setVerificationData] = useState<VerificationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && user && token) {
-      fetchVerificationData();
-    }
-  }, [user, authLoading, token]);
-
-  const fetchVerificationData = async () => {
+  const fetchVerificationData = useCallback(async () => {
     try {
       if (!token) return;
 
@@ -30,7 +22,13 @@ export default function VerificationPendingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (!authLoading && user && token) {
+      fetchVerificationData();
+    }
+  }, [user, authLoading, token, fetchVerificationData]);
 
   const handleRefreshStatus = async () => {
     setRefreshing(true);
@@ -185,7 +183,7 @@ export default function VerificationPendingPage() {
                     </div>
                     <div className="ml-4 flex-1">
                       <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Verification Complete</p>
-                      <p className="text-sm text-slate-400 dark:text-slate-500">You'll be notified once approved</p>
+                      <p className="text-sm text-slate-400 dark:text-slate-500">You&apos;ll be notified once approved</p>
                     </div>
                   </div>
                 </div>
@@ -205,7 +203,7 @@ export default function VerificationPendingPage() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">Estimated Review Time</p>
                   <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                    {getEstimatedReviewTime()} - We'll email you once the review is complete.
+                    {getEstimatedReviewTime()} - We&apos;ll email you once the review is complete.
                   </p>
                 </div>
               </div>

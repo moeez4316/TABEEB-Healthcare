@@ -32,7 +32,7 @@ class VerificationAPI {
   }
 
   // Submit verification documents
-  async submitVerification(data: SubmitVerificationRequest, token: string): Promise<any> {
+  async submitVerification(data: SubmitVerificationRequest, token: string): Promise<{ message: string; [key: string]: unknown }> {
     const formData = new FormData();
     formData.append('pmdcNumber', data.pmdcNumber);
     formData.append('cnic', data.cnic);

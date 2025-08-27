@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { formatDateForAPI, getTodayForAPI } from '@/lib/dateUtils';
 import { FaClock, FaPlus, FaTimes, FaSave, FaCalendarAlt } from 'react-icons/fa';
@@ -42,11 +42,7 @@ export default function DoctorAvailabilityPage() {
   const [newBreakTime, setNewBreakTime] = useState({ startTime: '', endTime: '' });
   const MAX_BREAK_TIMES = 4;
 
-  useEffect(() => {
-    fetchAvailability();
-  }, [token]);
-
-  const fetchAvailability = async () => {
+  const fetchAvailability = useCallback(async () => {
     if (!token) return;
 
     setLoading(true);
@@ -54,7 +50,8 @@ export default function DoctorAvailabilityPage() {
     // Keep success message if it exists, only clear error
     
     try {
-      const response = await fetch('http://localhost:5002/api/availability/doctor', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/availability/doctor`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -78,7 +75,13 @@ export default function DoctorAvailabilityPage() {
     } finally {
       setLoading(false);
     }
-  };  const addAvailability = async () => {
+  }, [token]);
+
+  useEffect(() => {
+    fetchAvailability();
+  }, [fetchAvailability]);
+
+  const addAvailability = async () => {
     if (!token || !newAvailability.date) return;
     
     setSaving(true);
@@ -86,7 +89,8 @@ export default function DoctorAvailabilityPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch('http://localhost:5002/api/availability/set', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/availability/set`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -140,7 +144,8 @@ export default function DoctorAvailabilityPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch(`http://localhost:5002/api/availability/${id}`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/availability/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

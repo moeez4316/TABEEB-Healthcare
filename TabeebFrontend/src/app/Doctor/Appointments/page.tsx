@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
-import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaEye, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { SharedDocumentsView } from '@/components/appointment/SharedDocumentsView';
 
 export default function DoctorAppointmentsPage() {
@@ -19,18 +19,15 @@ export default function DoctorAppointmentsPage() {
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
 
-  useEffect(() => {
-    fetchAppointments();
-  }, [token]);
-
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     if (!token) return;
     
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:5002/api/appointments/doctor?limit=100', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/appointments/doctor?limit=100`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -51,13 +48,18 @@ export default function DoctorAppointmentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const updateAppointmentStatus = async (appointmentId: string, newStatus: 'CONFIRMED' | 'CANCELLED', cancelReason?: string) => {
     setUpdating(appointmentId);
     
     try {
-      const response = await fetch(`http://localhost:5002/api/appointments/${appointmentId}/status`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/appointments/${appointmentId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -123,7 +125,7 @@ export default function DoctorAppointmentsPage() {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    let filtered = appointments.filter(appointment => {
+    const filtered = appointments.filter(appointment => {
       const appointmentDate = new Date(appointment.appointmentDate);
       appointmentDate.setHours(0, 0, 0, 0);
       

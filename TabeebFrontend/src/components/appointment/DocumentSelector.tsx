@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { getMedicalRecords } from '@/lib/getMedicalRecords';
 
@@ -29,13 +29,7 @@ export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (token) {
-      fetchDocuments();
-    }
-  }, [token]);
-
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -48,7 +42,13 @@ export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      fetchDocuments();
+    }
+  }, [token, fetchDocuments]);
 
   const handleDocumentToggle = (documentId: string) => {
     if (selectedDocuments.includes(documentId)) {
@@ -125,7 +125,7 @@ export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
           </div>
           <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">No Medical Records</h4>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            You haven't uploaded any medical records yet. You can upload records from your medical records page.
+            You haven&apos;t uploaded any medical records yet. You can upload records from your medical records page.
           </p>
         </div>
       </div>
@@ -144,7 +144,7 @@ export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
       </div>
       
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Select documents you'd like to share with the doctor for this appointment. This helps them prepare better for your consultation.
+        Select documents you&apos;d like to share with the doctor for this appointment. This helps them prepare better for your consultation.
       </p>
 
       <div className="space-y-3 max-h-64 overflow-y-auto">

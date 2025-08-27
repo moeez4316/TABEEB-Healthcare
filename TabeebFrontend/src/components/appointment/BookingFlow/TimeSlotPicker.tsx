@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TimeSlot, SlotResponse } from '@/types/appointment';
 import { StatCard } from '@/components/shared/StatCard';
 import { LoadingCard } from '@/components/shared/LoadingSpinner';
@@ -27,16 +27,17 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSlots = async () => {
+  const fetchSlots = useCallback(async () => {
     if (!doctorUid || !selectedDate) return;
 
     setLoading(true);
     setError(null);
 
     try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
       const dateStr = formatDateForAPI(selectedDate);
       const response = await fetch(
-        `http://localhost:5002/api/availability/slots/${doctorUid}?date=${dateStr}`,
+        `${API_URL}/api/availability/slots/${doctorUid}?date=${dateStr}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -58,11 +59,11 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [doctorUid, selectedDate, token]);
 
   useEffect(() => {
     fetchSlots();
-  }, [doctorUid, selectedDate]);
+  }, [fetchSlots]);
 
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');

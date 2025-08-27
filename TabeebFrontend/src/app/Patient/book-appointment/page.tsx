@@ -53,7 +53,7 @@ export default function BookAppointmentPage() {
     setError(null);
     
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
       const response = await fetch(`${API_URL}/api/doctor/verified`, {
         headers: {
           'Content-Type': 'application/json',
@@ -68,7 +68,13 @@ export default function BookAppointmentPage() {
       console.log('Fetched doctors:', data);
       
       // Transform the data to match our Doctor interface
-      const transformedDoctors: Doctor[] = data.doctors?.map((doctor: any) => ({
+      const transformedDoctors: Doctor[] = data.doctors?.map((doctor: {
+        uid: string;
+        name: string;
+        specialization: string;
+        consultationFees?: number;
+        verification?: { isVerified: boolean };
+      }) => ({
         uid: doctor.uid,
         name: doctor.name,
         specialization: doctor.specialization,
@@ -89,7 +95,7 @@ export default function BookAppointmentPage() {
   const fetchDoctorAvailability = async (doctorUid: string) => {
     setAvailabilityLoading(true);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
       const response = await fetch(`${API_URL}/api/availability/doctor/${doctorUid}`, {
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +111,7 @@ export default function BookAppointmentPage() {
       console.log('Fetched doctor availability:', data);
       
       // Convert availability dates to Date objects
-      const availableDates = (Array.isArray(data) ? data : []).map((availability: any) => 
+      const availableDates = (Array.isArray(data) ? data : []).map((availability: { date: string }) => 
         new Date(availability.date)
       );
       
@@ -146,7 +152,8 @@ export default function BookAppointmentPage() {
     try {
       console.log('Submitting booking:', bookingData);
       
-      const response = await fetch('http://localhost:5002/api/appointments/book', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/appointments/book`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

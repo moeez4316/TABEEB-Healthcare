@@ -50,7 +50,7 @@ export function validateVerificationForm(data: VerificationFormData): Verificati
   };
 }
 
-function validateFile(file: File, rules: any): { isValid: boolean; error?: string } {
+function validateFile(file: File, rules: { maxSize: number; acceptedTypes: string[] }): { isValid: boolean; error?: string } {
   // Check file size
   if (file.size > rules.maxSize) {
     return {

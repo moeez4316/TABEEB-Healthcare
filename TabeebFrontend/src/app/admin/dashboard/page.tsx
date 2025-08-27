@@ -1,22 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Users,
   Clock,
   CheckCircle,
-  UserX,
   Activity,
-  TrendingUp,
   FileText,
   Shield,
   AlertCircle,
   BarChart3,
-  Eye,
   Settings,
   Calendar,
-  Star,
   ArrowUp,
   ArrowDown
 } from 'lucide-react';
@@ -40,18 +36,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check if admin is logged in
-    const adminToken = localStorage.getItem('adminToken');
-    if (!adminToken) {
-      router.push('/admin/login');
-      return;
-    }
-
-    fetchDashboardStats();
-  }, [router]);
-
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     try {
       const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/dashboard/stats`, {
@@ -105,7 +90,18 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    // Check if admin is logged in
+    const adminToken = localStorage.getItem('adminToken');
+    if (!adminToken) {
+      router.push('/admin/login');
+      return;
+    }
+
+    fetchDashboardStats();
+  }, [fetchDashboardStats, router]);
 
   if (loading) {
     return (
