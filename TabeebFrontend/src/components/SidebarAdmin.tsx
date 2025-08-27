@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   UserCheck,
   BarChart3,
-  Settings,
   LogOut,
   Menu,
   X,

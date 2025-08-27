@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
@@ -24,11 +24,7 @@ export default function DoctorCalendarPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [token, currentDate]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!token) return;
     
     setLoading(true);
@@ -70,7 +66,11 @@ export default function DoctorCalendarPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const getAppointmentsForDate = (date: Date) => {
     return appointments.filter(appointment => {
@@ -95,7 +95,6 @@ export default function DoctorCalendarPage() {
     const month = currentDate.getMonth();
     
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
     

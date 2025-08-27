@@ -68,7 +68,13 @@ export default function BookAppointmentPage() {
       console.log('Fetched doctors:', data);
       
       // Transform the data to match our Doctor interface
-      const transformedDoctors: Doctor[] = data.doctors?.map((doctor: any) => ({
+      const transformedDoctors: Doctor[] = data.doctors?.map((doctor: {
+        uid: string;
+        name: string;
+        specialization: string;
+        consultationFees?: number;
+        verification?: { isVerified: boolean };
+      }) => ({
         uid: doctor.uid,
         name: doctor.name,
         specialization: doctor.specialization,
@@ -105,7 +111,7 @@ export default function BookAppointmentPage() {
       console.log('Fetched doctor availability:', data);
       
       // Convert availability dates to Date objects
-      const availableDates = (Array.isArray(data) ? data : []).map((availability: any) => 
+      const availableDates = (Array.isArray(data) ? data : []).map((availability: { date: string }) => 
         new Date(availability.date)
       );
       

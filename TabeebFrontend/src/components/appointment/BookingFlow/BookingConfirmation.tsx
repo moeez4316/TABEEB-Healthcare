@@ -100,9 +100,9 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
 
       {/* Important Information */}
       <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg p-4 mb-6">
-        <h4 className="font-semibold text-teal-900 dark:text-teal-400 mb-2">What's Next?</h4>
+        <h4 className="font-semibold text-teal-900 dark:text-teal-400 mb-2">What&apos;s Next?</h4>
         <ul className="text-sm text-teal-800 dark:text-teal-300 space-y-1">
-          <li>• You'll receive a confirmation notification once the doctor approves your appointment</li>
+          <li>• You&apos;ll receive a confirmation notification once the doctor approves your appointment</li>
           <li>• Please arrive 15 minutes before your scheduled time</li>
           <li>• Bring a valid ID and insurance card if applicable</li>
           <li>• You can reschedule or cancel up to 2 hours before the appointment</li>

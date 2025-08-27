@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart3, TrendingUp, Users, Clock, CheckCircle, Activity, ArrowLeft } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Clock, Activity, ArrowLeft } from 'lucide-react';
 
 export default function AdminAnalyticsPage() {
   return (
@@ -30,7 +30,7 @@ export default function AdminAnalyticsPage() {
             
             <h2 className="text-2xl font-bold text-slate-800 mb-4">Analytics Coming Soon</h2>
             <p className="text-slate-600 mb-8 text-lg">
-              We're building comprehensive analytics and reporting features for the admin panel.
+              We&apos;re building comprehensive analytics and reporting features for the admin panel.
             </p>
             
             {/* Planned Features Grid */}

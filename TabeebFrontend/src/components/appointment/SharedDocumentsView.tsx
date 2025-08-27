@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 
 interface SharedDocument {
@@ -30,13 +31,7 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [previewDocument, setPreviewDocument] = useState<SharedDocument | null>(null);
 
-  useEffect(() => {
-    if (appointmentId && token) {
-      fetchSharedDocuments();
-    }
-  }, [appointmentId, token]);
-
-  const fetchSharedDocuments = async () => {
+  const fetchSharedDocuments = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -64,7 +59,13 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [appointmentId, token]);
+
+  useEffect(() => {
+    if (appointmentId && token) {
+      fetchSharedDocuments();
+    }
+  }, [appointmentId, token, fetchSharedDocuments]);
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) {
@@ -144,7 +145,7 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
           </div>
           <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">No Shared Documents</h4>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            The patient hasn't shared any medical records for this appointment.
+            The patient hasn&apos;t shared any medical records for this appointment.
           </p>
         </div>
       </div>
@@ -271,9 +272,11 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
             </div>
             <div className="p-4 max-h-96 overflow-auto">
               {previewDocument.fileType.startsWith('image/') ? (
-                <img
+                <Image
                   src={previewDocument.fileUrl}
                   alt="Medical record"
+                  width={800}
+                  height={600}
                   className="max-w-full max-h-full object-contain"
                 />
               ) : previewDocument.fileType === 'application/pdf' ? (

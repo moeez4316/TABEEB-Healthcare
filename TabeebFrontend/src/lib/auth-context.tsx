@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import {
   User,
   onAuthStateChanged,
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [roleFetchAttempted, setRoleFetchAttempted] = useState(false);
 
   // Fetch verification status for doctors
-  const fetchVerificationStatus = async () => {
+  const fetchVerificationStatus = useCallback(async () => {
     if (!token || role !== 'doctor') {
       setVerificationStatus(null);
       setVerificationLoading(false);
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("[AuthContext] Verification loading complete");
       setVerificationLoading(false);
     }
-  };
+  }, [token, role]);
 
   // Refresh verification status (for polling or after submission)
   const refreshVerificationStatus = async () => {
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetchVerificationStatus();
   };
 
-  const fetchUserRole = async () => {
+  const fetchUserRole = useCallback(async () => {
     if (!token) {
       setRoleLoading(false);
       setRoleFetchAttempted(true);
@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setRoleLoading(false);
     }
-  };
+  }, [token]);
 
   const setUserRole = (newRole: string) => {
     setRole(newRole);
@@ -219,7 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRoleLoading(true);
       fetchUserRole();
     }
-  }, [authInitialized, token, role, roleLoading, roleFetchAttempted]);
+  }, [authInitialized, token, role, roleLoading, roleFetchAttempted, fetchUserRole]);
 
   // Reset verification status when user changes (different UID) - only for actual user changes
   useEffect(() => {
@@ -255,7 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("[AuthContext] Fetching verification status for doctor");
       fetchVerificationStatus();
     }
-  }, [authInitialized, token, role, verificationStatus, verificationLoading]);
+  }, [authInitialized, token, role, verificationStatus, verificationLoading, fetchVerificationStatus]);
 
   const signUp = async (email: string, password: string, displayName: string) => {
     try {

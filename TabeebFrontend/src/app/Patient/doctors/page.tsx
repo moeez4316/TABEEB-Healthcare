@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { FaSearch, FaFilter, FaSort, FaUserMd, FaStar, FaCalendarAlt } from 'react-icons/fa';
+import { FaSearch, FaSort, FaUserMd, FaStar, FaCalendarAlt } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth-context';
 
 interface Doctor {
@@ -27,7 +27,7 @@ interface DoctorsResponse {
 }
 
 export default function DoctorsPage() {
-  const { token } = useAuth();
+  const { } = useAuth();
   const router = useRouter();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
@@ -38,14 +38,6 @@ export default function DoctorsPage() {
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
   const [specializations, setSpecializations] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetchDoctors();
-  }, []);
-
-  useEffect(() => {
-    filterAndSortDoctors();
-  }, [doctors, searchTerm, selectedSpecialization, experienceFilter, sortBy, sortOrder]);
 
   const fetchDoctors = async () => {
     try {
@@ -66,7 +58,7 @@ export default function DoctorsPage() {
     }
   };
 
-  const filterAndSortDoctors = () => {
+  const filterAndSortDoctors = useCallback(() => {
     let filtered = [...doctors];
 
     // Apply search filter
@@ -116,7 +108,15 @@ export default function DoctorsPage() {
     });
 
     setFilteredDoctors(filtered);
-  };
+  }, [doctors, searchTerm, selectedSpecialization, experienceFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    fetchDoctors();
+  }, []);
+
+  useEffect(() => {
+    filterAndSortDoctors();
+  }, [filterAndSortDoctors]);
 
   const handleBookAppointment = (doctorUid: string) => {
     // Navigate to appointment booking with doctor pre-selected

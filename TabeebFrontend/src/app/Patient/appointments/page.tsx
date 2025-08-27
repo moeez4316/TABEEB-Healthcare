@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
@@ -15,11 +15,7 @@ export default function PatientAppointmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
 
-  useEffect(() => {
-    fetchAppointments();
-  }, [token]);
-
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     if (!token) return;
     
     setLoading(true);
@@ -49,7 +45,11 @@ export default function PatientAppointmentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -63,7 +63,6 @@ export default function PatientAppointmentsPage() {
   };
 
   const filterAppointments = () => {
-    const now = new Date();
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of today
     

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { formatDateForAPI, getTodayForAPI } from '@/lib/dateUtils';
 import { FaClock, FaPlus, FaTimes, FaSave, FaCalendarAlt } from 'react-icons/fa';
@@ -42,11 +42,7 @@ export default function DoctorAvailabilityPage() {
   const [newBreakTime, setNewBreakTime] = useState({ startTime: '', endTime: '' });
   const MAX_BREAK_TIMES = 4;
 
-  useEffect(() => {
-    fetchAvailability();
-  }, [token]);
-
-  const fetchAvailability = async () => {
+  const fetchAvailability = useCallback(async () => {
     if (!token) return;
 
     setLoading(true);
@@ -79,7 +75,13 @@ export default function DoctorAvailabilityPage() {
     } finally {
       setLoading(false);
     }
-  };  const addAvailability = async () => {
+  }, [token]);
+
+  useEffect(() => {
+    fetchAvailability();
+  }, [fetchAvailability]);
+
+  const addAvailability = async () => {
     if (!token || !newAvailability.date) return;
     
     setSaving(true);
