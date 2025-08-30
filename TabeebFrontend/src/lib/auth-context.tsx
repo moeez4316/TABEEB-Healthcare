@@ -11,6 +11,8 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
   sendPasswordResetEmail,
+  ApplicationVerifier,
+  ConfirmationResult,
 } from 'firebase/auth';
 import { auth } from './firebase';
 
@@ -31,6 +33,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithPhone: (phone: string, appVerifier: ApplicationVerifier) => Promise<ConfirmationResult>;
+  verifyPhoneOtp: (confirmationResult: ConfirmationResult, otp: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   fetchUserRole: () => Promise<void>;
@@ -50,15 +54,36 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Phone Auth
+  const signInWithPhone = async (phone: string, appVerifier: ApplicationVerifier): Promise<ConfirmationResult> => {
+    try {
+      const { signInWithPhoneNumber } = await import('firebase/auth');
+      const confirmationResult = await signInWithPhoneNumber(auth, phone, appVerifier);
+      return confirmationResult;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const verifyPhoneOtp = async (confirmationResult: ConfirmationResult, otp: string): Promise<void> => {
+    try {
+      const result = await confirmationResult.confirm(otp);
+      setUser(result.user);
+      const token = await result.user.getIdToken();
+      setToken(token);
+    } catch (error) {
+      throw error;
+    }
+  };
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>(null);
-  const [loading, setLoading] = useState(true);
-  const [roleLoading, setRoleLoading] = useState(false);
-  const [verificationLoading, setVerificationLoading] = useState(false);
-  const [authInitialized, setAuthInitialized] = useState(false);
-  const [roleFetchAttempted, setRoleFetchAttempted] = useState(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [roleLoading, setRoleLoading] = useState<boolean>(false);
+  const [verificationLoading, setVerificationLoading] = useState<boolean>(false);
+  const [authInitialized, setAuthInitialized] = useState<boolean>(false);
+  const [roleFetchAttempted, setRoleFetchAttempted] = useState<boolean>(false);
 
   // Fetch verification status for doctors
   const fetchVerificationStatus = useCallback(async () => {
@@ -326,9 +351,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     roleLoading,
     verificationLoading,
-    signUp,
-    signIn,
-    signInWithGoogle,
+  signUp,
+  signIn,
+  signInWithGoogle,
+  signInWithPhone,
+  verifyPhoneOtp,
     resetPassword,
     signOut,
     fetchUserRole,
