@@ -238,28 +238,7 @@ export default function AuthPage() {
           </div>
 
           {/* Mode Switcher */}
-          <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
-            <button
-              onClick={() => switchMode('signin')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
-                mode === 'signin'
-                  ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => switchMode('signup')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
-                mode === 'signup'
-                  ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
+    {/* ...existing code... */}
 
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
@@ -372,13 +351,39 @@ export default function AuthPage() {
             </button>
           </form>
 
+
           {mode === 'signin' && (
-            <button
-              onClick={() => switchMode('reset')}
-              className="w-full text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-            >
-              Forgot your password?
-            </button>
+            <>
+              <button
+                onClick={() => switchMode('reset')}
+                className="w-full text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors mb-2"
+              >
+                Forgot your password?
+              </button>
+              <div className="text-center mt-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Don't have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => switchMode('signup')}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline ml-1"
+                >
+                  Sign up
+                </button>
+              </div>
+            </>
+          )}
+
+          {mode === 'signup' && (
+            <div className="text-center mt-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Already have an account? </span>
+              <button
+                type="button"
+                onClick={() => switchMode('signin')}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline ml-1"
+              >
+                Sign in
+              </button>
+            </div>
           )}
 
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
