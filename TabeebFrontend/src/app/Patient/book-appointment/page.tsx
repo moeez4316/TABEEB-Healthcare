@@ -44,6 +44,7 @@ export default function BookAppointmentPage() {
       if (doctor) {
         setSelectedDoctor(doctor);
         setCurrentStep('date');
+        fetchDoctorAvailability(doctor.uid);
       }
     }
   }, [preSelectedDoctorId, doctors]);
