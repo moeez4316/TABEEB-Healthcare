@@ -282,7 +282,7 @@ export default function DoctorAppointmentsPage() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="mb-6 flex space-x-1 bg-white dark:bg-slate-800 rounded-lg p-1 shadow-lg border border-gray-200 dark:border-slate-700">
+          <div className="mb-6 flex flex-wrap justify-center space-x-1 bg-white dark:bg-slate-800 rounded-lg p-1 shadow-lg border border-gray-200 dark:border-slate-700">
             {[
               { key: 'upcoming', label: 'Upcoming' },
               { key: 'today', label: 'Today' },
@@ -294,12 +294,13 @@ export default function DoctorAppointmentsPage() {
                 key={tab.key}
                 onClick={() => setFilter(tab.key as typeof filter)}
                 className={`
-                  px-4 py-2 rounded-md font-medium transition-all duration-200
+                  px-4 py-2 rounded-md font-medium transition-all duration-200 flex-1 min-w-[90px] text-center
                   ${filter === tab.key 
                     ? 'bg-teal-600 dark:bg-teal-500 text-white shadow-md' 
                     : 'text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20'
                   }
                 `}
+                style={{maxWidth: '100%'}}
               >
                 {tab.label}
               </button>
