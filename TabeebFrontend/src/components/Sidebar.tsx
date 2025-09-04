@@ -65,9 +65,9 @@ export default function Sidebar() {
 
   const SidebarContent = () => (
     <aside
-      className={`h-screen flex flex-col justify-between py-8 relative ${
+      className={`h-screen flex flex-col py-8 relative ${
         !isMobile && isCollapsed ? 'w-20' : 'w-60'
-      } overflow-y-auto custom-scrollbar-hide`}
+      }`}
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
         {/* Hide scrollbar with custom CSS */}
@@ -93,57 +93,59 @@ export default function Sidebar() {
         </div>
       )}
 
-      <div className="flex flex-col items-center">
-        <div className={`mb-10 flex flex-col items-center transition-all duration-300 ${
-          !isMobile && isCollapsed ? 'scale-75' : 'scale-100'
-        }`}>
-          <Image 
-            src="/tabeeb_logo.png" 
-            alt="Tabeeb Logo" 
-            width={!isMobile && isCollapsed ? 48 : 64} 
-            height={!isMobile && isCollapsed ? 48 : 64} 
-            className="mb-2 rounded-full shadow transition-all duration-300" 
-          />
-          {(isMobile || !isCollapsed) && (
-            <span className="text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200 transition-opacity duration-300">
-              TABEEB
-            </span>
-          )}
+      <div className="flex flex-col items-center flex-1 min-h-0">
+        <div className="w-full overflow-y-auto custom-scrollbar-hide flex flex-col items-center min-h-0">
+          <div className={`mb-10 flex flex-col items-center transition-all duration-300 ${
+            !isMobile && isCollapsed ? 'scale-75' : 'scale-100'
+          }`}>
+            <Image 
+              src="/tabeeb_logo.png" 
+              alt="Tabeeb Logo" 
+              width={!isMobile && isCollapsed ? 48 : 64} 
+              height={!isMobile && isCollapsed ? 48 : 64} 
+              className="mb-2 rounded-full shadow transition-all duration-300" 
+            />
+            {(isMobile || !isCollapsed) && (
+              <span className="text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200 transition-opacity duration-300">
+                TABEEB
+              </span>
+            )}
+          </div>
+          <nav className="w-full">
+            <ul className="space-y-2 w-full">
+              {navItems.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => {
+                      if (isMobile) {
+                        setIsMobileMenuOpen(false);
+                      }
+                    }}
+                    className={`flex items-center gap-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-200 w-full group ${
+                      !isMobile && isCollapsed ? 'px-3 py-3 justify-center' : 'px-6 py-3'
+                    }`}
+                    title={!isMobile && isCollapsed ? item.label : ''}
+                  >
+                    <span className="text-lg flex-shrink-0">{item.icon}</span>
+                    {(isMobile || !isCollapsed) && (
+                      <span className="transition-opacity duration-300">{item.label}</span>
+                    )}
+                    {!isMobile && isCollapsed && (
+                      <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        {item.label}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
-        <nav className="w-full">
-          <ul className="space-y-2 w-full">
-            {navItems.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={() => {
-                    if (isMobile) {
-                      setIsMobileMenuOpen(false);
-                    }
-                  }}
-                  className={`flex items-center gap-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-200 w-full group ${
-                    !isMobile && isCollapsed ? 'px-3 py-3 justify-center' : 'px-6 py-3'
-                  }`}
-                  title={!isMobile && isCollapsed ? item.label : ''}
-                >
-                  <span className="text-lg flex-shrink-0">{item.icon}</span>
-                  {(isMobile || !isCollapsed) && (
-                    <span className="transition-opacity duration-300">{item.label}</span>
-                  )}
-                  {!isMobile && isCollapsed && (
-                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                      {item.label}
-                    </span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
       </div>
 
-      {/* Sign Out Section */}
-      <div className={`w-full transition-all duration-300 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'}`}>
+      {/* Sign Out Section - sticky bottom, safe area */}
+      <div className={`w-full transition-all duration-300 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'} sticky bottom-0 bg-white dark:bg-slate-900 z-10 pt-2 pb-4`} style={{paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'}}>
         {user && (isMobile || !isCollapsed) && (
           <div className="mb-4 p-3 bg-white/10 rounded-lg transition-opacity duration-300">
             <p className="text-sm text-gray-600 dark:text-gray-400">Signed in as:</p>
@@ -152,7 +154,6 @@ export default function Sidebar() {
             </p>
           </div>
         )}
-        
         <button
           onClick={handleSignOut}
           disabled={isSigningOut}
