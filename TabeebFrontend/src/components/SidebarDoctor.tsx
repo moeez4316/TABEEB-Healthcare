@@ -112,7 +112,7 @@ export default function SidebarDoctor() {
       </div>
   {/* Scrollable nav items, with bottom padding for sticky logout and safe area */}
   <div className="flex-1 w-full overflow-y-auto custom-scrollbar-hide min-h-0" style={{ paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))' }}>
-        <nav className="w-full">
+        <nav className="w-full mt-6">{/* margin-top so first item starts lower */}
           <ul className="space-y-2 w-full">
             {navItems.map((item) => (
               <li key={item.href}>
