@@ -60,9 +60,22 @@ export default function SidebarDoctor() {
   };
 
   const SidebarContent = () => (
-    <aside className={`h-screen flex flex-col justify-between py-8 relative ${
-      !isMobile && isCollapsed ? 'w-20' : 'w-60'
-    }`}>
+    <aside
+      className={`h-screen flex flex-col justify-between py-8 relative ${
+        !isMobile && isCollapsed ? 'w-20' : 'w-60'
+      } overflow-y-auto custom-scrollbar-hide`}
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+        {/* Hide scrollbar with custom CSS */}
+        <style jsx>{`
+          .custom-scrollbar-hide {
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE 10+ */
+          }
+          .custom-scrollbar-hide::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+          }
+        `}</style>
       {/* Toggle Button - Only show on desktop */}
       {!isMobile && (
         <div className="absolute -right-3 top-8 z-10">
