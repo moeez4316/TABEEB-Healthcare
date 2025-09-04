@@ -162,8 +162,8 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
         </div>
       )}
 
-      {/* Navigation - scrollable area */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar-hide">
+  {/* Navigation - scrollable area, with bottom padding for sticky logout and safe area */}
+  <div className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar-hide" style={{ paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))' }}>
         <nav className={`space-y-2 transition-all duration-300 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'}`}>
           {navigation.map((item) => {
             const Icon = item.icon;
@@ -243,23 +243,6 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
         )}
       </div>
 
-      {/* Stats */}
-      {(isMobile || !isCollapsed) && (
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 transition-opacity duration-300">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
-              <Users className="w-4 h-4 text-teal-600 dark:text-teal-400 mx-auto mb-1" />
-              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Online</div>
-              <div className="text-sm font-bold text-slate-900 dark:text-white">127</div>
-            </div>
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
-              <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
-              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Active</div>
-              <div className="text-sm font-bold text-slate-900 dark:text-white">89</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Logout - sticky bottom, safe area */}
       <div className={`border-t border-slate-200 dark:border-slate-700 transition-all duration-300 ${

@@ -89,60 +89,59 @@ export default function SidebarDoctor() {
         </div>
       )}
 
-      <div className="flex flex-col items-center flex-1 min-h-0">
-        <div className="w-full overflow-y-auto custom-scrollbar-hide flex flex-col items-center min-h-0">
-          <div className={`mb-10 flex flex-col items-center transition-all duration-300 ${
-            !isMobile && isCollapsed ? 'scale-75' : 'scale-100'
-          }`}>
-            <Image 
-              src="/tabeeb_logo.png" 
-              alt="Tabeeb Logo" 
-              width={!isMobile && isCollapsed ? 48 : 64} 
-              height={!isMobile && isCollapsed ? 48 : 64} 
-              className="mb-2 rounded-full shadow transition-all duration-300" 
-            />
-            {(isMobile || !isCollapsed) && (
-              <>
-                <span className="text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200 transition-opacity duration-300 text-center block">
-                  TABEEB
-                </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1 transition-opacity duration-300 text-center block">
-                  Doctor Portal
-                </span>
-              </>
-            )}
-          </div>
-          <nav className="w-full">
-            <ul className="space-y-2 w-full">
-              {navItems.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={() => {
-                      if (isMobile) {
-                        setIsMobileMenuOpen(false);
-                      }
-                    }}
-                    className={`flex items-center gap-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-200 w-full group ${
-                      !isMobile && isCollapsed ? 'px-3 py-3 justify-center' : 'px-6 py-3'
-                    }`}
-                    title={!isMobile && isCollapsed ? item.label : ''}
-                  >
-                    <span className="text-lg flex-shrink-0">{item.icon}</span>
-                    {(isMobile || !isCollapsed) && (
-                      <span className="transition-opacity duration-300">{item.label}</span>
-                    )}
-                    {!isMobile && isCollapsed && (
-                      <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        {item.label}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
+      {/* Header/logo fixed at top */}
+      <div className={`mb-10 flex flex-col items-center transition-all duration-300 ${!isMobile && isCollapsed ? 'scale-75' : 'scale-100'}`}
+        style={{ flexShrink: 0 }}>
+        <Image 
+          src="/tabeeb_logo.png" 
+          alt="Tabeeb Logo" 
+          width={!isMobile && isCollapsed ? 48 : 64} 
+          height={!isMobile && isCollapsed ? 48 : 64} 
+          className="mb-2 rounded-full shadow transition-all duration-300" 
+        />
+        {(isMobile || !isCollapsed) && (
+          <>
+            <span className="text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200 transition-opacity duration-300 text-center block">
+              TABEEB
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1 transition-opacity duration-300 text-center block">
+              Doctor Portal
+            </span>
+          </>
+        )}
+      </div>
+  {/* Scrollable nav items, with bottom padding for sticky logout and safe area */}
+  <div className="flex-1 w-full overflow-y-auto custom-scrollbar-hide min-h-0" style={{ paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))' }}>
+        <nav className="w-full">
+          <ul className="space-y-2 w-full">
+            {navItems.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  onClick={() => {
+                    if (isMobile) {
+                      setIsMobileMenuOpen(false);
+                    }
+                  }}
+                  className={`flex items-center gap-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-200 w-full group ${
+                    !isMobile && isCollapsed ? 'px-3 py-3 justify-center' : 'px-6 py-3'
+                  }`}
+                  title={!isMobile && isCollapsed ? item.label : ''}
+                >
+                  <span className="text-lg flex-shrink-0">{item.icon}</span>
+                  {(isMobile || !isCollapsed) && (
+                    <span className="transition-opacity duration-300">{item.label}</span>
+                  )}
+                  {!isMobile && isCollapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                      {item.label}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
 
       {/* Sign Out Section - sticky bottom, safe area */}
