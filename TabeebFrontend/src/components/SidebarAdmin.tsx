@@ -83,7 +83,20 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full relative">
+    <div
+      className="flex flex-col h-full relative"
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      {/* Hide scrollbar with custom CSS */}
+      <style jsx>{`
+        .custom-scrollbar-hide {
+          scrollbar-width: none; /* Firefox */
+          -ms-overflow-style: none; /* IE 10+ */
+        }
+        .custom-scrollbar-hide::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Opera */
+        }
+      `}</style>
       {/* Toggle Button - Only show on desktop */}
       {!isMobile && (
         <div className="absolute -right-3 top-8 z-10">
@@ -149,90 +162,92 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
         </div>
       )}
 
-      {/* Navigation */}
-      <nav className={`flex-1 space-y-2 transition-all duration-300 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'}`}>
-        {navigation.map((item) => {
-          const Icon = item.icon;
-          const isActive = isActiveRoute(item.href);
-          
-          return (
-            <button
-              key={item.name}
-              onClick={() => {
-                if (!item.disabled) {
-                  router.push(item.href);
-                  if (isMobile) {
-                    setIsMobileMenuOpen(false);
+  {/* Navigation - scrollable area, with bottom padding for sticky logout and safe area */}
+  <div className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar-hide" style={{ paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))' }}>
+        <nav className={`space-y-2 transition-all duration-300 mt-6 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'}`}>{/* margin-top so first item starts lower */}
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            const isActive = isActiveRoute(item.href);
+            
+            return (
+              <button
+                key={item.name}
+                onClick={() => {
+                  if (!item.disabled) {
+                    router.push(item.href);
+                    if (isMobile) {
+                      setIsMobileMenuOpen(false);
+                    }
                   }
-                }
-              }}
-              disabled={item.disabled}
-              className={`w-full group flex items-center text-sm font-medium rounded-xl transition-all duration-200 relative ${
-                !isMobile && isCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-3'
-              } ${
-                isActive
-                  ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-lg shadow-teal-500/25'
-                  : item.disabled
-                  ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
-              }`}
-              title={!isMobile && isCollapsed ? item.name : ''}
-            >
-              <Icon className={`transition-transform duration-200 flex-shrink-0 ${
-                !isMobile && isCollapsed ? 'w-5 h-5' : 'w-5 h-5 mr-3'
-              } ${
-                isActive ? 'scale-110' : 'group-hover:scale-105'
-              }`} />
-              {(isMobile || !isCollapsed) && (
-                <div className="flex-1 text-left transition-opacity duration-300">
-                  <div className="font-semibold">{item.name}</div>
-                  <div className={`text-xs ${
-                    isActive 
-                      ? 'text-white/80' 
-                      : 'text-slate-500 dark:text-slate-400'
-                  }`}>
-                    {item.description}
+                }}
+                disabled={item.disabled}
+                className={`w-full group flex items-center text-sm font-medium rounded-xl transition-all duration-200 relative ${
+                  !isMobile && isCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-3'
+                } ${
+                  isActive
+                    ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-lg shadow-teal-500/25'
+                    : item.disabled
+                    ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                title={!isMobile && isCollapsed ? item.name : ''}
+              >
+                <Icon className={`transition-transform duration-200 flex-shrink-0 ${
+                  !isMobile && isCollapsed ? 'w-5 h-5' : 'w-5 h-5 mr-3'
+                } ${
+                  isActive ? 'scale-110' : 'group-hover:scale-105'
+                }`} />
+                {(isMobile || !isCollapsed) && (
+                  <div className="flex-1 text-left transition-opacity duration-300">
+                    <div className="font-semibold">{item.name}</div>
+                    <div className={`text-xs ${
+                      isActive 
+                        ? 'text-white/80' 
+                        : 'text-slate-500 dark:text-slate-400'
+                    }`}>
+                      {item.description}
+                    </div>
                   </div>
-                </div>
-              )}
-              {(isMobile || !isCollapsed) && item.disabled && (
-                <span className="ml-2 px-2 py-1 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-md font-medium">
-                  Soon
-                </span>
-              )}
-              {!isMobile && isCollapsed && (
-                <span className="absolute left-full ml-2 px-3 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg">
-                  <div className="font-semibold">{item.name}</div>
-                  <div className="text-xs opacity-75">{item.description}</div>
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Stats */}
-      {(isMobile || !isCollapsed) && (
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 transition-opacity duration-300">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
-              <Users className="w-4 h-4 text-teal-600 dark:text-teal-400 mx-auto mb-1" />
-              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Online</div>
-              <div className="text-sm font-bold text-slate-900 dark:text-white">127</div>
-            </div>
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
-              <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
-              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Active</div>
-              <div className="text-sm font-bold text-slate-900 dark:text-white">89</div>
+                )}
+                {(isMobile || !isCollapsed) && item.disabled && (
+                  <span className="ml-2 px-2 py-1 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-md font-medium">
+                    Soon
+                  </span>
+                )}
+                {!isMobile && isCollapsed && (
+                  <span className="absolute left-full ml-2 px-3 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 shadow-lg">
+                    <div className="font-semibold">{item.name}</div>
+                    <div className="text-xs opacity-75">{item.description}</div>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+        {/* Stats */}
+        {(isMobile || !isCollapsed) && (
+          <div className="p-4 border-t border-slate-200 dark:border-slate-700 transition-opacity duration-300">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
+                <Users className="w-4 h-4 text-teal-600 dark:text-teal-400 mx-auto mb-1" />
+                <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Online</div>
+                <div className="text-sm font-bold text-slate-900 dark:text-white">127</div>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center">
+                <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
+                <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Active</div>
+                <div className="text-sm font-bold text-slate-900 dark:text-white">89</div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Logout */}
+
+      {/* Logout - sticky bottom, safe area */}
       <div className={`border-t border-slate-200 dark:border-slate-700 transition-all duration-300 ${
         !isMobile && isCollapsed ? 'p-2' : 'p-4'
-      }`}>
+      } sticky bottom-0 bg-white dark:bg-slate-900 z-10 pt-2 pb-4`} style={{paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'}}>
         <button
           onClick={handleLogout}
           className={`w-full flex items-center text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200 group ${

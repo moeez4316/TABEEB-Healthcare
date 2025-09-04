@@ -282,7 +282,7 @@ export default function DoctorAppointmentsPage() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="mb-6 flex space-x-1 bg-white dark:bg-slate-800 rounded-lg p-1 shadow-lg border border-gray-200 dark:border-slate-700">
+          <div className="mb-6 flex flex-wrap justify-center space-x-1 bg-white dark:bg-slate-800 rounded-lg p-1 shadow-lg border border-gray-200 dark:border-slate-700">
             {[
               { key: 'upcoming', label: 'Upcoming' },
               { key: 'today', label: 'Today' },
@@ -294,12 +294,13 @@ export default function DoctorAppointmentsPage() {
                 key={tab.key}
                 onClick={() => setFilter(tab.key as typeof filter)}
                 className={`
-                  px-4 py-2 rounded-md font-medium transition-all duration-200
+                  px-4 py-2 rounded-md font-medium transition-all duration-200 flex-1 min-w-[90px] text-center
                   ${filter === tab.key 
                     ? 'bg-teal-600 dark:bg-teal-500 text-white shadow-md' 
                     : 'text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20'
                   }
                 `}
+                style={{maxWidth: '100%'}}
               >
                 {tab.label}
               </button>
@@ -416,44 +417,45 @@ export default function DoctorAppointmentsPage() {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex flex-col space-y-2 ml-4">
+                  <div className="flex flex-col space-y-2 ml-4 flex-wrap items-end max-w-[140px] sm:max-w-none">
                     <button
                       onClick={() => setExpandedAppointment(expandedAppointment === appointment.id ? null : appointment.id)}
-                      className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-3 py-2 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
+                      className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-2 py-1 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors text-xs sm:text-sm max-w-full"
+                      style={{wordBreak: 'break-word'}}
                     >
                       {expandedAppointment === appointment.id ? (
                         <>
                           <FaChevronUp className="w-3 h-3" />
-                          <span className="text-sm">Hide Details</span>
+                          <span className="">Hide Details</span>
                         </>
                       ) : (
                         <>
                           <FaChevronDown className="w-3 h-3" />
-                          <span className="text-sm">View Details</span>
+                          <span className="">View Details</span>
                         </>
                       )}
                     </button>
-                    
                     {appointment.status === 'PENDING' && (
-                      <div className="flex flex-col space-y-2">
+                      <div className="flex flex-col space-y-2 w-full">
                         <button
                           onClick={() => updateAppointmentStatus(appointment.id, 'CONFIRMED')}
                           disabled={updating === appointment.id}
-                          className="flex items-center space-x-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 px-3 py-2 rounded border border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50"
+                          className="flex items-center space-x-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 px-2 py-1 rounded border border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50 text-xs sm:text-sm max-w-full"
+                          style={{wordBreak: 'break-word'}}
                         >
                           <FaCheckCircle className="w-3 h-3" />
-                          <span className="text-sm">
+                          <span className="">
                             {updating === appointment.id ? 'Confirming...' : 'Confirm'}
                           </span>
                         </button>
-                        
                         <button
                           onClick={() => handleCancelClick(appointment.id)}
                           disabled={updating === appointment.id}
-                          className="flex items-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-3 py-2 rounded border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                          className="flex items-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-2 py-1 rounded border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 text-xs sm:text-sm max-w-full"
+                          style={{wordBreak: 'break-word'}}
                         >
                           <FaTimesCircle className="w-3 h-3" />
-                          <span className="text-sm">
+                          <span className="">
                             {updating === appointment.id ? 'Cancelling...' : 'Cancel'}
                           </span>
                         </button>

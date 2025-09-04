@@ -500,14 +500,17 @@ export default function DoctorAvailabilityPage() {
                         Break Start Time
                       </label>
                       <input
-                        type="time"
-                        value={newBreakTime.startTime}
-                        onChange={(e) => {
-                          clearMessages();
-                          setNewBreakTime(prev => ({ ...prev, startTime: e.target.value }));
-                        }}
-                        className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        placeholder="e.g., 12:00"
+                            type="time"
+                            value={newBreakTime.startTime || (() => {
+                              const now = new Date();
+                              return `${now.getHours().toString().padStart(2, "0")}:00`;
+                            })()}
+                            onChange={(e) => {
+                              clearMessages();
+                              setNewBreakTime(prev => ({ ...prev, startTime: e.target.value }));
+                            }}
+                            className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            placeholder="e.g., 12:00"
                       />
                     </div>
                     
@@ -516,14 +519,17 @@ export default function DoctorAvailabilityPage() {
                         Break End Time
                       </label>
                       <input
-                        type="time"
-                        value={newBreakTime.endTime}
-                        onChange={(e) => {
-                          clearMessages();
-                          setNewBreakTime(prev => ({ ...prev, endTime: e.target.value }));
-                        }}
-                        className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        placeholder="e.g., 13:00"
+                            type="time"
+                            value={newBreakTime.endTime || (() => {
+                              const now = new Date();
+                              return `${now.getHours().toString().padStart(2, "0")}:00`;
+                            })()}
+                            onChange={(e) => {
+                              clearMessages();
+                              setNewBreakTime(prev => ({ ...prev, endTime: e.target.value }));
+                            }}
+                            className="w-full border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            placeholder="e.g., 13:00"
                       />
                     </div>
 

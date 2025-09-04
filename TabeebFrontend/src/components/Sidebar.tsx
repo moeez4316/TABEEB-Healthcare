@@ -38,6 +38,19 @@ export default function Sidebar() {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
+  // Prevent background scroll on mobile when sidebar is open
+  useEffect(() => {
+    if (isMobile && isMobileMenuOpen) {
+      document.body.classList.add('overflow-hidden');
+    } else {
+      document.body.classList.remove('overflow-hidden');
+    }
+    // Clean up on unmount
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [isMobile, isMobileMenuOpen]);
+
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
@@ -64,9 +77,20 @@ export default function Sidebar() {
   };
 
   const SidebarContent = () => (
-    <aside className={`h-screen flex flex-col justify-between py-8 relative ${
-      !isMobile && isCollapsed ? 'w-20' : 'w-60'
-    }`}>
+    <aside
+      className={`h-screen flex flex-col py-8 relative ${!isMobile && isCollapsed ? 'w-20' : 'w-60'}`}
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      {/* Hide scrollbar with custom CSS */}
+      <style jsx>{`
+        .custom-scrollbar-hide {
+          scrollbar-width: none; /* Firefox */
+          -ms-overflow-style: none; /* IE 10+ */
+        }
+        .custom-scrollbar-hide::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Opera */
+        }
+      `}</style>
       {/* Toggle Button - Only show on desktop */}
       {!isMobile && (
         <div className="absolute -right-3 top-8 z-10">
@@ -80,24 +104,25 @@ export default function Sidebar() {
         </div>
       )}
 
-      <div className="flex flex-col items-center">
-        <div className={`mb-10 flex flex-col items-center transition-all duration-300 ${
-          !isMobile && isCollapsed ? 'scale-75' : 'scale-100'
-        }`}>
-          <Image 
-            src="/tabeeb_logo.png" 
-            alt="Tabeeb Logo" 
-            width={!isMobile && isCollapsed ? 48 : 64} 
-            height={!isMobile && isCollapsed ? 48 : 64} 
-            className="mb-2 rounded-full shadow transition-all duration-300" 
-          />
-          {(isMobile || !isCollapsed) && (
-            <span className="text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200 transition-opacity duration-300">
-              TABEEB
-            </span>
-          )}
-        </div>
-        <nav className="w-full">
+      {/* Header/logo fixed at top */}
+      <div className={`flex flex-col items-center transition-all duration-300 ${!isMobile && isCollapsed ? 'scale-75' : 'scale-100'}`} style={{ flexShrink: 0 }}>
+        <Image 
+          src="/tabeeb_logo.png" 
+          alt="Tabeeb Logo" 
+          width={!isMobile && isCollapsed ? 48 : 64} 
+          height={!isMobile && isCollapsed ? 48 : 64} 
+          className="mb-2 rounded-full shadow transition-all duration-300" 
+        />
+        {(isMobile || !isCollapsed) && (
+          <span className="text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200 transition-opacity duration-300">
+            TABEEB
+          </span>
+        )}
+      </div>
+
+      {/* Scrollable nav items: flex-1, overflow-y-auto, no extra scroll, starts lower */}
+      <div className="flex-1 w-full overflow-y-auto custom-scrollbar-hide min-h-0">
+        <nav className="w-full mt-6">{/* margin-top so first item starts lower */}
           <ul className="space-y-2 w-full">
             {navItems.map((item) => (
               <li key={item.href}>
@@ -129,8 +154,8 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Sign Out Section */}
-      <div className={`w-full transition-all duration-300 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'}`}>
+      {/* Sign Out Section - sticky bottom, safe area */}
+      <div className={`w-full transition-all duration-300 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'} sticky bottom-0 bg-white dark:bg-slate-900 z-10 pt-2 pb-4`} style={{paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'}}>
         {user && (isMobile || !isCollapsed) && (
           <div className="mb-4 p-3 bg-white/10 rounded-lg transition-opacity duration-300">
             <p className="text-sm text-gray-600 dark:text-gray-400">Signed in as:</p>
@@ -139,7 +164,6 @@ export default function Sidebar() {
             </p>
           </div>
         )}
-        
         <button
           onClick={handleSignOut}
           disabled={isSigningOut}
