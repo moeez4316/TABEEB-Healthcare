@@ -83,7 +83,20 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full relative">
+    <div
+      className="flex flex-col h-full relative overflow-y-auto custom-scrollbar-hide"
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      {/* Hide scrollbar with custom CSS */}
+      <style jsx>{`
+        .custom-scrollbar-hide {
+          scrollbar-width: none; /* Firefox */
+          -ms-overflow-style: none; /* IE 10+ */
+        }
+        .custom-scrollbar-hide::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Opera */
+        }
+      `}</style>
       {/* Toggle Button - Only show on desktop */}
       {!isMobile && (
         <div className="absolute -right-3 top-8 z-10">
