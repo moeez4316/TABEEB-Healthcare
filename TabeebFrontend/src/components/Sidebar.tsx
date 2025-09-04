@@ -78,21 +78,19 @@ export default function Sidebar() {
 
   const SidebarContent = () => (
     <aside
-      className={`h-screen flex flex-col py-8 relative ${
-        !isMobile && isCollapsed ? 'w-20' : 'w-60'
-      }`}
+      className={`h-screen flex flex-col py-8 relative ${!isMobile && isCollapsed ? 'w-20' : 'w-60'}`}
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
-        {/* Hide scrollbar with custom CSS */}
-        <style jsx>{`
-          .custom-scrollbar-hide {
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE 10+ */
-          }
-          .custom-scrollbar-hide::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
-          }
-        `}</style>
+      {/* Hide scrollbar with custom CSS */}
+      <style jsx>{`
+        .custom-scrollbar-hide {
+          scrollbar-width: none; /* Firefox */
+          -ms-overflow-style: none; /* IE 10+ */
+        }
+        .custom-scrollbar-hide::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Opera */
+        }
+      `}</style>
       {/* Toggle Button - Only show on desktop */}
       {!isMobile && (
         <div className="absolute -right-3 top-8 z-10">
@@ -107,8 +105,7 @@ export default function Sidebar() {
       )}
 
       {/* Header/logo fixed at top */}
-      <div className={`mb-10 flex flex-col items-center transition-all duration-300 ${!isMobile && isCollapsed ? 'scale-75' : 'scale-100'}`}
-        style={{ flexShrink: 0 }}>
+      <div className={`flex flex-col items-center transition-all duration-300 ${!isMobile && isCollapsed ? 'scale-75' : 'scale-100'}`} style={{ flexShrink: 0 }}>
         <Image 
           src="/tabeeb_logo.png" 
           alt="Tabeeb Logo" 
@@ -122,14 +119,10 @@ export default function Sidebar() {
           </span>
         )}
       </div>
-      {/* Scrollable nav items, with bottom padding for sticky logout/account and safe area */}
-      <div
-        className="flex-1 w-full overflow-y-auto custom-scrollbar-hide min-h-0"
-        style={{
-          paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))', // 88px = approx. logout/account height
-        }}
-      >
-        <nav className="w-full">
+
+      {/* Scrollable nav items: flex-1, overflow-y-auto, no extra scroll, starts lower */}
+      <div className="flex-1 w-full overflow-y-auto custom-scrollbar-hide min-h-0">
+        <nav className="w-full mt-6">{/* margin-top so first item starts lower */}
           <ul className="space-y-2 w-full">
             {navItems.map((item) => (
               <li key={item.href}>

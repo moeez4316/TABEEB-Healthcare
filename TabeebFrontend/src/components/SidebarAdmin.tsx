@@ -164,7 +164,7 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
 
   {/* Navigation - scrollable area, with bottom padding for sticky logout and safe area */}
   <div className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar-hide" style={{ paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))' }}>
-        <nav className={`space-y-2 transition-all duration-300 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'}`}>
+        <nav className={`space-y-2 transition-all duration-300 mt-6 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'}`}>{/* margin-top so first item starts lower */}
           {navigation.map((item) => {
             const Icon = item.icon;
             const isActive = isActiveRoute(item.href);
