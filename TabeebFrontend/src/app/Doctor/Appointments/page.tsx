@@ -356,7 +356,7 @@ export default function DoctorAppointmentsPage() {
           <div className="space-y-4">
             {filteredAppointments.map(appointment => (
               <div key={appointment.id} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-gray-200 dark:border-slate-700">
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex items-start space-x-4 flex-1">
                     {/* Patient Avatar */}
                     <div className="w-12 h-12 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center">
@@ -417,7 +417,7 @@ export default function DoctorAppointmentsPage() {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex flex-col space-y-2 ml-4 flex-wrap items-end max-w-[140px] sm:max-w-none">
+                  <div className="flex flex-col space-y-2 mt-4 sm:mt-0 sm:ml-4 flex-shrink-0 w-full sm:w-auto items-stretch sm:items-end">
                     <button
                       onClick={() => setExpandedAppointment(expandedAppointment === appointment.id ? null : appointment.id)}
                       className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-2 py-1 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors text-xs sm:text-sm max-w-full"
