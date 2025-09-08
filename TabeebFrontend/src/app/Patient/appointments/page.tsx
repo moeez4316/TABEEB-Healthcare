@@ -114,7 +114,7 @@ export default function PatientAppointmentsPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Appointments</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">My Appointments</h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
                 Manage your medical appointments
               </p>
@@ -122,7 +122,7 @@ export default function PatientAppointmentsPage() {
             
             <button
               onClick={() => router.push('/Patient/book-appointment')}
-              className="flex items-center space-x-2 bg-teal-600 dark:bg-teal-500 text-white px-4 py-2 rounded-lg hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors shadow-lg"
+              className="flex items-center space-x-2 bg-teal-600 dark:bg-teal-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors shadow-lg text-base sm:text-lg"
             >
               <FaCalendarPlus className="w-4 h-4" />
               <span>Book New Appointment</span>
@@ -191,7 +191,7 @@ export default function PatientAppointmentsPage() {
           <div className="space-y-4">
             {filteredAppointments.map(appointment => (
               <div key={appointment.id} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 hover:shadow-xl transition-all duration-200 p-6">
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex items-start space-x-4 flex-1">
                     {/* Doctor Avatar */}
                     <div className="w-12 h-12 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center">
@@ -247,7 +247,7 @@ export default function PatientAppointmentsPage() {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex flex-col space-y-2 ml-4">
+                  <div className="flex flex-col space-y-2 mt-4 sm:mt-0 sm:ml-4 flex-shrink-0">
                     <button
                       className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-3 py-1 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
                     >
