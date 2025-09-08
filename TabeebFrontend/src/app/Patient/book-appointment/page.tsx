@@ -319,9 +319,9 @@ export default function BookAppointmentPage() {
           {/* Progress Indicator */}
           {currentStep !== 'confirmation' && (
             <div className="mt-6">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent py-2 -mx-2 px-2">
                 {['doctor', 'date', 'time', 'details'].map((step, index) => (
-                  <div key={step} className="flex items-center">
+                  <div key={step} className="flex items-center flex-shrink-0">
                     <div
                       className={`
                         w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shadow-lg
@@ -339,7 +339,7 @@ export default function BookAppointmentPage() {
                     {index < 3 && (
                       <div
                         className={`
-                          w-16 h-1 mx-2 rounded-full
+                          w-10 sm:w-16 h-1 mx-1 sm:mx-2 rounded-full flex-shrink-0
                           ${
                             ['doctor', 'date', 'time', 'details'].indexOf(currentStep) > index
                               ? 'bg-green-500'

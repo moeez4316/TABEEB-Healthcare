@@ -62,7 +62,7 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
           `}
           onClick={() => onDoctorSelect(doctor)}
         >
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex items-center space-x-4 flex-1">
               {/* Doctor Avatar */}
               <div className="w-16 h-16 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center">
@@ -101,10 +101,10 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
             </div>
             
             {/* Select Button */}
-            <div className="ml-4">
+            <div className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0">
               <button
                 className={`
-                  px-4 py-2 rounded-lg font-medium transition-colors shadow-md
+                  w-full sm:w-auto px-4 py-2 rounded-lg font-medium transition-colors shadow-md
                   ${
                     selectedDoctor?.uid === doctor.uid
                       ? 'bg-teal-600 dark:bg-teal-500 text-white hover:bg-teal-700 dark:hover:bg-teal-600'
