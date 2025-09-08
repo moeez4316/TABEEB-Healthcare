@@ -196,29 +196,22 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   w-full h-full flex items-center justify-center text-sm rounded-lg transition-all duration-200 relative font-medium
                   ${
                     isDateSelected(date)
-                      ? 'bg-teal-600 dark:bg-teal-500 text-white shadow-lg transform scale-105'
+                      ? 'ring-2 ring-teal-500 dark:ring-teal-400 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300'
                       : isDateDisabled(date)
                       ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-50 dark:bg-slate-700'
-                      : hasAvailability(date)
-                      ? 'text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/40 hover:text-teal-800 dark:hover:text-teal-200 border-2 border-teal-300 dark:border-teal-600 shadow-sm hover:shadow-md hover:scale-105'
+                      : isToday(date)
+                      ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 border border-transparent hover:border-gray-200 dark:hover:border-slate-600'
                   }
                 `}
                 type="button"
               >
                 <span className="relative z-10">{date.getDate()}</span>
-                {/* Enhanced availability indicator */}
-                {hasAvailability(date) && !isDateSelected(date) && (
-                  <>
-                    {/* Green dot indicator */}
-                    <div className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full shadow-sm"></div>
-                    {/* Subtle background glow for available dates */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-teal-100/50 to-green-100/50 dark:from-teal-900/20 dark:to-green-900/20 rounded-lg"></div>
-                  </>
-                )}
-                {/* Today indicator */}
-                {!hasAvailability(date) && !isDateSelected(date) && !isDateDisabled(date) && isToday(date) && (
-                  <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-500 rounded-full"></div>
+                {/* Availability indicator (Doctor style) */}
+                {hasAvailability(date) && (
+                  <div className="absolute top-1 right-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full" title="Available"></div>
+                  </div>
                 )}
               </button>
             ) : (
@@ -284,8 +277,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 <span className="text-gray-600 dark:text-gray-400">No availability</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-teal-600 dark:bg-teal-500 rounded flex items-center justify-center">
-                  <span className="text-xs font-medium text-white">16</span>
+                <div className="w-4 h-4 ring-2 ring-teal-500 dark:ring-teal-400 bg-teal-50 dark:bg-teal-900/20 rounded flex items-center justify-center">
+                  <span className="text-xs font-medium text-teal-700 dark:text-teal-300">16</span>
                 </div>
                 <span className="text-gray-600 dark:text-gray-400">Selected date</span>
               </div>
