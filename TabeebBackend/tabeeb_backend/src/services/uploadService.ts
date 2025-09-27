@@ -53,3 +53,35 @@ export const uploadVerificationDocument = (buffer: Buffer, doctorUid: string, do
     stream.end(buffer);
   });
 };
+
+// Upload profile image for patients
+export const uploadProfileImage = (buffer: Buffer, userId: string) => {
+  return new Promise((resolve, reject) => {
+    const timestamp = Date.now();
+    const filename = `profile/${userId}/avatar_${timestamp}`;
+    
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'image',
+        public_id: filename,
+        folder: 'tabeeb/profiles',
+        type: 'upload',
+        access_mode: 'public',
+        tags: ['profile', 'avatar', userId],
+        transformation: [
+          { width: 300, height: 300, crop: 'fill', gravity: 'face' },
+          { quality: 'auto', format: 'auto' }
+        ]
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Cloudinary profile image upload error:', error);
+          return reject(error);
+        }
+        console.log('✅ Profile image uploaded successfully:', result?.secure_url);
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+};

@@ -84,7 +84,8 @@ export const bookAppointment = async (req: Request, res: Response) => {
       prisma.patient.findUnique({
         where: { uid: patientUid },
         select: {
-          name: true,
+          firstName: true,
+          lastName: true,
           phone: true
         }
       })
@@ -121,7 +122,8 @@ export const bookAppointment = async (req: Request, res: Response) => {
         },
         patient: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             phone: true
           }
         }
@@ -190,9 +192,10 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
         include: {
           patient: {
             select: {
-              name: true,
+              firstName: true,
+              lastName: true,
               phone: true,
-              dob: true,
+              dateOfBirth: true,
               gender: true
             }
           }
@@ -312,7 +315,8 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
       include: {
         patient: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             phone: true
           }
         },
@@ -376,7 +380,8 @@ export const cancelAppointment = async (req: Request, res: Response) => {
       include: {
         patient: {
           select: {
-            name: true
+            firstName: true,
+            lastName: true
           }
         },
         doctor: {
@@ -422,9 +427,10 @@ export const getAppointmentDetails = async (req: Request, res: Response) => {
         },
         patient: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             phone: true,
-            dob: true,
+            dateOfBirth: true,
             gender: true
           }
         }
