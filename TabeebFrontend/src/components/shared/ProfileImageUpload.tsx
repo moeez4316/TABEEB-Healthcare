@@ -68,11 +68,8 @@ const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
     setPreview(croppedImageUrl)
     
     try {
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // In production, this would be an API call to upload the image
-      // For now, we'll store the base64 data URL
+      // For now, just pass the cropped image to parent
+      // The parent (PatientProfileEditModal) will handle the actual upload
       onImageChange(croppedImageUrl)
       setPreview(null)
       setError(null)

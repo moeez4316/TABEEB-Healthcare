@@ -28,7 +28,7 @@ const mockPatientData = {
 };
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const dispatch = useAppDispatch();
   const { profile, isLoading, error } = useAppSelector((state) => state.patient);
   const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
@@ -36,8 +36,10 @@ export default function DashboardPage() {
 
   // Load profile data on component mount
   useEffect(() => {
-    dispatch(loadPatientProfile());
-  }, [dispatch]);
+    if (token) {
+      dispatch(loadPatientProfile(token));
+    }
+  }, [dispatch, token]);
 
   if (!user) return null;
 

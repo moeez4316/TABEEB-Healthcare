@@ -18,12 +18,12 @@ type DoctorForm = {
 };
 
 type PatientForm = {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
-  dob: string;
+  dateOfBirth: string;
   gender: string;
-  medicalHistory: string;
 };
 
 type FormErrors = {
@@ -50,12 +50,12 @@ export default function SelectRolePage() {
   const [customSpecialization, setCustomSpecialization] = useState("");
   
   const [patientForm, setPatientForm] = useState<PatientForm>({
-    name: user?.displayName || "",
+    firstName: user?.displayName?.split(' ')[0] || "",
+    lastName: user?.displayName?.split(' ').slice(1).join(' ') || "",
     email: user?.email || "",
     phone: "",
-    dob: "",
+    dateOfBirth: "",
     gender: "",
-    medicalHistory: "",
   });
   
   const router = useRouter();
@@ -70,7 +70,8 @@ export default function SelectRolePage() {
       }));
       setPatientForm(prev => ({
         ...prev,
-        name: user.displayName || prev.name,
+        firstName: user.displayName?.split(' ')[0] || prev.firstName,
+        lastName: user.displayName?.split(' ').slice(1).join(' ') || prev.lastName,
         email: user.email || prev.email,
       }));
     }
@@ -113,17 +114,18 @@ export default function SelectRolePage() {
   const validatePatientForm = (): boolean => {
     const errors: FormErrors = {};
     const today = new Date();
-    const dobDate = new Date(patientForm.dob);
+    const dobDate = new Date(patientForm.dateOfBirth);
     const age = today.getFullYear() - dobDate.getFullYear();
     
-    if (!patientForm.name.trim()) errors.name = "Name is required";
+    if (!patientForm.firstName.trim()) errors.firstName = "First name is required";
+    if (!patientForm.lastName.trim()) errors.lastName = "Last name is required";
     if (!patientForm.email.trim()) errors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(patientForm.email)) errors.email = "Invalid email format";
     if (!patientForm.phone.trim()) errors.phone = "Phone number is required";
     else if (!/^\+?[\d\s\-\(\)]{10,}$/.test(patientForm.phone)) errors.phone = "Invalid phone number";
-    if (!patientForm.dob) errors.dob = "Date of birth is required";
-    else if (dobDate > today) errors.dob = "Date of birth cannot be in the future";
-    else if (age > 150) errors.dob = "Invalid date of birth";
+    if (!patientForm.dateOfBirth) errors.dateOfBirth = "Date of birth is required";
+    else if (dobDate > today) errors.dateOfBirth = "Date of birth cannot be in the future";
+    else if (age > 150) errors.dateOfBirth = "Invalid date of birth";
     if (!patientForm.gender) errors.gender = "Gender is required";
     
     setFormErrors(errors);
@@ -191,8 +193,7 @@ export default function SelectRolePage() {
         endpoint = "/api/patient";
         body = {
           ...patientForm,
-          dob: patientForm.dob ? new Date(patientForm.dob).toISOString() : "",
-          medicalHistory: patientForm.medicalHistory || ""
+          dateOfBirth: patientForm.dateOfBirth ? new Date(patientForm.dateOfBirth).toISOString() : ""
         };
       }
       
@@ -516,7 +517,7 @@ export default function SelectRolePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Full Name *
+                    First Name *
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -524,17 +525,40 @@ export default function SelectRolePage() {
                     </div>
                     <input
                       type="text"
-                      name="name"
+                      name="firstName"
                       required
-                      value={patientForm.name}
+                      value={patientForm.firstName}
                       onChange={handlePatientChange}
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        formErrors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
+                        formErrors.firstName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
                       }`}
-                      placeholder="Enter your full name"
+                      placeholder="Enter your first name"
                     />
                   </div>
-                  {formErrors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.name}</p>}
+                  {formErrors.firstName && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.firstName}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Last Name *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <input
+                      type="text"
+                      name="lastName"
+                      required
+                      value={patientForm.lastName}
+                      onChange={handlePatientChange}
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        formErrors.lastName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
+                      }`}
+                      placeholder="Enter your last name"
+                    />
+                  </div>
+                  {formErrors.lastName && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.lastName}</p>}
                 </div>
 
                 <div>
@@ -593,17 +617,17 @@ export default function SelectRolePage() {
                     </div>
                     <input
                       type="date"
-                      name="dob"
+                      name="dateOfBirth"
                       required
-                      value={patientForm.dob}
+                      value={patientForm.dateOfBirth}
                       onChange={handlePatientChange}
                       max={new Date().toISOString().split('T')[0]}
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        formErrors.dob ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
+                        formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
                       }`}
                     />
                   </div>
-                  {formErrors.dob && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.dob}</p>}
+                  {formErrors.dateOfBirth && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.dateOfBirth}</p>}
                 </div>
               </div>
 
@@ -629,19 +653,7 @@ export default function SelectRolePage() {
                 {formErrors.gender && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.gender}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Medical History (Optional)
-                </label>
-                <textarea
-                  name="medicalHistory"
-                  value={patientForm.medicalHistory}
-                  onChange={handlePatientChange}
-                  rows={3}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-slate-600 rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 resize-none"
-                  placeholder="Any relevant medical history, allergies, or conditions..."
-                />
-              </div>
+
 
               <button
                 type="submit"

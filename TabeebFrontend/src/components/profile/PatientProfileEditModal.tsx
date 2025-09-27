@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { X, Save, User, Heart, Settings, Phone, MapPin, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { updateProfile, savePatientProfile, PatientProfile, selectHasUnsavedChanges } from '@/store/slices/patientSlice';
+import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile, selectHasUnsavedChanges } from '@/store/slices/patientSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import { formatCNIC, formatPhoneNumber, pakistaniProvinces, bloodGroups, pakistaniLanguages } from '@/lib/profile-utils';
 import { validateProfile, ValidationErrors, getFieldError, hasErrors } from '@/lib/profile-validation';
@@ -17,14 +18,36 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
   const dispatch = useAppDispatch();
   const { profile, isLoading } = useAppSelector((state) => state.patient);
   const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
+  
+  // Get token from auth context
+  const { token } = useAuth();
 
   const handleUpdateProfile = (updates: Partial<PatientProfile>) => {
     dispatch(updateProfile(updates));
   };
 
   const handleSaveProfile = async () => {
-    if (profile) {
-      await dispatch(savePatientProfile(profile));
+    if (profile && token) {
+      // If there's a new profile image (base64), upload it first
+      if (profile.profileImage && profile.profileImage.startsWith('data:')) {
+        try {
+          // Convert base64 to File object
+          const response = await fetch(profile.profileImage);
+          const blob = await response.blob();
+          const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
+          
+          // Upload the image
+          const uploadResult = await dispatch(uploadProfileImage({ file, token }));
+          if (uploadResult.type.endsWith('/fulfilled')) {
+            // Image upload successful, the profileImage URL is now updated in the store
+          }
+        } catch (error) {
+          console.error('Error uploading profile image:', error);
+        }
+      }
+      
+      // Save the profile
+      await dispatch(savePatientProfile({ profileData: profile, token }));
     }
   };
   const [activeTab, setActiveTab] = useState('personal');
