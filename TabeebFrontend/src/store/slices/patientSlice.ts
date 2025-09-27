@@ -102,43 +102,131 @@ const initialState: PatientState = {
   lastSaved: null,
 }
 
-// Async thunk for saving profile (currently localStorage, to change to API later)
-export const savePatientProfile = createAsyncThunk(
-  'patient/saveProfile',
-  async (profileData: PatientProfile, { rejectWithValue }) => {
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// Helper function to get auth token
+const getAuthToken = () => {
+  // This will be passed from the component that dispatches the action
+  return null; // Token will be passed as parameter
+};
+
+// Async thunk for creating patient profile
+export const createPatientProfile = createAsyncThunk(
+  'patient/createProfile',
+  async ({ profileData, token }: { profileData: PatientProfile; token: string }, { rejectWithValue }) => {
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // For now, save to localStorage (to replace with API call)
-      localStorage.setItem('patientProfile', JSON.stringify(profileData))
-      
+      const response = await fetch(`${API_URL}/api/patient`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.error || 'Failed to create profile');
+      }
+
+      const result = await response.json();
       return {
         profile: profileData,
         timestamp: new Date().toISOString()
-      }
+      };
     } catch (error) {
-      return rejectWithValue('Failed to save profile')
+      return rejectWithValue('Network error: Failed to create profile');
     }
   }
-)
+);
+
+// Async thunk for saving/updating profile
+export const savePatientProfile = createAsyncThunk(
+  'patient/saveProfile',
+  async ({ profileData, token }: { profileData: PatientProfile; token: string }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${API_URL}/api/patient`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.error || 'Failed to save profile');
+      }
+
+      const result = await response.json();
+      return {
+        profile: profileData,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      return rejectWithValue('Network error: Failed to save profile');
+    }
+  }
+);
 
 // Async thunk for loading profile
 export const loadPatientProfile = createAsyncThunk(
   'patient/loadProfile',
-  async (_, { rejectWithValue }) => {
+  async (token: string, { rejectWithValue }) => {
     try {
-      const savedProfile = localStorage.getItem('patientProfile')
-      if (savedProfile) {
-        const parsed = JSON.parse(savedProfile)
-        return parsed
+      const response = await fetch(`${API_URL}/api/patient`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Patient profile doesn't exist yet, return default profile
+          return defaultProfile;
+        }
+        const errorData = await response.json();
+        return rejectWithValue(errorData.error || 'Failed to load profile');
       }
-      return defaultProfile
+
+      const profileData = await response.json();
+      return profileData;
     } catch (error) {
-      return rejectWithValue('Failed to load profile')
+      return rejectWithValue('Network error: Failed to load profile');
     }
   }
-)
+);
+
+// Async thunk for uploading profile image
+export const uploadProfileImage = createAsyncThunk(
+  'patient/uploadProfileImage',
+  async ({ file, token }: { file: File; token: string }, { rejectWithValue }) => {
+    try {
+      const formData = new FormData();
+      formData.append('profileImage', file);
+
+      const response = await fetch(`${API_URL}/api/patient/profile-image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.error || 'Failed to upload image');
+      }
+
+      const result = await response.json();
+      return result.imageUrl;
+    } catch (error) {
+      return rejectWithValue('Network error: Failed to upload image');
+    }
+  }
+);
 
 const patientSlice = createSlice({
   name: 'patient',
@@ -158,6 +246,23 @@ const patientSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Create profile cases
+      .addCase(createPatientProfile.pending, (state) => {
+        state.isLoading = true
+        state.error = null
+      })
+      .addCase(createPatientProfile.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.profile = action.payload.profile
+        state.originalProfile = action.payload.profile
+        state.lastSaved = action.payload.timestamp
+        state.error = null
+      })
+      .addCase(createPatientProfile.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload as string
+      })
+      
       // Save profile cases
       .addCase(savePatientProfile.pending, (state) => {
         state.isLoading = true
@@ -175,6 +280,7 @@ const patientSlice = createSlice({
         state.error = action.payload as string
       })
       
+      // Load profile cases
       .addCase(loadPatientProfile.pending, (state) => {
         state.isLoading = true
         state.error = null
@@ -186,6 +292,21 @@ const patientSlice = createSlice({
         state.error = null
       })
       .addCase(loadPatientProfile.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload as string
+      })
+      
+      // Upload profile image cases
+      .addCase(uploadProfileImage.pending, (state) => {
+        state.isLoading = true
+        state.error = null
+      })
+      .addCase(uploadProfileImage.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.profile.profileImage = action.payload
+        state.error = null
+      })
+      .addCase(uploadProfileImage.rejected, (state, action) => {
         state.isLoading = false
         state.error = action.payload as string
       })
