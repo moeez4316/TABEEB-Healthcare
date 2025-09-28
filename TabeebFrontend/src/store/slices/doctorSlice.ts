@@ -1,6 +1,4 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
-import { mockDoctorService } from '@/lib/mock/mockDoctorService'
-import APP_CONFIG from '@/lib/config/appConfig'
 
 export interface DoctorProfile {
   // Personal Information
@@ -29,6 +27,7 @@ export interface DoctorProfile {
   
   // Verification Status
   verificationStatus: 'not-submitted' | 'pending' | 'approved' | 'rejected'
+  isVerified?: boolean
   documentsUploaded: {
     cnicFront: boolean
     cnicBack: boolean
@@ -36,6 +35,11 @@ export interface DoctorProfile {
     degreeCertificate: boolean
     pmdcCertificate: boolean
   }
+  
+  // Additional verification fields from verification table
+  graduationYear?: string
+  degreeInstitution?: string
+  pmdcRegistrationDate?: string
 
   // Preferences
   notifications: {
@@ -142,13 +146,38 @@ export const createDoctorProfile = createAsyncThunk(
   'doctor/createProfile',
   async ({ profileData, token }: { profileData: DoctorProfile; token: string }, { rejectWithValue }) => {
     try {
+      // Transform frontend data to backend format
+      const backendData = {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        name: `${profileData.firstName} ${profileData.lastName}`,
+        email: profileData.email,
+        phone: profileData.phone,
+        dateOfBirth: profileData.dateOfBirth,
+        gender: profileData.gender,
+        specialization: profileData.specialization,
+        qualification: profileData.qualification,
+        experience: profileData.experience,
+        addressStreet: profileData.address.street,
+        addressCity: profileData.address.city,
+        addressProvince: profileData.address.province,
+        addressPostalCode: profileData.address.postalCode,
+        language: 'English',
+        notificationsEmail: profileData.notifications.email,
+        notificationsSms: profileData.notifications.sms,
+        notificationsPush: profileData.notifications.push,
+        privacyShareData: profileData.privacy.shareDataForResearch,
+        privacyMarketing: profileData.privacy.allowMarketing,
+        profileImage: profileData.profileImage
+      };
+
       const response = await fetch(`${API_URL}/api/doctor`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(profileData),
+        body: JSON.stringify(backendData),
       });
 
       if (!response.ok) {
@@ -172,19 +201,38 @@ export const saveDoctorProfile = createAsyncThunk(
   'doctor/saveProfile',
   async ({ profileData, token }: { profileData: DoctorProfile; token: string }, { rejectWithValue }) => {
     try {
-      // Use mock service if configured
-      if (APP_CONFIG.USE_MOCK_BACKEND) {
-        return await mockDoctorService.saveDoctorProfile(profileData, token);
-      }
+      // Backend implementation - transform data
+      const backendData = {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        name: `${profileData.firstName} ${profileData.lastName}`,
+        email: profileData.email,
+        phone: profileData.phone,
+        dateOfBirth: profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toISOString() : null,
+        gender: profileData.gender,
+        specialization: profileData.specialization,
+        qualification: profileData.qualification,
+        experience: profileData.experience,
+        addressStreet: profileData.address.street,
+        addressCity: profileData.address.city,
+        addressProvince: profileData.address.province,
+        addressPostalCode: profileData.address.postalCode,
+        language: 'English',
+        notificationsEmail: profileData.notifications.email,
+        notificationsSms: profileData.notifications.sms,
+        notificationsPush: profileData.notifications.push,
+        privacyShareData: profileData.privacy.shareDataForResearch,
+        privacyMarketing: profileData.privacy.allowMarketing,
+        profileImage: profileData.profileImage
+      };
 
-      // Real backend implementation
       const response = await fetch(`${API_URL}/api/doctor`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(profileData),
+        body: JSON.stringify(backendData),
       });
 
       if (!response.ok) {
@@ -208,12 +256,7 @@ export const loadDoctorProfile = createAsyncThunk(
   'doctor/loadProfile',
   async (token: string, { rejectWithValue }) => {
     try {
-      // Use mock service if configured
-      if (APP_CONFIG.USE_MOCK_BACKEND) {
-        return await mockDoctorService.loadDoctorProfile(token);
-      }
-
-      // Real backend implementation
+      // Backend implementation
       const response = await fetch(`${API_URL}/api/doctor`, {
         method: 'GET',
         headers: {
@@ -230,9 +273,50 @@ export const loadDoctorProfile = createAsyncThunk(
         return rejectWithValue(errorData.error || 'Failed to load profile');
       }
 
-      const profileData = await response.json();
-      // Merge with default profile to ensure all arrays and objects exist
-      return { ...defaultProfile, ...profileData };
+      const backendData = await response.json();
+      
+      // Debug: Log what we're receiving from backend
+      console.log('Backend data received:', backendData);
+      
+      // Transform backend data to frontend format
+      const profileData: DoctorProfile = {
+        ...defaultProfile,
+        firstName: backendData.firstName || '',
+        lastName: backendData.lastName || '',
+        email: backendData.email || '',
+        phone: backendData.phone || '',
+        cnic: backendData.cnicNumber || '',
+        dateOfBirth: backendData.dateOfBirth ? new Date(backendData.dateOfBirth).toISOString().split('T')[0] : '',
+        gender: backendData.gender || '',
+        profileImage: backendData.profileImageUrl || '',
+        specialization: backendData.specialization || '',
+        qualification: backendData.qualification || '',
+        pmdcNumber: backendData.pmdcNumber || '',
+        experience: backendData.experience || '',
+        address: {
+          street: backendData.addressStreet || '',
+          city: backendData.addressCity || '',
+          province: backendData.addressProvince || '',
+          postalCode: backendData.addressPostalCode || ''
+        },
+        notifications: {
+          email: backendData.notificationsEmail !== undefined ? backendData.notificationsEmail : true,
+          sms: backendData.notificationsSms !== undefined ? backendData.notificationsSms : true,
+          push: backendData.notificationsPush !== undefined ? backendData.notificationsPush : true
+        },
+        privacy: {
+          shareDataForResearch: backendData.privacyShareData || false,
+          allowMarketing: backendData.privacyMarketing || false
+        },
+        verificationStatus: backendData.verificationStatus || 'not-submitted',
+        isVerified: backendData.isVerified || false,
+        // Additional verification fields from the verification table
+        graduationYear: backendData.graduationYear || '',
+        degreeInstitution: backendData.degreeInstitution || '',
+        pmdcRegistrationDate: backendData.pmdcRegistrationDate || ''
+      };
+      
+      return profileData;
     } catch (error) {
       return rejectWithValue('Network error: Failed to load profile');
     }
@@ -244,12 +328,7 @@ export const uploadDoctorProfileImage = createAsyncThunk(
   'doctor/uploadProfileImage',
   async ({ file, token }: { file: File; token: string }, { rejectWithValue }) => {
     try {
-      // Use mock service if configured
-      if (APP_CONFIG.USE_MOCK_BACKEND) {
-        return await mockDoctorService.uploadDoctorProfileImage(file, token);
-      }
-
-      // Real backend implementation
+      // Backend implementation
       const formData = new FormData();
       formData.append('profileImage', file);
 
@@ -274,34 +353,31 @@ export const uploadDoctorProfileImage = createAsyncThunk(
   }
 );
 
-// Async thunk for updating verification status
-export const updateVerificationStatus = createAsyncThunk(
-  'doctor/updateVerificationStatus',
-  async ({ status, token }: { status: DoctorProfile['verificationStatus']; token: string }, { rejectWithValue }) => {
+// Async thunk for fetching verification status
+export const fetchVerificationStatus = createAsyncThunk(
+  'doctor/fetchVerificationStatus',
+  async (token: string, { rejectWithValue }) => {
     try {
-      // Use mock service if configured
-      if (APP_CONFIG.USE_MOCK_BACKEND) {
-        return await mockDoctorService.updateVerificationStatus(status, token);
-      }
-
-      // Real backend implementation
-      const response = await fetch(`${API_URL}/api/doctor/verification-status`, {
-        method: 'PUT',
+      // Backend implementation - get verification status
+      const response = await fetch(`${API_URL}/api/verification`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ status }),
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          return 'not-submitted';
+        }
         const errorData = await response.json();
-        return rejectWithValue(errorData.error || 'Failed to update verification status');
+        return rejectWithValue(errorData.error || 'Failed to fetch verification status');
       }
 
-      return status;
+      const verificationData = await response.json();
+      return verificationData.status || (verificationData.isVerified ? 'approved' : 'pending');
     } catch (error) {
-      return rejectWithValue('Network error: Failed to update verification status');
+      return rejectWithValue('Network error: Failed to fetch verification status');
     }
   }
 );
@@ -389,17 +465,17 @@ const doctorSlice = createSlice({
         state.error = action.payload as string
       })
       
-      // Update verification status cases
-      .addCase(updateVerificationStatus.pending, (state) => {
+      // Fetch verification status cases
+      .addCase(fetchVerificationStatus.pending, (state) => {
         state.isLoading = true
         state.error = null
       })
-      .addCase(updateVerificationStatus.fulfilled, (state, action) => {
+      .addCase(fetchVerificationStatus.fulfilled, (state, action) => {
         state.isLoading = false
         state.profile.verificationStatus = action.payload as DoctorProfile['verificationStatus']
         state.error = null
       })
-      .addCase(updateVerificationStatus.rejected, (state, action) => {
+      .addCase(fetchVerificationStatus.rejected, (state, action) => {
         state.isLoading = false
         state.error = action.payload as string
       })

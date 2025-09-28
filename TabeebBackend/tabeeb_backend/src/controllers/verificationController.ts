@@ -6,15 +6,27 @@ import { uploadVerificationDocument } from '../services/uploadService';
 // Submit verification (Doctor uploads CNIC, PMDC, Certificate)
 export const submitVerification = async (req: Request, res: Response) => {
   const doctorUid = req.user?.uid;
-  const { pmdcNumber } = req.body;
+  const { 
+    pmdcNumber, 
+    pmdcRegistrationDate,
+    cnicNumber,
+    graduationYear,
+    degreeInstitution
+  } = req.body;
   const files = req.files as any;
 
   if (!doctorUid || !pmdcNumber) {
     return res.status(400).json({ error: 'Doctor UID and PMDC number are required' });
   }
 
-  if (!files?.cnic) {
-    return res.status(400).json({ error: 'CNIC document is required' });
+  // Validate required documents
+  const requiredDocs = ['cnicFront', 'verificationPhoto', 'degreeCertificate', 'pmdcCertificate'];
+  const missingDocs = requiredDocs.filter(doc => !files?.[doc]);
+  
+  if (missingDocs.length > 0) {
+    return res.status(400).json({ 
+      error: `Missing required documents: ${missingDocs.join(', ')}` 
+    });
   }
 
   try {
@@ -38,29 +50,54 @@ export const submitVerification = async (req: Request, res: Response) => {
       // If rejected, we'll update the existing record instead of creating new one
     }
 
-    // Upload CNIC to Cloudinary
-    const cnicResult = await uploadVerificationDocument(
-      files.cnic[0].buffer, 
-      doctorUid, 
-      'cnic'
-    ) as any;
+    // Upload all documents to Cloudinary
+    const uploadPromises = [];
 
-    let certificateUrl = null;
-    if (files?.certificate) {
-      const certificateResult = await uploadVerificationDocument(
-        files.certificate[0].buffer,
-        doctorUid,
-        'certificate'
-      ) as any;
-      certificateUrl = certificateResult.secure_url;
+    // Upload CNIC Front (required)
+    uploadPromises.push(
+      uploadVerificationDocument(files.cnicFront[0].buffer, doctorUid, 'cnic_front')
+    );
+
+    // Upload Verification Photo (required)
+    uploadPromises.push(
+      uploadVerificationDocument(files.verificationPhoto[0].buffer, doctorUid, 'verification_photo')
+    );
+
+    // Upload Degree Certificate (required)
+    uploadPromises.push(
+      uploadVerificationDocument(files.degreeCertificate[0].buffer, doctorUid, 'degree_certificate')
+    );
+
+    // Upload PMDC Certificate (required)
+    uploadPromises.push(
+      uploadVerificationDocument(files.pmdcCertificate[0].buffer, doctorUid, 'pmdc_certificate')
+    );
+
+    // Upload CNIC Back (optional)
+    let cnicBackPromise = null;
+    if (files?.cnicBack) {
+      cnicBackPromise = uploadVerificationDocument(files.cnicBack[0].buffer, doctorUid, 'cnic_back');
+      uploadPromises.push(cnicBackPromise);
     }
+
+    const uploadResults = await Promise.all(uploadPromises);
+    
+    // Map results
+    const [cnicFrontResult, verificationPhotoResult, degreeCertificateResult, pmdcCertificateResult, cnicBackResult] = uploadResults;
 
     // Create or update verification record
     const verificationData = {
       doctorUid,
       pmdcNumber,
-      cnic: cnicResult.secure_url,
-      certificate: certificateUrl,
+      pmdcRegistrationDate: pmdcRegistrationDate ? new Date(pmdcRegistrationDate) : null,
+      cnicNumber,
+      graduationYear,
+      degreeInstitution,
+      cnicFrontUrl: (cnicFrontResult as any).secure_url,
+      cnicBackUrl: files?.cnicBack ? (cnicBackResult as any).secure_url : null,
+      verificationPhotoUrl: (verificationPhotoResult as any).secure_url,
+      degreeCertificateUrl: (degreeCertificateResult as any).secure_url,
+      pmdcCertificateUrl: (pmdcCertificateResult as any).secure_url,
       status: 'pending', // Reset status to pending for resubmissions
       isVerified: false, // Reset verification status
       adminComments: null, // Clear previous admin comments
@@ -82,7 +119,14 @@ export const submitVerification = async (req: Request, res: Response) => {
         : 'Verification submitted successfully',
       verification: {
         id: verification.doctorUid,
-        pmdcNumber: verification.pmdcNumber
+        pmdcNumber: verification.pmdcNumber,
+        documentsUploaded: {
+          cnicFront: true,
+          cnicBack: !!files?.cnicBack,
+          verificationPhoto: true,
+          degreeCertificate: true,
+          pmdcCertificate: true
+        }
       }
     });
 
@@ -110,11 +154,22 @@ export const getVerification = async (req: Request, res: Response) => {
     const response = {
       id: verification.doctorUid,
       isVerified: verification.isVerified,
-      status: verification.status, // Add status field
+      status: verification.status,
       pmdcNumber: verification.pmdcNumber,
-      cnicUrl: verification.cnic,
-      certificateUrl: verification.certificate,
-      adminComments: verification.adminComments, // Add admin comments
+      pmdcRegistrationDate: verification.pmdcRegistrationDate,
+      cnicNumber: verification.cnicNumber,
+      graduationYear: verification.graduationYear,
+      degreeInstitution: verification.degreeInstitution,
+      // Document URLs
+      cnicFrontUrl: verification.cnicFrontUrl,
+      cnicBackUrl: verification.cnicBackUrl,
+      verificationPhotoUrl: verification.verificationPhotoUrl,
+      degreeCertificateUrl: verification.degreeCertificateUrl,
+      pmdcCertificateUrl: verification.pmdcCertificateUrl,
+      // Legacy fields for backward compatibility
+      cnicUrl: verification.cnicFrontUrl, // Map to front for compatibility
+      certificateUrl: verification.pmdcCertificateUrl, // Map to PMDC for compatibility
+      adminComments: verification.adminComments,
       submittedAt: verification.submittedAt,
       reviewedAt: verification.reviewedAt,
       doctor: verification.doctor

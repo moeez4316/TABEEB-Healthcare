@@ -8,7 +8,6 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { loadDoctorProfile, selectHasUnsavedChanges } from '@/store/slices/doctorSlice';
 import { calculateDoctorProfileCompletion, getCompletionStatusColor } from '@/lib/doctor-profile-completion';
 import DoctorProfileEditModal from '@/components/profile/DoctorProfileEditModal';
-import MockDevPanel from '@/components/dev/MockDevPanel';
 import Link from 'next/link';
 
 export default function DoctorDashboard() {
@@ -387,9 +386,6 @@ export default function DoctorDashboard() {
             isOpen={showProfileEdit}
             onClose={() => setShowProfileEdit(false)}
           />
-          
-          {/* Mock Development Panel */}
-          <MockDevPanel />
         </div>
       </main>
     </div>

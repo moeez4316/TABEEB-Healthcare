@@ -15,6 +15,8 @@ type DoctorForm = {
   lastName: string;
   email: string;
   phone: string;
+  dateOfBirth: string;
+  gender: string;
   specialization: string;
   qualification: string;
   experience: number;
@@ -48,6 +50,8 @@ export default function SelectRolePage() {
     lastName: user?.displayName?.split(' ').slice(1).join(' ') || "",
     email: user?.email || "",
     phone: "",
+    dateOfBirth: "",
+    gender: "",
     specialization: "",
     qualification: "",
     experience: 0,
@@ -103,6 +107,9 @@ export default function SelectRolePage() {
 
   const validateDoctorForm = (): boolean => {
     const errors: FormErrors = {};
+    const today = new Date();
+    const dobDate = new Date(doctorForm.dateOfBirth);
+    const age = today.getFullYear() - dobDate.getFullYear();
     
     if (!doctorForm.firstName.trim()) errors.firstName = "First name is required";
     if (!doctorForm.lastName.trim()) errors.lastName = "Last name is required";
@@ -110,6 +117,9 @@ export default function SelectRolePage() {
     else if (!isValidEmail(doctorForm.email)) errors.email = "Invalid email format";
     if (!doctorForm.phone.trim()) errors.phone = "Phone number is required";
     else if (!isValidPhoneNumber(doctorForm.phone)) errors.phone = "Invalid phone number format. Use +92-300-1234567";
+    if (!doctorForm.dateOfBirth) errors.dateOfBirth = "Date of birth is required";
+    else if (dobDate > today) errors.dateOfBirth = "Date of birth cannot be in the future";
+    else if (age > 150) errors.dateOfBirth = "Invalid date of birth";
     if (!doctorForm.specialization.trim()) errors.specialization = "Specialization is required";
     else if (doctorForm.specialization === "Other" && !customSpecialization.trim()) {
       errors.customSpecialization = "Please specify your specialization";
@@ -239,7 +249,8 @@ export default function SelectRolePage() {
         body = { 
           ...doctorForm, 
           specialization: finalSpecialization,
-          qualification: finalQualification
+          qualification: finalQualification,
+          dateOfBirth: doctorForm.dateOfBirth ? new Date(doctorForm.dateOfBirth).toISOString() : ""
         };
       } else if (role === "patient") {
         endpoint = "/api/patient";
@@ -487,6 +498,55 @@ export default function SelectRolePage() {
                     />
                   </div>
                   {formErrors.phone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.phone}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Date of Birth *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <input
+                      type="date"
+                      name="dateOfBirth"
+                      required
+                      value={doctorForm.dateOfBirth}
+                      onChange={handleDoctorChange}
+                      max={new Date().toISOString().split('T')[0]}
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                      }`}
+                    />
+                  </div>
+                  {formErrors.dateOfBirth && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.dateOfBirth}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Gender *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <select
+                      name="gender"
+                      required
+                      value={doctorForm.gender}
+                      onChange={handleDoctorChange}
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        formErrors.gender ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                      }`}
+                    >
+                      <option value="">Select gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  {formErrors.gender && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.gender}</p>}
                 </div>
 
                 <div>
