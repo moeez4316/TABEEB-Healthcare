@@ -77,8 +77,7 @@ export const bookAppointment = async (req: Request, res: Response) => {
         where: { uid: doctorUid },
         select: {
           name: true,
-          specialization: true,
-          consultationFees: true
+          specialization: true
         }
       }),
       prisma.patient.findUnique({
@@ -110,14 +109,13 @@ export const bookAppointment = async (req: Request, res: Response) => {
         duration: availability.slotDuration,
         status: 'PENDING',
         patientNotes,
-        consultationFees: doctor.consultationFees
+        consultationFees: 1000 // Default consultation fee in cents (PKR 10.00)
       },
       include: {
         doctor: {
           select: {
             name: true,
-            specialization: true,
-            consultationFees: true
+            specialization: true
           }
         },
         patient: {
@@ -194,9 +192,11 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
             select: {
               firstName: true,
               lastName: true,
+              email: true,
               phone: true,
               dateOfBirth: true,
-              gender: true
+              gender: true,
+              profileImageUrl: true
             }
           }
         },
@@ -250,8 +250,12 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
         doctor: {
           select: {
             name: true,
+            firstName: true,
+            lastName: true,
             specialization: true,
-            consultationFees: true
+            qualification: true,
+            experience: true,
+            profileImageUrl: true
           }
         }
       },
@@ -421,17 +425,23 @@ export const getAppointmentDetails = async (req: Request, res: Response) => {
         doctor: {
           select: {
             name: true,
+            firstName: true,
+            lastName: true,
             specialization: true,
-            consultationFees: true
+            qualification: true,
+            experience: true,
+            profileImageUrl: true
           }
         },
         patient: {
           select: {
             firstName: true,
             lastName: true,
+            email: true,
             phone: true,
             dateOfBirth: true,
-            gender: true
+            gender: true,
+            profileImageUrl: true
           }
         }
       }

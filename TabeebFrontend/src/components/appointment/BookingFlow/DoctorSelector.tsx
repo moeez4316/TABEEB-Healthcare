@@ -65,16 +65,33 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex items-center space-x-4 flex-1">
               {/* Doctor Avatar */}
-              <div className="w-16 h-16 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center">
-                <FaUserMd className="w-8 h-8 text-teal-600 dark:text-teal-400" />
+              <div className="w-16 h-16 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center overflow-hidden">
+                {doctor.profileImageUrl ? (
+                  <img 
+                    src={doctor.profileImageUrl} 
+                    alt={`Dr. ${doctor.name}`} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <FaUserMd className="w-8 h-8 text-teal-600 dark:text-teal-400" />
+                )}
               </div>
               
               {/* Doctor Info */}
               <div className="flex-1">
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Dr. {doctor.name}
+                  Dr. {doctor.firstName && doctor.lastName 
+                    ? `${doctor.firstName} ${doctor.lastName}`
+                    : doctor.name
+                  }
                 </h4>
                 <p className="text-teal-600 dark:text-teal-400 font-medium">{doctor.specialization}</p>
+                {doctor.qualification && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{doctor.qualification}</p>
+                )}
+                {doctor.experience && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{doctor.experience} years experience</p>
+                )}
                 
                 <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
                   {doctor.rating && (
