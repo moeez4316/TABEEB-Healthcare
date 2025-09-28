@@ -17,31 +17,130 @@ export function validateVerificationForm(data: VerificationFormData): Verificati
     });
   }
 
-  // Validate CNIC file
-  if (!data.cnic) {
+  // Validate PMDC Registration Date
+  if (!data.pmdcRegistrationDate) {
     errors.push({
-      field: 'cnic',
-      message: 'CNIC document is required',
+      field: 'pmdcRegistrationDate',
+      message: 'PMDC registration date is required',
+    });
+  }
+
+  // Validate CNIC Number
+  if (!data.cnicNumber) {
+    errors.push({
+      field: 'cnicNumber',
+      message: 'CNIC number is required',
+    });
+  } else if (!VALIDATION_RULES.CNIC_NUMBER.pattern.test(data.cnicNumber)) {
+    errors.push({
+      field: 'cnicNumber',
+      message: VALIDATION_RULES.CNIC_NUMBER.message,
+    });
+  }
+
+  // Validate CNIC Front
+  if (!data.cnicFront) {
+    errors.push({
+      field: 'cnicFront',
+      message: 'CNIC front image is required',
     });
   } else {
-    const cnicValidation = validateFile(data.cnic, VALIDATION_RULES.CNIC);
-    if (!cnicValidation.isValid) {
+    const validation = validateFile(data.cnicFront, VALIDATION_RULES.CNIC_FRONT);
+    if (!validation.isValid) {
       errors.push({
-        field: 'cnic',
-        message: cnicValidation.error || VALIDATION_RULES.CNIC.message,
+        field: 'cnicFront',
+        message: validation.error || VALIDATION_RULES.CNIC_FRONT.message,
       });
     }
   }
 
-  // Validate Certificate file (optional)
-  if (data.certificate) {
-    const certificateValidation = validateFile(data.certificate, VALIDATION_RULES.CERTIFICATE);
-    if (!certificateValidation.isValid) {
+  // Validate CNIC Back
+  if (!data.cnicBack) {
+    errors.push({
+      field: 'cnicBack',
+      message: 'CNIC back image is required',
+    });
+  } else {
+    const validation = validateFile(data.cnicBack, VALIDATION_RULES.CNIC_BACK);
+    if (!validation.isValid) {
       errors.push({
-        field: 'certificate',
-        message: certificateValidation.error || VALIDATION_RULES.CERTIFICATE.message,
+        field: 'cnicBack',
+        message: validation.error || VALIDATION_RULES.CNIC_BACK.message,
       });
     }
+  }
+
+  // Validate Verification Photo
+  if (!data.verificationPhoto) {
+    errors.push({
+      field: 'verificationPhoto',
+      message: 'Verification photo is required',
+    });
+  } else {
+    const validation = validateFile(data.verificationPhoto, VALIDATION_RULES.VERIFICATION_PHOTO);
+    if (!validation.isValid) {
+      errors.push({
+        field: 'verificationPhoto',
+        message: validation.error || VALIDATION_RULES.VERIFICATION_PHOTO.message,
+      });
+    }
+  }
+
+  // Validate Degree Certificate
+  if (!data.degreeCertificate) {
+    errors.push({
+      field: 'degreeCertificate',
+      message: 'Degree certificate is required',
+    });
+  } else {
+    const validation = validateFile(data.degreeCertificate, VALIDATION_RULES.DEGREE_CERTIFICATE);
+    if (!validation.isValid) {
+      errors.push({
+        field: 'degreeCertificate',
+        message: validation.error || VALIDATION_RULES.DEGREE_CERTIFICATE.message,
+      });
+    }
+  }
+
+  // Validate PMDC Certificate
+  if (!data.pmdcCertificate) {
+    errors.push({
+      field: 'pmdcCertificate',
+      message: 'PMDC certificate is required',
+    });
+  } else {
+    const validation = validateFile(data.pmdcCertificate, VALIDATION_RULES.PMDC_CERTIFICATE);
+    if (!validation.isValid) {
+      errors.push({
+        field: 'pmdcCertificate',
+        message: validation.error || VALIDATION_RULES.PMDC_CERTIFICATE.message,
+      });
+    }
+  }
+
+  // Validate Graduation Year
+  if (!data.graduationYear) {
+    errors.push({
+      field: 'graduationYear',
+      message: 'Graduation year is required',
+    });
+  } else {
+    const year = parseInt(data.graduationYear);
+    const currentYear = new Date().getFullYear();
+    if (year < 1950 || year > currentYear) {
+      errors.push({
+        field: 'graduationYear',
+        message: 'Please enter a valid graduation year',
+      });
+    }
+  }
+
+  // Validate Degree Institution
+  if (!data.degreeInstitution) {
+    errors.push({
+      field: 'degreeInstitution',
+      message: 'Degree institution is required',
+    });
   }
 
   return {

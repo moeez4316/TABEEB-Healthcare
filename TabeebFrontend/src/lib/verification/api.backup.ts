@@ -1,6 +1,3 @@
-import { mockDoctorService } from '@/lib/mock/mockDoctorService';
-import APP_CONFIG from '@/lib/config/appConfig';
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface VerificationData {
@@ -40,24 +37,40 @@ class VerificationAPI {
     };
   }
 
-  // Submit verification documents (MOCK-ENABLED FOR TESTING)
-  // NOTE: Full version backed up in api.backup.ts - this supports both mock and real backend
-  async submitVerification(data: SubmitVerificationRequest, token: string): Promise<{ message: string; [key: string]: unknown }> {
-    // Validate minimum requirements
-    if (!data.pmdcNumber) {
-      throw new Error('PMDC Number is required');
-    }
+  // Submit verification documents (FULL VERSION - BACKUP)
+  async submitVerificationFull(data: SubmitVerificationRequest, token: string): Promise<{ message: string; [key: string]: unknown }> {
+    const formData = new FormData();
     
-    if (!data.cnicFront && !data.cnicBack) {
-      throw new Error('At least one CNIC document (front or back) is required');
+    // Text fields
+    formData.append('pmdcNumber', data.pmdcNumber);
+    formData.append('pmdcRegistrationDate', data.pmdcRegistrationDate);
+    formData.append('cnicNumber', data.cnicNumber);
+    formData.append('graduationYear', data.graduationYear);
+    formData.append('degreeInstitution', data.degreeInstitution);
+    
+    // File uploads (only if they exist)
+    if (data.cnicFront) formData.append('cnicFront', data.cnicFront);
+    if (data.cnicBack) formData.append('cnicBack', data.cnicBack);
+    if (data.verificationPhoto) formData.append('verificationPhoto', data.verificationPhoto);
+    if (data.degreeCertificate) formData.append('degreeCertificate', data.degreeCertificate);
+    if (data.pmdcCertificate) formData.append('pmdcCertificate', data.pmdcCertificate);
+
+    const response = await fetch(`${API_URL}/api/verification/full`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(token),
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to submit verification');
     }
 
-    // Use mock service if configured
-    if (APP_CONFIG.USE_MOCK_BACKEND) {
-      return await mockDoctorService.submitVerification(data, token);
-    }
+    return response.json();
+  }
 
-    // Real backend implementation (simplified for current backend)
+  // Submit verification documents (SIMPLIFIED FOR TESTING - matches current backend API)
+  async submitVerification(data: SubmitVerificationRequest, token: string): Promise<{ message: string; [key: string]: unknown }> {
     const formData = new FormData();
     
     // Backend expects only pmdcNumber in the body
