@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import ProfileImage from '../models/ProfileImage';
 import { uploadProfileImage } from '../services/uploadService';
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -15,6 +14,7 @@ export const createPatient = async (req: Request, res: Response) => {
     cnic,
     dateOfBirth, 
     gender,
+    profileImage, // Base64 image data
     // Medical Information
     bloodType,
     height,
@@ -44,6 +44,27 @@ export const createPatient = async (req: Request, res: Response) => {
       update: { role: 'patient' }
     });
 
+    // Handle profile image upload if provided
+    let profileImageUrl = null;
+    let profileImagePublicId = null;
+    if (profileImage && profileImage.startsWith('data:image/')) {
+      try {
+        // Convert base64 to buffer
+        const base64Data = profileImage.replace(/^data:image\/\w+;base64,/, '');
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+
+        // Upload to Cloudinary
+        const uploadResult = await uploadProfileImage(imageBuffer, uid) as any;
+
+        // Store image URL and public ID directly
+        profileImageUrl = uploadResult.secure_url;
+        profileImagePublicId = uploadResult.public_id;
+      } catch (imageError) {
+        console.error('Profile image upload error:', imageError);
+        // Continue with patient creation even if image upload fails
+      }
+    }
+
     const patient = await prisma.patient.create({
       data: {
         uid,
@@ -54,6 +75,8 @@ export const createPatient = async (req: Request, res: Response) => {
         cnic,
         dateOfBirth: new Date(dateOfBirth),
         gender,
+        profileImageUrl,
+        profileImagePublicId,
         
         // Medical Information
         bloodType,
@@ -99,12 +122,6 @@ export const getPatient = async (req: Request, res: Response) => {
     const patient = await prisma.patient.findUnique({ where: { uid } });
     if (!patient) return res.status(404).json({ error: 'Patient not found' });
 
-    // Get profile image if exists
-    let profileImage = null;
-    if (patient.profileImageId) {
-      profileImage = await ProfileImage.findById(patient.profileImageId);
-    }
-
     // Format response to match frontend structure
     const formattedPatient = {
       firstName: patient.firstName,
@@ -114,7 +131,7 @@ export const getPatient = async (req: Request, res: Response) => {
       cnic: patient.cnic || '',
       dateOfBirth: patient.dateOfBirth.toISOString().split('T')[0],
       gender: patient.gender,
-      profileImage: profileImage?.imageUrl || '',
+      profileImage: patient.profileImageUrl || '',
       
       // Medical Information
       bloodType: patient.bloodType || '',
@@ -254,35 +271,21 @@ export const uploadPatientProfileImage = async (req: Request, res: Response) => 
       return res.status(404).json({ error: 'Patient not found' });
     }
 
-    // Delete old profile image if exists
-    if (patient.profileImageId) {
-      const oldImage = await ProfileImage.findById(patient.profileImageId);
-      if (oldImage) {
-        // Delete from Cloudinary
-        await cloudinary.uploader.destroy(oldImage.publicId);
-        // Delete from MongoDB
-        await ProfileImage.findByIdAndDelete(patient.profileImageId);
-      }
+    // Delete old profile image from Cloudinary if exists
+    if (patient.profileImagePublicId) {
+      await cloudinary.uploader.destroy(patient.profileImagePublicId);
     }
 
     // Upload new image to Cloudinary
     const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
 
-    // Save image metadata to MongoDB
-    const profileImage = await ProfileImage.create({
-      userId: uid,
-      imageUrl: uploadResult.secure_url,
-      publicId: uploadResult.public_id,
-      width: uploadResult.width,
-      height: uploadResult.height,
-      format: uploadResult.format,
-      bytes: uploadResult.bytes
-    });
-
-    // Update patient record with profile image ID
+    // Update patient record with new image data
     await prisma.patient.update({
       where: { uid },
-      data: { profileImageId: profileImage._id.toString() }
+      data: { 
+        profileImageUrl: uploadResult.secure_url,
+        profileImagePublicId: uploadResult.public_id
+      }
     });
 
     res.json({
@@ -306,23 +309,20 @@ export const deletePatientProfileImage = async (req: Request, res: Response) => 
 
   try {
     const patient = await prisma.patient.findUnique({ where: { uid } });
-    if (!patient || !patient.profileImageId) {
-      return res.status(404).json({ error: 'No profile image found' });
+    if (!patient || !patient.profileImagePublicId) {
+      return res.status(404).json({ error: 'Patient not found or no profile image to delete' });
     }
 
-    // Find image in MongoDB
-    const profileImage = await ProfileImage.findById(patient.profileImageId);
-    if (profileImage) {
-      // Delete from Cloudinary
-      await cloudinary.uploader.destroy(profileImage.publicId);
-      // Delete from MongoDB
-      await ProfileImage.findByIdAndDelete(patient.profileImageId);
-    }
+    // Delete from Cloudinary
+    await cloudinary.uploader.destroy(patient.profileImagePublicId);
 
-    // Remove profile image ID from patient record
+    // Update patient record to remove image data
     await prisma.patient.update({
       where: { uid },
-      data: { profileImageId: null }
+      data: { 
+        profileImageUrl: null,
+        profileImagePublicId: null
+      }
     });
 
     res.json({ message: 'Profile image deleted successfully' });
@@ -347,13 +347,9 @@ export const deletePatient = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Patient not found' });
     }
 
-    // Delete profile image if exists
-    if (patient.profileImageId) {
-      const profileImage = await ProfileImage.findById(patient.profileImageId);
-      if (profileImage) {
-        await cloudinary.uploader.destroy(profileImage.publicId);
-        await ProfileImage.findByIdAndDelete(patient.profileImageId);
-      }
+    // Delete profile image from Cloudinary if exists
+    if (patient.profileImagePublicId) {
+      await cloudinary.uploader.destroy(patient.profileImagePublicId);
     }
 
     // Delete patient and user records

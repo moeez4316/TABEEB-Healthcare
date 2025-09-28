@@ -47,7 +47,8 @@ model Patient {
   cnic           String?  @db.VarChar(15)
   dateOfBirth    DateTime 
   gender         String   @db.VarChar(10)
-  profileImageId String?  @db.VarChar(255) // MongoDB profile image record ID
+  profileImageUrl      String?  @db.VarChar(500) // Cloudinary image URL
+  profileImagePublicId String?  @db.VarChar(255) // Cloudinary public ID for deletion
   
   // Medical Information
   bloodType      String?  @db.VarChar(5)
