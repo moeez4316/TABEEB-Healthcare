@@ -20,14 +20,39 @@ model User {
 
 model Doctor {
   uid            String   @id @db.VarChar(255)
+  
+  // Personal Information
+  firstName      String   @db.VarChar(100)
+  lastName       String   @db.VarChar(100)
   name           String   @db.VarChar(255)
   email          String   @unique @db.VarChar(255)
   phone          String?  @db.VarChar(20)
+  dateOfBirth    DateTime?
+  gender         String?  @db.VarChar(10)
+  profileImageUrl      String?  @db.VarChar(500) // Cloudinary image URL
+  profileImagePublicId String?  @db.VarChar(255) // Cloudinary public ID for deletion
+  
+  // Medical/Professional Information
   specialization String   @db.VarChar(100)
   qualification  String   @db.Text
-  experience     Int?
-  consultationFees Decimal? @db.Decimal(10,2)
+  experience     String?  @db.VarChar(50) // Changed from Int to String for flexibility
+  
+  // Address Information
+  addressStreet     String? @db.VarChar(255)
+  addressCity       String? @db.VarChar(100)
+  addressProvince   String? @db.VarChar(100)
+  addressPostalCode String? @db.VarChar(10)
+  
+  // Preferences
+  language          String  @default("English") @db.VarChar(50)
+  notificationsEmail Boolean @default(true)
+  notificationsSms   Boolean @default(true)
+  notificationsPush  Boolean @default(true)
+  privacyShareData   Boolean @default(false)
+  privacyMarketing   Boolean @default(false)
+  
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user User @relation(fields: [uid], references: [uid])
 
@@ -88,9 +113,26 @@ model Verification {
   doctorUid      String   @id @db.VarChar(255)
   isVerified     Boolean  @default(false)
   status         String   @default("pending") @db.VarChar(20) // "pending", "approved", "rejected"
-  cnic           String   @db.Text // Cloudinary URL
+  
+  // Personal Information
+  cnicNumber     String   @db.VarChar(15) // CNIC number as entered by doctor
+  
+  // PMDC Information  
   pmdcNumber     String   @db.VarChar(50)
-  certificate    String?  @db.Text // Cloudinary URL
+  pmdcRegistrationDate DateTime? // When PMDC was registered
+  
+  // Educational Information
+  graduationYear String?  @db.VarChar(4) // Year of graduation
+  degreeInstitution String? @db.VarChar(255) // Institution name
+  
+  // Document URLs (Cloudinary)
+  cnicFrontUrl     String   @db.Text // Front side of CNIC
+  cnicBackUrl      String?  @db.Text // Back side of CNIC 
+  verificationPhotoUrl String @db.Text // Verification photo matching CNIC
+  degreeCertificateUrl String @db.Text // Medical degree certificate
+  pmdcCertificateUrl   String @db.Text // PMDC registration certificate
+  
+  // Admin Review
   adminComments  String?  @db.Text // Rejection reason or admin notes
   submittedAt    DateTime @default(now())
   reviewedAt     DateTime?

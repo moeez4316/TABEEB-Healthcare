@@ -27,7 +27,11 @@ export const uploadToCloudinary = (buffer: Buffer, filename: string, resourceTyp
 };
 
 // Enhanced upload for verification documents
-export const uploadVerificationDocument = (buffer: Buffer, doctorUid: string, docType: 'cnic' | 'certificate') => {
+export const uploadVerificationDocument = (
+  buffer: Buffer, 
+  doctorUid: string, 
+  docType: 'cnic_front' | 'cnic_back' | 'verification_photo' | 'degree_certificate' | 'pmdc_certificate' | 'cnic' | 'certificate'
+) => {
   return new Promise((resolve, reject) => {
     const timestamp = Date.now();
     const filename = `verification/${doctorUid}/${docType}_${timestamp}`;

@@ -1,6 +1,3 @@
-import { mockDoctorService } from '@/lib/mock/mockDoctorService';
-import APP_CONFIG from '@/lib/config/appConfig';
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface VerificationData {
@@ -40,8 +37,7 @@ class VerificationAPI {
     };
   }
 
-  // Submit verification documents (MOCK-ENABLED FOR TESTING)
-  // NOTE: Full version backed up in api.backup.ts - this supports both mock and real backend
+  // Submit verification documents
   async submitVerification(data: SubmitVerificationRequest, token: string): Promise<{ message: string; [key: string]: unknown }> {
     // Validate minimum requirements
     if (!data.pmdcNumber) {
@@ -52,31 +48,38 @@ class VerificationAPI {
       throw new Error('At least one CNIC document (front or back) is required');
     }
 
-    // Use mock service if configured
-    if (APP_CONFIG.USE_MOCK_BACKEND) {
-      return await mockDoctorService.submitVerification(data, token);
-    }
-
-    // Real backend implementation (simplified for current backend)
+    // Real backend implementation - Full document support
     const formData = new FormData();
     
-    // Backend expects only pmdcNumber in the body
+    // Add all form fields
     formData.append('pmdcNumber', data.pmdcNumber);
+    formData.append('cnicNumber', data.cnicNumber);
+    formData.append('graduationYear', data.graduationYear);
+    formData.append('degreeInstitution', data.degreeInstitution);
     
-    // Backend expects 'cnic' file (required) - use cnicFront as the main CNIC file
-    if (data.cnicFront) {
-      formData.append('cnic', data.cnicFront);
-    } else if (data.cnicBack) {
-      // If no front, use back as fallback
-      formData.append('cnic', data.cnicBack);
+    if (data.pmdcRegistrationDate) {
+      formData.append('pmdcRegistrationDate', data.pmdcRegistrationDate);
     }
     
-    // Backend expects 'certificate' file (optional) - use PMDC certificate
+    // Add all document files with correct field names
+    if (data.cnicFront) {
+      formData.append('cnicFront', data.cnicFront);
+    }
+    
+    if (data.cnicBack) {
+      formData.append('cnicBack', data.cnicBack);
+    }
+    
+    if (data.verificationPhoto) {
+      formData.append('verificationPhoto', data.verificationPhoto);
+    }
+    
+    if (data.degreeCertificate) {
+      formData.append('degreeCertificate', data.degreeCertificate);
+    }
+    
     if (data.pmdcCertificate) {
-      formData.append('certificate', data.pmdcCertificate);
-    } else if (data.degreeCertificate) {
-      // If no PMDC cert, use degree certificate as fallback
-      formData.append('certificate', data.degreeCertificate);
+      formData.append('pmdcCertificate', data.pmdcCertificate);
     }
 
     const response = await fetch(`${API_URL}/api/verification`, {
