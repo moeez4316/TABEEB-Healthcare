@@ -8,24 +8,8 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { loadPatientProfile, selectHasUnsavedChanges } from '@/store/slices/patientSlice';
 import PatientProfileEditModal from '@/components/profile/PatientProfileEditModal';
 import { calculateBMI, getBMIStatus } from '@/lib/profile-utils';
-
-// Mock patient data - replace with real data
-const mockPatientData = {
-  personalInfo: {
-    firstName: 'Ahmad',
-    lastName: 'Khan',
-    age: 34,
-    bloodGroup: 'B+',
-    phone: '+92-300-1234567',
-    cnic: '42401-1234567-8'
-  },
-  healthStats: {
-    height: 175,
-    weight: 70,
-    lastVisit: '2024-08-15'
-  },
-  profileCompletion: 85
-};
+import { formatHeightDisplay } from '@/lib/height-utils';
+import { calculateProfileCompletion } from '@/lib/profile-completion';
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
@@ -76,37 +60,41 @@ export default function DashboardPage() {
           {/* Profile Section */}
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
             <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-6">
                 <div className="flex-shrink-0">
                   {profile.profileImage ? (
                     <Image
                       src={profile.profileImage}
                       alt="Profile"
-                      width={64}
-                      height={64}
-                      className="rounded-full object-cover border-2 border-white shadow-lg"
+                      width={96}
+                      height={96}
+                      className="rounded-full object-cover shadow-xl"
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center border-2 border-white shadow-lg">
-                      <User className="w-8 h-8 text-white" />
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-xl">
+                      <User className="w-12 h-12 text-white" />
                     </div>
                   )}
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                     {profile.firstName && profile.lastName 
                       ? `${profile.firstName} ${profile.lastName}`
                       : user.displayName || 'Welcome to TABEEB'
                     }
                   </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    {profile.email || user.email}
-                  </p>
-                  {profile.phone && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {profile.phone}
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                      <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                      {profile.email || user.email}
                     </p>
-                  )}
+                    {profile.phone && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                        <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                        {profile.phone}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
               
@@ -128,6 +116,24 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Profile Completion - Hidden when 100% complete */}
+          {Math.round(calculateProfileCompletion(profile).percentage) < 100 && (
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 mb-6 border border-gray-200 dark:border-slate-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">Profile Completion</h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Complete your profile to get better healthcare recommendations</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">
+                    {Math.round(calculateProfileCompletion(profile).percentage)}%
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Complete</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Health Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -216,7 +222,7 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">Height & Weight</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {profile.height ? `${profile.height} cm` : 'Not set'} • {profile.weight ? `${profile.weight} kg` : 'Not set'}
+                    {formatHeightDisplay(profile.height)} • {profile.weight ? `${profile.weight} kg` : 'Not set'}
                   </p>
                 </div>
                 

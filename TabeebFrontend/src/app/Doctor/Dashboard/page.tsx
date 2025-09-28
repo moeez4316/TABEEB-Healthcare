@@ -10,7 +10,7 @@ export default function DoctorDashboard() {
 
   if (!user) return null;
 
-  // Mock data for dashboard cards - replace with real data from your API
+  // Dashboard stats - should be replaced with real API data
   const dashboardStats = [
     {
       title: "Today's Appointments",

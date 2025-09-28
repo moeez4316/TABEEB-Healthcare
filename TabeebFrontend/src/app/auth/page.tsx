@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Mail, Lock, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff, User } from 'lucide-react';
+import { Mail, Lock, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 import Image from 'next/image';
 
@@ -36,7 +36,6 @@ export default function AuthPage() {
   const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -62,13 +61,12 @@ export default function AuthPage() {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
-    if (mode === 'signup' && !displayName.trim()) return;
     try {
       setLoading(true);
       setError('');
       setSuccess('');
       if (mode === 'signup') {
-        await signUp(email, password, displayName);
+        await signUp(email, password, '');
         setSuccess('Account created successfully!');
       } else {
         await signIn(email, password);
@@ -185,7 +183,6 @@ export default function AuthPage() {
   const resetForm = () => {
     setEmail('');
     setPassword('');
-    setDisplayName('');
     setError('');
     setSuccess('');
     setShowPassword(false);
@@ -442,25 +439,9 @@ export default function AuthPage() {
                   )}
                 </button>
               </div>
-              {/* Show displayName input only for signup mode */}
-              {mode === 'signup' && (
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-slate-600 rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Enter your name"
-                  />
-                </div>
-              )}
               <button
                 type="submit"
-                disabled={loading || !email.trim() || !password.trim() || (mode === 'signup' && !displayName.trim())}
+                disabled={loading || !email.trim() || !password.trim()}
                 className="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (

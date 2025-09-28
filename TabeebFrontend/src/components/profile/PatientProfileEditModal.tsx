@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile, selectHasUnsavedChanges } from '@/store/slices/patientSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
+import HeightInput from '../shared/HeightInput';
 import { formatCNIC, formatPhoneNumber, pakistaniProvinces, bloodGroups, pakistaniLanguages } from '@/lib/profile-utils';
 import { validateProfile, ValidationErrors, getFieldError, hasErrors } from '@/lib/profile-validation';
 
@@ -303,19 +304,23 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
               <div className="space-y-6">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Medical Information</h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Height - Full Width Row */}
+                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Height (cm)
+                      Height
                     </label>
-                    <input
-                      type="number"
+                    <HeightInput
                       value={profile.height}
-                      onChange={(e) => handleInputChange('height', e.target.value)}
-                      placeholder="175"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
+                      onChange={(heightInCm) => handleInputChange('height', heightInCm)}
+                      placeholder="Enter your height"
+                      error={getFieldError(errors, 'height') || undefined}
                     />
                   </div>
+                </div>
+
+                {/* Weight and Blood Group - Two Column Row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Weight (kg)
