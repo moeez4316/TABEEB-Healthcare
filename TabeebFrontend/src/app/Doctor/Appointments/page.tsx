@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
-import { formatTime, formatDate } from '@/lib/dateUtils';
+import { formatTime, formatDate, formatAge } from '@/lib/dateUtils';
 import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { SharedDocumentsView } from '@/components/appointment/SharedDocumentsView';
 
@@ -359,15 +359,26 @@ export default function DoctorAppointmentsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex items-start space-x-4 flex-1">
                     {/* Patient Avatar */}
-                    <div className="w-12 h-12 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center">
-                      <FaUser className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                    <div className="w-12 h-12 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center overflow-hidden">
+                      {appointment.patient?.profileImageUrl ? (
+                        <img 
+                          src={appointment.patient.profileImageUrl} 
+                          alt="Patient" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <FaUser className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                      )}
                     </div>
                     
                     {/* Appointment Details */}
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {appointment.patient?.name || 'Unknown Patient'}
+                          {appointment.patient?.firstName && appointment.patient?.lastName 
+                            ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
+                            : (appointment.patient?.name || 'Unknown Patient')
+                          }
                         </h3>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
                           {appointment.status.replace('_', ' ')}
@@ -399,13 +410,28 @@ export default function DoctorAppointmentsPage() {
                       </div>
 
                       {/* Patient Contact Info */}
-                      {appointment.patient?.phone && (
-                        <div className="mb-3">
+                      <div className="mb-3 space-y-1">
+                        {appointment.patient?.email && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <span className="font-medium">Email:</span> {appointment.patient.email}
+                          </p>
+                        )}
+                        {appointment.patient?.phone && (
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             <span className="font-medium">Phone:</span> {appointment.patient.phone}
                           </p>
-                        </div>
-                      )}
+                        )}
+                        {appointment.patient?.gender && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <span className="font-medium">Gender:</span> {appointment.patient.gender.charAt(0).toUpperCase() + appointment.patient.gender.slice(1)}
+                          </p>
+                        )}
+                        {appointment.patient?.dateOfBirth && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <span className="font-medium">Age:</span> {formatAge(appointment.patient.dateOfBirth)}
+                          </p>
+                        )}
+                      </div>
                       
                       {appointment.patientNotes && (
                         <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">

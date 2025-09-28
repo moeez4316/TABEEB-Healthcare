@@ -194,8 +194,16 @@ export default function PatientAppointmentsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex items-start space-x-4 flex-1">
                     {/* Doctor Avatar */}
-                    <div className="w-12 h-12 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center">
-                      <FaUserMd className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                    <div className="w-12 h-12 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center overflow-hidden">
+                      {appointment.doctor?.profileImageUrl ? (
+                        <img 
+                          src={appointment.doctor.profileImageUrl} 
+                          alt="Doctor" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <FaUserMd className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                      )}
                     </div>
                     
                     {/* Appointment Details */}

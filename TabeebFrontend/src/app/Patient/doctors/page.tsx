@@ -8,9 +8,12 @@ import { useAuth } from '@/lib/auth-context';
 interface Doctor {
   uid: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   specialization: string;
   qualification: string;
   experience: number;
+  profileImageUrl?: string;
   createdAt: string;
   verification: {
     status: string;
@@ -241,10 +244,23 @@ export default function DoctorsPage() {
             <div key={doctor.uid} className="bg-white/80 dark:bg-[#18181b]/80 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl hover:scale-105 transition-all duration-300 backdrop-blur-md">
               {/* Doctor Avatar */}
               <div className="bg-gradient-to-br from-teal-500 to-teal-600 dark:from-teal-600 dark:to-teal-700 p-6">
-                <div className="w-16 h-16 bg-white/90 dark:bg-white/95 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <FaUserMd className="text-2xl text-teal-600 dark:text-teal-700" />
+                <div className="w-16 h-16 bg-white/90 dark:bg-white/95 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg overflow-hidden">
+                  {doctor.profileImageUrl ? (
+                    <img 
+                      src={doctor.profileImageUrl} 
+                      alt={`Dr. ${doctor.name}`} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <FaUserMd className="text-2xl text-teal-600 dark:text-teal-700" />
+                  )}
                 </div>
-                <h3 className="text-xl font-semibold text-white text-center drop-shadow-sm">{doctor.name}</h3>
+                <h3 className="text-xl font-semibold text-white text-center drop-shadow-sm">
+                  Dr. {doctor.firstName && doctor.lastName 
+                    ? `${doctor.firstName} ${doctor.lastName}`
+                    : doctor.name
+                  }
+                </h3>
               </div>
 
               {/* Doctor Info */}

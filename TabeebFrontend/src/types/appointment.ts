@@ -16,8 +16,13 @@ export interface SlotStatistics {
 
 export interface DoctorInfo {
   name: string;
+  firstName?: string;
+  lastName?: string;
   specialization: string;
-  consultationFees: number | null;
+  qualification?: string;
+  experience?: string;
+  profileImageUrl?: string;
+  consultationFees?: number | null;
 }
 
 export interface Schedule {
@@ -59,16 +64,27 @@ export interface Appointment {
   updatedAt: string;
   doctor?: DoctorInfo;
   patient?: {
-    name: string;
-    phone: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    profileImageUrl?: string;
   };
 }
 
 export interface Doctor {
   uid: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   specialization: string;
-  consultationFees: number;
+  qualification?: string;
+  experience?: string;
+  profileImageUrl?: string;
+  consultationFees?: number;
   rating?: number;
   isAvailable?: boolean;
 }

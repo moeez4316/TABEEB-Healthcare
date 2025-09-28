@@ -66,3 +66,77 @@ export const formatDateForAPI = (date: Date): string => {
 export const getTodayForAPI = (): string => {
   return formatDateForAPI(new Date());
 };
+
+// Calculate age from date of birth
+export const calculateAge = (dateOfBirth: string | Date): number => {
+  let birthDate: Date;
+  
+  if (typeof dateOfBirth === 'string') {
+    // Handle different date formats and ensure proper parsing
+    if (dateOfBirth.includes('T')) {
+      // ISO format with time
+      birthDate = new Date(dateOfBirth);
+    } else if (dateOfBirth.includes('-')) {
+      // YYYY-MM-DD format - create date in local timezone
+      const [year, month, day] = dateOfBirth.split('-').map(Number);
+      birthDate = new Date(year, month - 1, day); // month is 0-indexed
+    } else {
+      birthDate = new Date(dateOfBirth);
+    }
+  } else {
+    birthDate = dateOfBirth;
+  }
+  
+  // Check if date is valid
+  if (isNaN(birthDate.getTime())) {
+    console.warn('Invalid birth date:', dateOfBirth);
+    return 0;
+  }
+  
+  const today = new Date();
+  
+  // Check if birth date is in the future
+  if (birthDate > today) {
+    console.warn('Birth date is in the future:', dateOfBirth);
+    return 0;
+  }
+  
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  return Math.max(0, age); // Ensure age is not negative
+};
+
+// Format age with proper suffix (years/year)
+export const formatAge = (dateOfBirth: string | Date): string => {
+  const age = calculateAge(dateOfBirth);
+  
+  // Handle edge cases
+  if (age === 0) {
+    const birthDate = typeof dateOfBirth === 'string' ? new Date(dateOfBirth) : dateOfBirth;
+    const today = new Date();
+    
+    if (birthDate > today) {
+      return 'Invalid DOB (future date)';
+    } else {
+      // Calculate days/months for babies under 1 year
+      const diffTime = today.getTime() - birthDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffMonths = Math.floor(diffDays / 30);
+      
+      if (diffDays < 30) {
+        return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} old`;
+      } else if (diffMonths < 12) {
+        return `${diffMonths} ${diffMonths === 1 ? 'month' : 'months'} old`;
+      } else {
+        return 'Less than 1 year old';
+      }
+    }
+  }
+  
+  return `${age} ${age === 1 ? 'year' : 'years'} old`;
+};

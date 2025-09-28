@@ -46,8 +46,7 @@ export const setDoctorAvailability = async (req: Request, res: Response) => {
         doctor: {
           select: {
             name: true,
-            specialization: true,
-            consultationFees: true
+            specialization: true
           }
         }
       }
@@ -71,8 +70,7 @@ export const setDoctorAvailability = async (req: Request, res: Response) => {
         doctor: {
           select: {
             name: true,
-            specialization: true,
-            consultationFees: true
+            specialization: true
           }
         },
         breakTimes: true
@@ -137,8 +135,7 @@ export const getDoctorAvailability = async (req: Request, res: Response) => {
         doctor: {
           select: {
             name: true,
-            specialization: true,
-            consultationFees: true
+            specialization: true
           }
         },
         breakTimes: true
@@ -186,8 +183,7 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
         doctor: {
           select: {
             name: true,
-            specialization: true,
-            consultationFees: true
+            specialization: true
           }
         },
         breakTimes: true
