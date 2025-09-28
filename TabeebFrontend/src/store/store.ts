@@ -1,9 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit'
 import patientReducer from './slices/patientSlice'
+import doctorReducer from './slices/doctorSlice'
 
 export const store = configureStore({
   reducer: {
     patient: patientReducer,
+    doctor: doctorReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

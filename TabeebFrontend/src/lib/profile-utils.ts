@@ -79,6 +79,58 @@ export const pakistaniLanguages = [
   'Brahui'
 ]
 
+// Pakistani medical specializations
+export const pakistaniMedicalSpecializations = [
+  'General Practice',
+  'Internal Medicine',
+  'Cardiology',
+  'Dermatology',
+  'Emergency Medicine',
+  'Endocrinology',
+  'Gastroenterology',
+  'Neurology',
+  'Oncology',
+  'Orthopedics',
+  'Pediatrics',
+  'Psychiatry',
+  'Radiology',
+  'Surgery',
+  'Gynecology & Obstetrics',
+  'Ophthalmology',
+  'ENT (Otolaryngology)',
+  'Anesthesiology',
+  'Pathology',
+  'Urology',
+  'Plastic Surgery',
+  'Nephrology',
+  'Pulmonology',
+  'Rheumatology',
+  'Hematology',
+  'Infectious Diseases',
+  'Physical Medicine & Rehabilitation',
+  'Family Medicine',
+  'Other'
+]
+
+// Medical qualifications common in Pakistan
+export const pakistaniMedicalQualifications = [
+  'MBBS',
+  'BDS',
+  'MBBS, FCPS',
+  'MBBS, MD',
+  'MBBS, MS',
+  'MBBS, MRCP',
+  'MBBS, FRCS',
+  'MBBS, MCPS',
+  'MBBS, Diploma',
+  'BDS, FCPS',
+  'BDS, MDS',
+  'BAMS',
+  'BHMS',
+  'Pharm.D',
+  'Other'
+]
+
 // Calculate BMI
 export function calculateBMI(heightCm: string, weightKg: string): number | null {
   const height = parseFloat(heightCm)

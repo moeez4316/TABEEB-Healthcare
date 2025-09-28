@@ -6,17 +6,19 @@ import { User, UserCheck, Stethoscope, Heart, Mail, Phone, GraduationCap, Award,
 import Image from "next/image";
 import { getDoctorRedirectPath } from "@/lib/doctorRedirect";
 import ProfileImageUpload from "@/components/shared/ProfileImageUpload";
-import { formatPhoneNumber, isValidEmail, isValidPhoneNumber } from "@/lib/profile-utils";
+import { formatPhoneNumber, isValidEmail, isValidPhoneNumber, pakistaniMedicalSpecializations, pakistaniMedicalQualifications } from "@/lib/profile-utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 type DoctorForm = {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
   specialization: string;
   qualification: string;
   experience: number;
+  profileImage?: string;
 };
 
 type PatientForm = {
@@ -42,15 +44,18 @@ export default function SelectRolePage() {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   
   const [doctorForm, setDoctorForm] = useState<DoctorForm>({
-    name: user?.displayName || "",
+    firstName: user?.displayName?.split(' ')[0] || "",
+    lastName: user?.displayName?.split(' ').slice(1).join(' ') || "",
     email: user?.email || "",
     phone: "",
     specialization: "",
     qualification: "",
     experience: 0,
+    profileImage: "",
   });
   
   const [customSpecialization, setCustomSpecialization] = useState("");
+  const [customQualification, setCustomQualification] = useState("");
   
   const [patientForm, setPatientForm] = useState<PatientForm>({
     firstName: user?.displayName?.split(' ')[0] || "",
@@ -69,7 +74,8 @@ export default function SelectRolePage() {
     if (user) {
       setDoctorForm(prev => ({
         ...prev,
-        name: user.displayName || prev.name,
+        firstName: user.displayName?.split(' ')[0] || prev.firstName,
+        lastName: user.displayName?.split(' ').slice(1).join(' ') || prev.lastName,
         email: user.email || prev.email,
       }));
       setPatientForm(prev => ({
@@ -98,7 +104,8 @@ export default function SelectRolePage() {
   const validateDoctorForm = (): boolean => {
     const errors: FormErrors = {};
     
-    if (!doctorForm.name.trim()) errors.name = "Name is required";
+    if (!doctorForm.firstName.trim()) errors.firstName = "First name is required";
+    if (!doctorForm.lastName.trim()) errors.lastName = "Last name is required";
     if (!doctorForm.email.trim()) errors.email = "Email is required";
     else if (!isValidEmail(doctorForm.email)) errors.email = "Invalid email format";
     if (!doctorForm.phone.trim()) errors.phone = "Phone number is required";
@@ -108,6 +115,9 @@ export default function SelectRolePage() {
       errors.customSpecialization = "Please specify your specialization";
     }
     if (!doctorForm.qualification.trim()) errors.qualification = "Qualification is required";
+    else if (doctorForm.qualification === "Other" && !customQualification.trim()) {
+      errors.customQualification = "Please specify your qualification";
+    }
     if (doctorForm.experience < 0) errors.experience = "Experience cannot be negative";
     if (doctorForm.experience > 100) errors.experience = "Experience seems too high";
     
@@ -155,6 +165,11 @@ export default function SelectRolePage() {
       setCustomSpecialization("");
     }
     
+    // Reset custom qualification when changing from "Other"
+    if (name === "qualification" && value !== "Other") {
+      setCustomQualification("");
+    }
+    
     // Clear error for this field
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: "" }));
@@ -166,6 +181,14 @@ export default function SelectRolePage() {
     // Clear error for custom specialization field
     if (formErrors.customSpecialization) {
       setFormErrors(prev => ({ ...prev, customSpecialization: "" }));
+    }
+  };
+
+  const handleCustomQualificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomQualification(e.target.value);
+    // Clear error for custom qualification field
+    if (formErrors.customQualification) {
+      setFormErrors(prev => ({ ...prev, customQualification: "" }));
     }
   };
 
@@ -189,6 +212,10 @@ export default function SelectRolePage() {
     setPatientForm(prev => ({ ...prev, profileImage: imageUrl }));
   };
 
+  const handleDoctorImageChange = (imageUrl: string) => {
+    setDoctorForm(prev => ({ ...prev, profileImage: imageUrl }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -207,9 +234,12 @@ export default function SelectRolePage() {
         endpoint = "/api/doctor";
         // Use custom specialization if "Other" is selected
         const finalSpecialization = doctorForm.specialization === "Other" ? customSpecialization : doctorForm.specialization;
+        // Use custom qualification if "Other" is selected
+        const finalQualification = doctorForm.qualification === "Other" ? customQualification : doctorForm.qualification;
         body = { 
           ...doctorForm, 
-          specialization: finalSpecialization 
+          specialization: finalSpecialization,
+          qualification: finalQualification
         };
       } else if (role === "patient") {
         endpoint = "/api/patient";
@@ -246,11 +276,7 @@ export default function SelectRolePage() {
     }
   };
 
-  const specializations = [
-    "Cardiology", "Dermatology", "Emergency Medicine", "Endocrinology", 
-    "Gastroenterology", "General Practice", "Neurology", "Oncology", 
-    "Orthopedics", "Pediatrics", "Psychiatry", "Radiology", "Surgery", "Other"
-  ];
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
@@ -354,10 +380,26 @@ export default function SelectRolePage() {
           {/* Doctor Form */}
           {role === "doctor" && (
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Profile Image Upload */}
+              <div className="flex flex-col items-center space-y-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Profile Picture (Optional)
+                </label>
+                <ProfileImageUpload
+                  currentImage={doctorForm.profileImage}
+                  onImageChange={handleDoctorImageChange}
+                  size="lg"
+                  className="mb-2"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  Upload a professional profile picture for your medical practice
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Full Name *
+                    First Name *
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -365,17 +407,40 @@ export default function SelectRolePage() {
                     </div>
                     <input
                       type="text"
-                      name="name"
+                      name="firstName"
                       required
-                      value={doctorForm.name}
+                      value={doctorForm.firstName}
                       onChange={handleDoctorChange}
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        formErrors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                        formErrors.firstName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
                       }`}
-                      placeholder="Enter your full name"
+                      placeholder="Enter your first name"
                     />
                   </div>
-                  {formErrors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.name}</p>}
+                  {formErrors.firstName && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.firstName}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Last Name *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <input
+                      type="text"
+                      name="lastName"
+                      required
+                      value={doctorForm.lastName}
+                      onChange={handleDoctorChange}
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        formErrors.lastName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                      }`}
+                      placeholder="Enter your last name"
+                    />
+                  </div>
+                  {formErrors.lastName && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.lastName}</p>}
                 </div>
 
                 <div>
@@ -464,7 +529,7 @@ export default function SelectRolePage() {
                   }`}
                 >
                   <option value="">Select your specialization</option>
-                  {specializations.map(spec => (
+                  {pakistaniMedicalSpecializations.map((spec: string) => (
                     <option key={spec} value={spec}>{spec}</option>
                   ))}
                 </select>
@@ -498,26 +563,49 @@ export default function SelectRolePage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Qualification *
+                  Primary Qualification *
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <GraduationCap className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  </div>
-                  <input
-                    type="text"
-                    name="qualification"
-                    required
-                    value={doctorForm.qualification}
-                    onChange={handleDoctorChange}
-                    className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                      formErrors.qualification ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
-                    }`}
-                    placeholder="e.g., MBBS, MD, FRCS"
-                  />
-                </div>
+                <select
+                  name="qualification"
+                  required
+                  value={doctorForm.qualification}
+                  onChange={handleDoctorChange}
+                  className={`block w-full px-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                    formErrors.qualification ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                  }`}
+                >
+                  <option value="">Select your qualification</option>
+                  {pakistaniMedicalQualifications.map((qual: string) => (
+                    <option key={qual} value={qual}>{qual}</option>
+                  ))}
+                </select>
                 {formErrors.qualification && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.qualification}</p>}
               </div>
+
+              {/* Custom Qualification Input - Only show when "Other" is selected */}
+              {doctorForm.qualification === "Other" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Please specify your qualification *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <GraduationCap className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <input
+                      type="text"
+                      value={customQualification}
+                      onChange={handleCustomQualificationChange}
+                      required
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        formErrors.customQualification ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                      }`}
+                      placeholder="Enter your qualification"
+                    />
+                  </div>
+                  {formErrors.customQualification && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.customQualification}</p>}
+                </div>
+              )}
 
               <button
                 type="submit"
