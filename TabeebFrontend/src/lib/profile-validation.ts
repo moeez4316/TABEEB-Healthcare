@@ -104,30 +104,30 @@ function validateGender(gender: string): string | null {
 }
 
 // Main validation function for patient profile
-export function validateProfile(profile: any): ValidationResult {
+export function validateProfile(profile: Record<string, unknown>): ValidationResult {
   const errors: ValidationErrors = {}
   
   // Validate required fields
-  const firstNameError = validateName(profile.firstName, 'First name')
+  const firstNameError = validateName(profile.firstName as string, 'First name')
   if (firstNameError) errors.firstName = firstNameError
   
-  const lastNameError = validateName(profile.lastName, 'Last name')
+  const lastNameError = validateName(profile.lastName as string, 'Last name')
   if (lastNameError) errors.lastName = lastNameError
   
-  const emailError = validateEmail(profile.email)
+  const emailError = validateEmail(profile.email as string)
   if (emailError) errors.email = emailError
   
-  const phoneError = validatePhoneNumber(profile.phone)
+  const phoneError = validatePhoneNumber(profile.phone as string)
   if (phoneError) errors.phone = phoneError
   
-  const dateOfBirthError = validateDateOfBirth(profile.dateOfBirth)
+  const dateOfBirthError = validateDateOfBirth(profile.dateOfBirth as string)
   if (dateOfBirthError) errors.dateOfBirth = dateOfBirthError
   
-  const genderError = validateGender(profile.gender)
+  const genderError = validateGender(profile.gender as string)
   if (genderError) errors.gender = genderError
   
   // Validate optional fields
-  const cnicError = validateCNIC(profile.cnic)
+  const cnicError = validateCNIC(profile.cnic as string)
   if (cnicError) errors.cnic = cnicError
   
   return {

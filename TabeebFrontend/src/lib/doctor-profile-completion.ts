@@ -33,22 +33,17 @@ const DOCTOR_PROFILE_FIELDS: ProfileField[] = [
 ];
 
 // Helper function to check if a value is considered "filled"
-const isFieldFilled = (value: any, isObject = false): boolean => {
+const isFieldFilled = (value: unknown, isObject = false): boolean => {
   if (value === null || value === undefined || value === '') {
     return false;
   }
   
-  if (isObject && typeof value === 'object') {
-    // For nested objects like emergencyContact, clinicAddress, and notifications
+  if (isObject && typeof value === 'object' && value !== null) {
     const keys = Object.keys(value);
     return keys.some(key => {
-      const nestedValue = value[key];
-      return nestedValue !== null && nestedValue !== undefined && nestedValue !== '';
+      const nestedValue = (value as Record<string, unknown>)[key];
+      return isFieldFilled(nestedValue, false);
     });
-  }
-  
-  if (typeof value === 'string') {
-    return value.trim().length > 0;
   }
   
   return true;

@@ -1,20 +1,19 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { User, Mail, Calendar, Stethoscope, Clock, Users, Activity, AlertTriangle, CheckCircle, Edit3, Award, Building, Phone, MapPin, Settings, ChevronRight } from 'lucide-react';
+import { Mail, Calendar, Stethoscope, Clock, Users, Activity, AlertTriangle, CheckCircle, Edit3, Phone, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { loadDoctorProfile, selectHasUnsavedChanges } from '@/store/slices/doctorSlice';
-import { calculateDoctorProfileCompletion, getCompletionStatusColor } from '@/lib/doctor-profile-completion';
+import { calculateDoctorProfileCompletion } from '@/lib/doctor-profile-completion';
 import DoctorProfileEditModal from '@/components/profile/DoctorProfileEditModal';
 import Link from 'next/link';
 
 export default function DoctorDashboard() {
   const { user, token, verificationStatus } = useAuth();
   const dispatch = useAppDispatch();
-  const { profile, isLoading, error } = useAppSelector((state) => state.doctor);
-  const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
+  const { profile } = useAppSelector((state) => state.doctor);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
 
   // Load profile data on component mount
@@ -187,7 +186,7 @@ export default function DoctorDashboard() {
                   <Calendar className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Today's Appointments</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Today&apos;s Appointments</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {profile.stats.totalAppointments > 0 ? '8' : '0'}
                   </p>

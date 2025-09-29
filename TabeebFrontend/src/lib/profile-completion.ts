@@ -34,26 +34,22 @@ const PROFILE_FIELDS: ProfileField[] = [
 ];
 
 // Helper function to check if a value is considered "filled"
-const isFieldFilled = (value: any, isArray = false): boolean => {
+const isFieldFilled = (value: unknown, isArray = false): boolean => {
   if (value === null || value === undefined || value === '') {
     return false;
   }
   
   if (isArray && Array.isArray(value)) {
-    return value.length > 0;
-  }
-  
-  if (typeof value === 'object') {
-    // For nested objects like emergencyContact and address
-    const keys = Object.keys(value);
-    return keys.some(key => {
-      const nestedValue = value[key];
-      return nestedValue !== null && nestedValue !== undefined && nestedValue !== '';
+    return value.length > 0 && value.some(item => {
+      if (typeof item === 'object' && item !== null) {
+        const keys = Object.keys(item);
+        return keys.some(key => {
+          const nestedValue = (item as Record<string, unknown>)[key];
+          return isFieldFilled(nestedValue, false);
+        });
+      }
+      return isFieldFilled(item, false);
     });
-  }
-  
-  if (typeof value === 'string') {
-    return value.trim().length > 0;
   }
   
   return true;

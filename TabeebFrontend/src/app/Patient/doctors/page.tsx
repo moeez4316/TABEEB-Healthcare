@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { FaSearch, FaSort, FaUserMd, FaStar, FaCalendarAlt } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth-context';
 
@@ -246,9 +247,11 @@ export default function DoctorsPage() {
               <div className="bg-gradient-to-br from-teal-500 to-teal-600 dark:from-teal-600 dark:to-teal-700 p-6">
                 <div className="w-16 h-16 bg-white/90 dark:bg-white/95 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg overflow-hidden">
                   {doctor.profileImageUrl ? (
-                    <img 
+                    <Image 
                       src={doctor.profileImageUrl} 
                       alt={`Dr. ${doctor.name}`} 
+                      width={64}
+                      height={64}
                       className="w-full h-full object-cover"
                     />
                   ) : (

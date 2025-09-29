@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Doctor } from '@/types/appointment';
 import { FaStar, FaUserMd, FaDollarSign } from 'react-icons/fa';
 
@@ -67,9 +68,11 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
               {/* Doctor Avatar */}
               <div className="w-16 h-16 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center overflow-hidden">
                 {doctor.profileImageUrl ? (
-                  <img 
+                  <Image 
                     src={doctor.profileImageUrl} 
                     alt={`Dr. ${doctor.name}`} 
+                    width={64}
+                    height={64}
                     className="w-full h-full object-cover"
                   />
                 ) : (

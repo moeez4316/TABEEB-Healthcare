@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
@@ -196,9 +197,11 @@ export default function PatientAppointmentsPage() {
                     {/* Doctor Avatar */}
                     <div className="w-12 h-12 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center overflow-hidden">
                       {appointment.doctor?.profileImageUrl ? (
-                        <img 
+                        <Image 
                           src={appointment.doctor.profileImageUrl} 
                           alt="Doctor" 
+                          width={48}
+                          height={48}
                           className="w-full h-full object-cover"
                         />
                       ) : (

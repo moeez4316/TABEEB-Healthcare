@@ -14,7 +14,7 @@ import { calculateProfileCompletion } from '@/lib/profile-completion';
 export default function DashboardPage() {
   const { user, token } = useAuth();
   const dispatch = useAppDispatch();
-  const { profile, isLoading, error } = useAppSelector((state) => state.patient);
+  const { profile } = useAppSelector((state) => state.patient);
   const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
 
