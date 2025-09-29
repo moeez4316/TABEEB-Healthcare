@@ -190,7 +190,7 @@ export const createDoctorProfile = createAsyncThunk(
         profile: profileData,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error: Failed to create profile');
     }
   }
@@ -240,12 +240,12 @@ export const saveDoctorProfile = createAsyncThunk(
         return rejectWithValue(errorData.error || 'Failed to save profile');
       }
 
-      const result = await response.json();
+      await response.json();
       return {
         profile: profileData,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error: Failed to save profile');
     }
   }
@@ -317,7 +317,7 @@ export const loadDoctorProfile = createAsyncThunk(
       };
       
       return profileData;
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error: Failed to load profile');
     }
   }
@@ -347,7 +347,7 @@ export const uploadDoctorProfileImage = createAsyncThunk(
 
       const result = await response.json();
       return result.imageUrl;
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error: Failed to upload image');
     }
   }
@@ -376,7 +376,7 @@ export const fetchVerificationStatus = createAsyncThunk(
 
       const verificationData = await response.json();
       return verificationData.status || (verificationData.isVerified ? 'approved' : 'pending');
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error: Failed to fetch verification status');
     }
   }

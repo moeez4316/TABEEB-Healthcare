@@ -8,7 +8,7 @@ import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile, 
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import HeightInput from '../shared/HeightInput';
 import { formatCNIC, formatPhoneNumber, pakistaniProvinces, bloodGroups, pakistaniLanguages } from '@/lib/profile-utils';
-import { validateProfile, ValidationErrors, getFieldError, hasErrors } from '@/lib/profile-validation';
+import { ValidationErrors, getFieldError } from '@/lib/profile-validation';
 
 interface PatientProfileEditModalProps {
   isOpen: boolean;
@@ -73,7 +73,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     handleUpdateProfile({ [field]: value });
   };
 

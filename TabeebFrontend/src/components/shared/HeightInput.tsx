@@ -18,7 +18,6 @@ const HeightInput: React.FC<HeightInputProps> = ({
   onChange,
   error,
   className = '',
-  placeholder = 'Enter your height',
   required = false
 }) => {
   const [unit, setUnit] = useState<'feet' | 'cm'>('feet') // Default to feet
@@ -205,7 +204,7 @@ const HeightInput: React.FC<HeightInputProps> = ({
           {unit === 'feet' && cm ? (
             <span>≈ {Math.round(Number(cm))} cm</span>
           ) : unit === 'cm' && (feet || inches) ? (
-            <span>≈ {feet || 0}' {inches || 0}"</span>
+            <span>≈ {feet || 0}&apos; {inches || 0}&quot;</span>
           ) : null}
         </div>
       )}

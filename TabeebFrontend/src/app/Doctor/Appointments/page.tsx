@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate, formatAge } from '@/lib/dateUtils';
@@ -361,9 +362,11 @@ export default function DoctorAppointmentsPage() {
                     {/* Patient Avatar */}
                     <div className="w-12 h-12 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center overflow-hidden">
                       {appointment.patient?.profileImageUrl ? (
-                        <img 
+                        <Image 
                           src={appointment.patient.profileImageUrl} 
                           alt="Patient" 
+                          width={48}
+                          height={48}
                           className="w-full h-full object-cover"
                         />
                       ) : (

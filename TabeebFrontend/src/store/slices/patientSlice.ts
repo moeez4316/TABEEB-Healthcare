@@ -105,10 +105,7 @@ const initialState: PatientState = {
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Helper function to get auth token
-const getAuthToken = () => {
-  // This will be passed from the component that dispatches the action
-  return null; // Token will be passed as parameter
-};
+
 
 // Async thunk for creating patient profile
 export const createPatientProfile = createAsyncThunk(
@@ -134,7 +131,7 @@ export const createPatientProfile = createAsyncThunk(
         profile: profileData,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error: Failed to create profile');
     }
   }
@@ -164,7 +161,7 @@ export const savePatientProfile = createAsyncThunk(
         profile: profileData,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error: Failed to save profile');
     }
   }
@@ -193,7 +190,7 @@ export const loadPatientProfile = createAsyncThunk(
 
       const profileData = await response.json();
       return profileData;
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error: Failed to load profile');
     }
   }
@@ -222,7 +219,7 @@ export const uploadProfileImage = createAsyncThunk(
 
       const result = await response.json();
       return result.imageUrl;
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error: Failed to upload image');
     }
   }

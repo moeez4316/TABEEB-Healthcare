@@ -30,7 +30,7 @@ interface DoctorProfileEditModalProps {
 
 export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfileEditModalProps) {
     const dispatch = useAppDispatch();
-    const { profile, isLoading } = useAppSelector((state) => state.doctor);
+    const { profile } = useAppSelector((state) => state.doctor);
     const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
 
     // Get token from auth context
@@ -84,7 +84,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
         }
     };
 
-    const handleInputChange = (field: string, value: any) => {
+    const handleInputChange = (field: string, value: unknown) => {
         handleUpdateProfile({ [field]: value });
     };
 
