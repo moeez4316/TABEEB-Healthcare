@@ -185,15 +185,17 @@ export const getVerification = async (req: Request, res: Response) => {
 // Get all verifications (Admin only)
 export const getAllVerifications = async (req: Request, res: Response) => {
   try {
-    
     const verifications = await prisma.verification.findMany({
       include: {
         doctor: {
           select: {
+            uid: true,
             name: true,
             email: true,
             specialization: true,
-            qualification: true
+            qualification: true,
+            firstName: true,
+            lastName: true
           }
         }
       },
@@ -204,7 +206,32 @@ export const getAllVerifications = async (req: Request, res: Response) => {
     
     console.log('📊 Found verifications:', verifications.length);
     
-    res.json(verifications);
+    // Process verifications to ensure doctor data is properly formatted
+    const processedVerifications = verifications.map(verification => {
+      const doctorData = verification.doctor;
+      console.log(`Processing verification for doctor ${verification.doctorUid}:`, doctorData);
+      
+      return {
+        ...verification,
+        doctor: doctorData ? {
+          uid: doctorData.uid,
+          name: doctorData.name || `${doctorData.firstName || ''} ${doctorData.lastName || ''}`.trim() || 'Unknown Doctor',
+          email: doctorData.email || 'No email provided',
+          specialization: doctorData.specialization,
+          qualification: doctorData.qualification
+        } : null
+      };
+    });
+    
+    console.log('📄 Sample processed verification:', 
+      processedVerifications.length > 0 ? {
+        doctorUid: processedVerifications[0].doctorUid,
+        doctor: processedVerifications[0].doctor,
+        hasDoctor: !!processedVerifications[0].doctor
+      } : 'No verifications found'
+    );
+    
+    res.json(processedVerifications);
   } catch (error) {
     console.error('Error in getAllVerifications:', error);
     res.status(500).json({ error: 'Failed to fetch verifications' });

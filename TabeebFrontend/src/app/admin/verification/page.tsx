@@ -31,9 +31,20 @@ interface VerificationRecord {
   reviewedAt?: string;
   reviewedBy?: string;
   adminComments?: string;
-  cnic: string;
+  cnicNumber?: string;
+  graduationYear?: string;
+  degreeInstitution?: string;
+  pmdcRegistrationDate?: string;
+  // Document URLs - New expanded structure
+  cnicFrontUrl?: string;
+  cnicBackUrl?: string;
+  verificationPhotoUrl?: string;
+  degreeCertificateUrl?: string;
+  pmdcCertificateUrl?: string;
+  // Legacy fields for backward compatibility
+  cnic?: string; // Maps to cnicFrontUrl
+  certificate?: string; // Maps to pmdcCertificateUrl
   cnicFileType?: string;
-  certificate?: string;
   certificateFileType?: string;
 }
 
@@ -127,14 +138,34 @@ export default function AdminVerificationPage() {
 
       const data = await response.json();
       
-      // Backend returns array directly, not wrapped in object
-      // Set doctorName and doctorEmail to null for current API since they're not provided
-      const processedData = Array.isArray(data) ? data.map(verification => ({
-        ...verification,
-        doctorName: null, // Currently not provided by API
-        doctorEmail: null // Currently not provided by API
-      })) : [];
+      // Debug: Log the raw response to see what we're getting
+      console.log('Raw verification data:', data);
       
+      // Backend returns array directly, not wrapped in object
+      // Process data to handle both new and legacy document formats
+      const processedData = Array.isArray(data) ? data.map(verification => {
+        console.log('Processing verification:', verification.doctorUid, 'Doctor data:', verification.doctor);
+        
+        // Enhanced fallback logic for doctor information
+        const doctorName = verification.doctor?.name || 
+                          (verification.doctor?.firstName && verification.doctor?.lastName 
+                            ? `${verification.doctor.firstName} ${verification.doctor.lastName}`
+                            : null) ||
+                          `Doctor ${verification.doctorUid.substring(0, 8)}...`;
+        
+        const doctorEmail = verification.doctor?.email || 'Email not available';
+        
+        return {
+          ...verification,
+          doctorName,
+          doctorEmail,
+          // Map legacy fields for backward compatibility
+          cnic: verification.cnicFrontUrl || verification.cnic,
+          certificate: verification.pmdcCertificateUrl || verification.certificate
+        };
+      }) : [];
+      
+      console.log('Processed verification data:', processedData);
       setVerifications(processedData);
     } catch (error) {
       console.error('Error fetching verifications:', error);
@@ -402,21 +433,75 @@ export default function AdminVerificationPage() {
                     Review
                   </button>
                   
-                  <button
-                    onClick={() => openImageModal(verification.cnic, `CNIC - ${verification.doctorName || 'Doctor'}`, verification.cnicFileType)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl"
-                  >
-                    <FileText className="w-4 h-4" />
-                    View CNIC
-                  </button>
-                  
-                  {verification.certificate && (
+                  {/* CNIC Front */}
+                  {(verification.cnicFrontUrl || verification.cnic) && (
                     <button
-                      onClick={() => openImageModal(verification.certificate!, `Certificate - ${verification.doctorName || 'Doctor'}`, verification.certificateFileType)}
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
+                      onClick={() => openImageModal(
+                        verification.cnicFrontUrl || verification.cnic!, 
+                        `CNIC Front - ${verification.doctorName || 'Doctor'}`, 
+                        verification.cnicFileType
+                      )}
+                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl text-sm"
+                    >
+                      <FileText className="w-4 h-4" />
+                      CNIC Front
+                    </button>
+                  )}
+
+                  {/* CNIC Back */}
+                  {verification.cnicBackUrl && (
+                    <button
+                      onClick={() => openImageModal(
+                        verification.cnicBackUrl!, 
+                        `CNIC Back - ${verification.doctorName || 'Doctor'}`
+                      )}
+                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-xl hover:from-emerald-500 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl text-sm"
+                    >
+                      <FileText className="w-4 h-4" />
+                      CNIC Back
+                    </button>
+                  )}
+
+                  {/* Verification Photo */}
+                  {verification.verificationPhotoUrl && (
+                    <button
+                      onClick={() => openImageModal(
+                        verification.verificationPhotoUrl!, 
+                        `Verification Photo - ${verification.doctorName || 'Doctor'}`
+                      )}
+                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl text-sm"
+                    >
+                      <User className="w-4 h-4" />
+                      Photo
+                    </button>
+                  )}
+
+                  {/* Degree Certificate */}
+                  {verification.degreeCertificateUrl && (
+                    <button
+                      onClick={() => openImageModal(
+                        verification.degreeCertificateUrl!, 
+                        `Degree Certificate - ${verification.doctorName || 'Doctor'}`
+                      )}
+                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl text-sm"
                     >
                       <Download className="w-4 h-4" />
-                      View Certificate
+                      Degree
+                    </button>
+                  )}
+
+                  {/* PMDC Certificate */}
+                  {(verification.pmdcCertificateUrl || verification.certificate) && (
+                    <button
+                      onClick={() => openImageModal(
+                        verification.pmdcCertificateUrl || verification.certificate!, 
+                        `PMDC Certificate - ${verification.doctorName || 'Doctor'}`, 
+                        verification.certificateFileType
+                      )}
+                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl hover:from-orange-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl text-sm"
+                    >
+                      <Shield className="w-4 h-4" />
+                      PMDC
                     </button>
                   )}
                 </div>
@@ -468,20 +553,92 @@ export default function AdminVerificationPage() {
               <div className="p-6 space-y-6">
                 {selectedVerification && (
                   <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3 border border-slate-200 dark:border-slate-600">
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">Doctor:</span>
-                      <span className="text-slate-800 dark:text-white">{selectedVerification.doctorName || 'Name Not Available'}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">Doctor:</span>
+                        <span className="text-slate-800 dark:text-white">{selectedVerification.doctorName || 'Name Not Available'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">Email:</span>
+                        <span className="text-slate-800 dark:text-white text-sm">{selectedVerification.doctorEmail || 'Email Not Available'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">PMDC:</span>
+                        <span className="text-slate-800 dark:text-white font-mono">{selectedVerification.pmdcNumber || 'Not Available'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">CNIC:</span>
+                        <span className="text-slate-800 dark:text-white font-mono">{selectedVerification.cnicNumber || 'Not Available'}</span>
+                      </div>
+                      {selectedVerification.graduationYear && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">Graduation:</span>
+                          <span className="text-slate-800 dark:text-white">{selectedVerification.graduationYear}</span>
+                        </div>
+                      )}
+                      {selectedVerification.degreeInstitution && (
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">Institution:</span>
+                          <span className="text-slate-800 dark:text-white text-sm">{selectedVerification.degreeInstitution}</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">Email:</span>
-                      <span className="text-slate-800 dark:text-white">{selectedVerification.doctorEmail || 'Email Not Available'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">PMDC:</span>
-                      <span className="text-slate-800 dark:text-white font-mono">{selectedVerification.pmdcNumber || 'Not Available'}</span>
+
+                    {/* Document Status Grid */}
+                    <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-600">
+                      <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Submitted Documents:</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
+                          selectedVerification.cnicFrontUrl || selectedVerification.cnic 
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full ${
+                            selectedVerification.cnicFrontUrl || selectedVerification.cnic ? 'bg-green-500' : 'bg-red-500'
+                          }`}></div>
+                          CNIC Front
+                        </div>
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
+                          selectedVerification.cnicBackUrl 
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full ${selectedVerification.cnicBackUrl ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                          CNIC Back
+                        </div>
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
+                          selectedVerification.verificationPhotoUrl 
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full ${selectedVerification.verificationPhotoUrl ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          Photo
+                        </div>
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
+                          selectedVerification.degreeCertificateUrl 
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full ${selectedVerification.degreeCertificateUrl ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          Degree
+                        </div>
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
+                          selectedVerification.pmdcCertificateUrl || selectedVerification.certificate 
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full ${
+                            selectedVerification.pmdcCertificateUrl || selectedVerification.certificate ? 'bg-green-500' : 'bg-red-500'
+                          }`}></div>
+                          PMDC
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
