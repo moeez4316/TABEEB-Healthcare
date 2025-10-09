@@ -59,6 +59,7 @@ model Doctor {
   verification   Verification?
   availability   DoctorAvailability[]
   appointments   Appointment[]
+  prescriptions  Prescription[]
 }
 
 model Patient {
@@ -107,6 +108,7 @@ model Patient {
 
   user User @relation(fields: [uid], references: [uid])
   appointments   Appointment[]
+  prescriptions  Prescription[]
 }
 
 model Verification {
@@ -195,6 +197,7 @@ model Appointment {
   doctor          Doctor            @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
   patient         Patient           @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
   sharedDocuments AppointmentSharedDocument[]
+  prescriptions   Prescription[]
   // Removed timeSlot relation - storing time directly in appointment
 
   @@index([doctorUid])
@@ -229,4 +232,51 @@ enum AppointmentStatus {
   COMPLETED
   CANCELLED
   NO_SHOW
+}
+
+model Prescription {
+  id              String   @id @default(cuid())
+  prescriptionId  String   @unique @default(uuid())
+  doctorUid       String   @db.VarChar(255)
+  patientUid      String   @db.VarChar(255)
+  appointmentId   String?
+  patientName     String
+  patientAge      Int
+  patientGender   String
+  diagnosis       String?
+  notes           String?
+  instructions    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  isActive        Boolean  @default(true)
+  
+  // Relations
+  doctor          Doctor      @relation(fields: [doctorUid], references: [uid])
+  patient         Patient     @relation(fields: [patientUid], references: [uid])
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id])
+  medicines       PrescriptionMedicine[]
+  
+  @@index([doctorUid])
+  @@index([patientUid])
+  @@index([appointmentId])
+  @@index([prescriptionId])
+  @@map("prescriptions")
+}
+
+model PrescriptionMedicine {
+  id               String   @id @default(cuid())
+  prescriptionId   String
+  medicineName     String
+  dosage           String
+  frequency        String
+  duration         String
+  instructions     String?
+  timing           String?  // e.g., "Before meals", "After meals", "With meals"
+  createdAt        DateTime @default(now())
+  
+  // Relations
+  prescription     Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  
+  @@index([prescriptionId])
+  @@map("prescription_medicines")
 }

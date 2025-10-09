@@ -6,6 +6,7 @@ declare global {
     interface Request {
       user?: {
         uid: string;
+        role?: string;
         [key: string]: any;
       };
       file?: Multer.File;
