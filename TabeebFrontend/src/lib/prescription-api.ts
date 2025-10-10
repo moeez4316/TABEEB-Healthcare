@@ -44,7 +44,7 @@ export interface PrescriptionStatsResponse {
 }
 
 // API Base URL
-const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
+const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL;
 
 // Helper function to make authenticated requests
 const makeAuthenticatedRequest = async (
@@ -53,7 +53,6 @@ const makeAuthenticatedRequest = async (
   token: string
 ) => {
   const fullUrl = `${getApiUrl()}/api/prescriptions${endpoint}`;
-  console.log('Making prescription API request to:', fullUrl);
   
   const response = await fetch(fullUrl, {
     ...options,
@@ -63,20 +62,14 @@ const makeAuthenticatedRequest = async (
       ...options.headers,
     },
   });
-
-  console.log('Prescription API response status:', response.status);
-  console.log('Prescription API response headers:', response.headers);
   
   if (!response.ok) {
     let errorData;
     try {
       errorData = await response.json();
-      console.log('Raw error response:', errorData);
     } catch (e) {
-      console.log('Failed to parse error response as JSON:', e);
       errorData = { error: 'Network error or invalid JSON response' };
     }
-    console.error('Prescription API error:', errorData);
     throw new Error(errorData.error || `HTTP ${response.status} - ${response.statusText}`);
   }
 
