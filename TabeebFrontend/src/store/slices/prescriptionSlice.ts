@@ -7,6 +7,7 @@ export interface Medicine {
   dosage: string;
   frequency: string;
   duration: string;
+  durationDays?: number; // New field for duration in days
   instructions?: string;
   timing?: string;
 }
@@ -23,6 +24,8 @@ export interface Prescription {
   diagnosis?: string;
   notes?: string;
   instructions?: string;
+  prescriptionStartDate?: string;
+  prescriptionEndDate?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

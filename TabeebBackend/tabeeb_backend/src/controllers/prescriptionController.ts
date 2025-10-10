@@ -7,7 +7,8 @@ const medicineSchema = z.object({
   medicineName: z.string().min(1),
   dosage: z.string().min(1),
   frequency: z.string().min(1),
-  duration: z.string().min(1),
+  duration: z.string().min(1), // Keep as string for backward compatibility
+  durationDays: z.number().int().positive(), // New field for duration in days
   instructions: z.string().optional(),
   timing: z.string().optional()
 });
@@ -71,6 +72,12 @@ export const createPrescription = async (req: Request, res: Response) => {
       }
     }
 
+    // Calculate prescription end date based on maximum medicine duration
+    const maxDuration = Math.max(...validatedData.medicines.map(med => med.durationDays));
+    const prescriptionStartDate = new Date();
+    const prescriptionEndDate = new Date();
+    prescriptionEndDate.setDate(prescriptionStartDate.getDate() + maxDuration);
+
     const prescription = await prisma.prescription.create({
       data: {
         doctorUid,
@@ -82,6 +89,8 @@ export const createPrescription = async (req: Request, res: Response) => {
         diagnosis: validatedData.diagnosis,
         notes: validatedData.notes,
         instructions: validatedData.instructions,
+        prescriptionStartDate,
+        prescriptionEndDate,
         medicines: {
           create: validatedData.medicines
         }

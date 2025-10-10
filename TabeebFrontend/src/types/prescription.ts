@@ -41,6 +41,7 @@ export interface MedicineFormData {
   dosage: string;
   frequency: string;
   duration: string;
+  durationDays?: number; // New field for duration in days
   instructions?: string;
   timing?: string;
 }
