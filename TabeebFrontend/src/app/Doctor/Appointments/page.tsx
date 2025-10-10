@@ -5,11 +5,13 @@ import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate, formatAge } from '@/lib/dateUtils';
-import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaChevronDown, FaChevronUp, FaPrescriptionBottleAlt } from 'react-icons/fa';
 import { SharedDocumentsView } from '@/components/appointment/SharedDocumentsView';
+import { useRouter } from 'next/navigation';
 
 export default function DoctorAppointmentsPage() {
   const { token } = useAuth();
+  const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -487,6 +489,18 @@ export default function DoctorAppointmentsPage() {
                           <span className="">
                             {updating === appointment.id ? 'Cancelling...' : 'Cancel'}
                           </span>
+                        </button>
+                      </div>
+                    )}
+                    {(appointment.status === 'COMPLETED' || appointment.status === 'CONFIRMED') && (
+                      <div className="flex flex-col space-y-2 w-full">
+                        <button
+                          onClick={() => router.push(`/Doctor/Appointments/prescribe/${appointment.id}`)}
+                          className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-2 py-1 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors text-xs sm:text-sm max-w-full"
+                          style={{wordBreak: 'break-word'}}
+                        >
+                          <FaPrescriptionBottleAlt className="w-3 h-3" />
+                          <span className="">Assign Prescription</span>
                         </button>
                       </div>
                     )}
