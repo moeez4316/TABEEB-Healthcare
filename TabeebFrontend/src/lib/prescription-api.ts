@@ -159,9 +159,11 @@ export const useCreatePrescription = () => {
     mutationFn: ({ data, token }: { data: CreatePrescriptionRequest; token: string }) =>
       prescriptionApi.createPrescription(data, token),
     onSuccess: () => {
-      // Invalidate and refetch prescription-related queries
+      // Invalidate and refetch all prescription-related queries
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.doctorPrescriptions] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.patientPrescriptions] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.prescriptionStats] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.appointmentPrescriptions] });
     },
   });
 };
@@ -191,7 +193,9 @@ export const usePatientPrescriptions = (
     queryKey: createQueryKey(QUERY_KEYS.patientPrescriptions, { page, limit }),
     queryFn: () => prescriptionApi.getPatientPrescriptions(token!, page, limit),
     enabled: !!token,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 30, // 30 seconds - more responsive to changes
+    refetchInterval: 1000 * 60, // Auto-refetch every 1 minute when component is active
+    refetchOnWindowFocus: true, // Refetch when patient returns to the tab
   });
 };
 
@@ -224,9 +228,11 @@ export const useUpdatePrescription = () => {
       queryClient.invalidateQueries({ 
         queryKey: createQueryKey(QUERY_KEYS.prescriptionById, { prescriptionId: variables.prescriptionId }) 
       });
-      // Invalidate prescription lists
+      // Invalidate all prescription lists
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.doctorPrescriptions] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.patientPrescriptions] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.prescriptionStats] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.appointmentPrescriptions] });
     },
   });
 };
@@ -239,9 +245,11 @@ export const useDeletePrescription = () => {
     mutationFn: ({ prescriptionId, token }: { prescriptionId: string; token: string }) =>
       prescriptionApi.deletePrescription(prescriptionId, token),
     onSuccess: () => {
-      // Invalidate prescription-related queries
+      // Invalidate all prescription-related queries
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.doctorPrescriptions] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.patientPrescriptions] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.prescriptionStats] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.appointmentPrescriptions] });
     },
   });
 };
