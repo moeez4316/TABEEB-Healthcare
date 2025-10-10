@@ -19,6 +19,9 @@ export default function PrescribePage() {
   const [error, setError] = useState<string | null>(null);
   const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
   const [showExistingPrescriptions, setShowExistingPrescriptions] = useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [prescriptionToDelete, setPrescriptionToDelete] = useState<Prescription | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<PrescriptionFormData>({
     patientUid: '',
@@ -89,6 +92,7 @@ export default function PrescribePage() {
 
   const handleEditPrescription = (prescription: Prescription) => {
     setEditingPrescription(prescription);
+    setSuccessMessage(null); // Clear success message
     setFormData({
       patientUid: prescription.patientUid,
       appointmentId: prescription.appointmentId,
@@ -109,6 +113,7 @@ export default function PrescribePage() {
 
   const handleCancelEdit = () => {
     setEditingPrescription(null);
+    setSuccessMessage(null); // Clear success message
     setFormData({
       patientUid: appointment?.patientUid || '',
       appointmentId: appointmentId,
@@ -129,33 +134,45 @@ export default function PrescribePage() {
     setShowExistingPrescriptions(true);
   };
 
-  const handleDeletePrescription = async (prescription: Prescription) => {
-    if (!window.confirm(`Are you sure you want to delete this prescription for "${prescription.diagnosis || 'General Prescription'}"?\n\nThis action will mark the prescription as inactive and cannot be undone.`)) {
-      return;
-    }
+  const handleDeletePrescription = (prescription: Prescription) => {
+    setPrescriptionToDelete(prescription);
+    setShowDeleteConfirm(true);
+  };
 
-    if (!token) {
+  const confirmDeletePrescription = async () => {
+    if (!prescriptionToDelete || !token) {
       setError('Authentication required');
       return;
     }
 
     try {
       await deletePrescriptionMutation.mutateAsync({
-        prescriptionId: prescription.prescriptionId,
+        prescriptionId: prescriptionToDelete.prescriptionId,
         token
       });
       
       // If we were editing this prescription, cancel the edit
-      if (editingPrescription?.prescriptionId === prescription.prescriptionId) {
+      if (editingPrescription?.prescriptionId === prescriptionToDelete.prescriptionId) {
         handleCancelEdit();
       }
       
       // Clear any existing errors
       setError(null);
+      
+      // Close confirmation dialog
+      setShowDeleteConfirm(false);
+      setPrescriptionToDelete(null);
     } catch (error) {
       console.error('Error deleting prescription:', error);
       setError('Failed to delete prescription. Please try again.');
+      setShowDeleteConfirm(false);
+      setPrescriptionToDelete(null);
     }
+  };
+
+  const cancelDeletePrescription = () => {
+    setShowDeleteConfirm(false);
+    setPrescriptionToDelete(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -305,8 +322,32 @@ export default function PrescribePage() {
         });
       }
 
-      // Success - navigate back to appointments
-      router.push('/Doctor/Appointments');
+      // Success - reset form and show existing prescriptions
+      setEditingPrescription(null);
+      setFormData({
+        patientUid: appointment?.patientUid || '',
+        appointmentId: appointmentId,
+        diagnosis: '',
+        notes: '',
+        instructions: '',
+        medicines: [
+          {
+            medicineName: '',
+            dosage: '',
+            frequency: '',
+            duration: '',
+            instructions: '',
+            timing: ''
+          }
+        ]
+      });
+      setFormErrors({});
+      setShowExistingPrescriptions(true);
+      setError(null);
+      setSuccessMessage(`Prescription ${editingPrescription ? 'updated' : 'created'} successfully!`);
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (error) {
       console.error('Error saving prescription:', error);
       setError(`Failed to ${editingPrescription ? 'update' : 'create'} prescription. Please try again.`);
@@ -758,6 +799,14 @@ export default function PrescribePage() {
         </form>
         )}
 
+        {successMessage && (
+          <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <p className="text-green-600 dark:text-green-400">
+              ✅ {successMessage}
+            </p>
+          </div>
+        )}
+
         {(createPrescriptionMutation.error || updatePrescriptionMutation.error) && (
           <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-red-600 dark:text-red-400">
@@ -766,6 +815,58 @@ export default function PrescribePage() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && prescriptionToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mr-3">
+                <FaTrash className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Delete Prescription
+              </h3>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
+                Are you sure you want to delete this prescription?
+              </p>
+              <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-3">
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {prescriptionToDelete.diagnosis || 'General Prescription'}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Created: {formatDate(prescriptionToDelete.createdAt)}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {prescriptionToDelete.medicines.length} medicine(s) prescribed
+                </p>
+              </div>
+              <p className="text-sm text-red-600 dark:text-red-400 mt-3">
+                <strong>Note:</strong> This action will mark the prescription as deleted. 
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDeletePrescription}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeletePrescription}
+                disabled={deletePrescriptionMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deletePrescriptionMutation.isPending ? 'Deleting...' : 'Delete Prescription'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
