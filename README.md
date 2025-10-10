@@ -394,7 +394,24 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**.
+
+### What this means:
+- ✅ **Commercial Use**: You can use this project for commercial purposes
+- ✅ **Modification**: You can modify and distribute your changes  
+- ✅ **Distribution**: You can distribute the original or modified code
+- ✅ **Private Use**: You can use this project privately
+- ⚖️ **Attribution Required**: You must include the original license and copyright notice
+
+### Healthcare Data Compliance
+While the code is open source under MIT License, please note:
+- 🏥 **HIPAA Compliance**: Ensure proper healthcare data handling in your deployment
+- 🔒 **Patient Privacy**: Implement appropriate security measures for medical data
+- 📋 **Local Regulations**: Comply with healthcare regulations in your jurisdiction
+- 🛡️ **Security Audits**: Conduct security reviews before handling real patient data
+
+### Disclaimer
+This software is provided "as is" without warranty of any kind. The authors are not responsible for any healthcare decisions made using this platform. Always consult qualified medical professionals for medical advice.
 
 ## 🤝 Support & Community
 
