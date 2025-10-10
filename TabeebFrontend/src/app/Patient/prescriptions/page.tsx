@@ -3,15 +3,28 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { usePatientPrescriptions } from '@/lib/prescription-api';
-import { Prescription } from '@/types/prescription';
+import { PrescriptionWithProgress } from '@/types/prescription';
+import { 
+  calculatePrescriptionProgress, 
+  calculateMedicineProgress, 
+  PrescriptionStatus,
+  PrescriptionProgress,
+  getStatusColorClasses 
+} from '@/utils/prescriptionUtils';
+import { 
+  MedicineTrackingCard, 
+  PrescriptionOverview,
+  StatusBadge 
+} from '@/components/prescription/MedicineTrackingComponents';
 import { FaPrescriptionBottleAlt, FaUser, FaCalendarAlt, FaSearch, FaEye, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 export default function PatientPrescriptionsPage() {
   const { token } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
+  const [selectedPrescription, setSelectedPrescription] = useState<PrescriptionWithProgress | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'tracking'>('tracking'); // Default to tracking view
 
   const { data: prescriptionsData, isLoading, error } = usePatientPrescriptions(
     token,
@@ -19,14 +32,73 @@ export default function PatientPrescriptionsPage() {
     10
   );
 
-  const filteredPrescriptions = prescriptionsData?.data?.filter(prescription =>
+  // Process prescriptions data to ensure progress calculations
+  const processedPrescriptions: PrescriptionWithProgress[] = prescriptionsData?.data?.map(prescription => {
+    // Cast prescription to include optional progress properties
+    const prescriptionWithProgress = prescription as PrescriptionWithProgress;
+    
+    // If backend doesn't provide progress data, calculate it on frontend
+    if (!prescriptionWithProgress.overallProgress && prescriptionWithProgress.prescriptionStartDate && prescriptionWithProgress.prescriptionEndDate) {
+      const overallProgress = calculatePrescriptionProgress(
+        prescriptionWithProgress.prescriptionStartDate,
+        prescriptionWithProgress.prescriptionEndDate,
+        prescriptionWithProgress.isActive
+      );
+      
+      const medicinesWithProgress = prescriptionWithProgress.medicines.map(medicine => {
+        if (medicine.durationDays && prescriptionWithProgress.prescriptionStartDate) {
+          const medicineProgress = calculateMedicineProgress(
+            prescriptionWithProgress.prescriptionStartDate,
+            medicine.durationDays,
+            prescriptionWithProgress.isActive
+          );
+          return { ...medicine, progress: medicineProgress };
+        }
+        return medicine;
+      });
+
+      return {
+        ...prescriptionWithProgress,
+        overallProgress,
+        medicines: medicinesWithProgress,
+        activeMedicinesCount: medicinesWithProgress.filter(m => 'progress' in m && m.progress && m.progress.status !== 'expired').length,
+        totalMedicinesCount: prescriptionWithProgress.medicines.length
+      };
+    }
+    return prescriptionWithProgress;
+  }) || [];
+
+  const filteredPrescriptions = processedPrescriptions.filter(prescription =>
     prescription.diagnosis?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     prescription.doctor?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  );
 
-  const handleViewPrescription = (prescription: Prescription) => {
+  const handleViewPrescription = (prescription: PrescriptionWithProgress) => {
     setSelectedPrescription(prescription);
     setShowModal(true);
+  };
+
+  // Convert backend progress data to frontend format
+  const convertToFrontendProgress = (backendProgress: any): PrescriptionProgress => {
+    const statusMap: Record<string, PrescriptionStatus> = {
+      'active': PrescriptionStatus.ACTIVE,
+      'expiring': PrescriptionStatus.EXPIRING,
+      'expired': PrescriptionStatus.EXPIRED,
+      'completed': PrescriptionStatus.COMPLETED
+    };
+
+    const status = statusMap[backendProgress.status] || PrescriptionStatus.ACTIVE;
+    const statusColors = getStatusColorClasses(status);
+    
+    return {
+      status,
+      daysRemaining: backendProgress.daysRemaining,
+      daysTotal: backendProgress.daysTotal,
+      progressPercentage: backendProgress.progressPercentage,
+      statusColor: statusColors.text,
+      statusText: backendProgress.status.charAt(0).toUpperCase() + backendProgress.status.slice(1),
+      canMarkCompleted: status !== PrescriptionStatus.EXPIRED
+    };
   };
 
   const formatDate = (dateString: string) => {
@@ -65,14 +137,43 @@ export default function PatientPrescriptionsPage() {
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center mb-4">
-            <FaPrescriptionBottleAlt className="w-8 h-8 text-teal-600 dark:text-teal-400 mr-3" />
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              My Prescriptions
-            </h1>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <FaPrescriptionBottleAlt className="w-8 h-8 text-teal-600 dark:text-teal-400 mr-3" />
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                My Prescriptions
+              </h1>
+            </div>
+            
+            {/* View Mode Toggle */}
+            <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('tracking')}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'tracking'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Medicine Tracking
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                List View
+              </button>
+            </div>
           </div>
           <p className="text-gray-600 dark:text-gray-400">
-            View and manage all your medical prescriptions
+            {viewMode === 'tracking' 
+              ? 'Track your medicine progress and manage treatment schedules'
+              : 'View and manage all your medical prescriptions'
+            }
           </p>
         </div>
 
@@ -90,7 +191,7 @@ export default function PatientPrescriptionsPage() {
           </div>
         </div>
 
-        {/* Prescriptions List */}
+        {/* Prescriptions Content */}
         {filteredPrescriptions.length === 0 ? (
           <div className="text-center py-12">
             <FaPrescriptionBottleAlt className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
@@ -101,7 +202,66 @@ export default function PatientPrescriptionsPage() {
               {searchTerm ? 'Try adjusting your search terms' : 'You haven\'t received any prescriptions yet'}
             </p>
           </div>
+        ) : viewMode === 'tracking' ? (
+          /* Medicine Tracking View */
+          <div className="space-y-8">
+            {filteredPrescriptions.map((prescription) => (
+              <div key={prescription.id} className="space-y-6">
+                {/* Prescription Overview */}
+                {prescription.overallProgress && (
+                  <PrescriptionOverview
+                    prescriptionId={prescription.id}
+                    doctorName={prescription.doctor?.name || 'Unknown Doctor'}
+                    appointmentDate={prescription.createdAt}
+                    totalMedicines={prescription.totalMedicinesCount || prescription.medicines.length}
+                    activeMedicines={prescription.activeMedicinesCount || 0}
+                    overallProgress={convertToFrontendProgress(prescription.overallProgress)}
+                  />
+                )}
+                
+                {/* Medicine Tracking Cards */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {prescription.medicines.map((medicine, index) => (
+                    medicine.progress ? (
+                      <MedicineTrackingCard
+                        key={`${prescription.id}-${index}`}
+                        medicineName={medicine.medicineName}
+                        dosage={medicine.dosage}
+                        frequency={medicine.frequency}
+                        instructions={medicine.instructions}
+                        progress={convertToFrontendProgress(medicine.progress)}
+                        // TODO: Add mark completed functionality
+                        // onMarkCompleted={() => handleMarkMedicineCompleted(prescription.id, medicine.id)}
+                      />
+                    ) : (
+                      /* Fallback for medicines without progress data */
+                      <div 
+                        key={`${prescription.id}-${index}`}
+                        className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm"
+                      >
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                          {medicine.medicineName}
+                        </h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                          {medicine.dosage} • {medicine.frequency}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-500">
+                          Duration: {medicine.duration}
+                        </p>
+                        <StatusBadge 
+                          status={prescription.isActive ? PrescriptionStatus.ACTIVE : PrescriptionStatus.COMPLETED} 
+                          statusText={prescription.isActive ? 'Active' : 'Completed'}
+                          className="mt-2"
+                        />
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
+          /* Traditional List View */
           <div className="space-y-4">
             {filteredPrescriptions.map((prescription) => (
               <div
@@ -115,10 +275,18 @@ export default function PatientPrescriptionsPage() {
                       <div className="bg-teal-100 dark:bg-teal-900/30 p-2 rounded-lg mr-3">
                         <FaPrescriptionBottleAlt className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                       </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {prescription.diagnosis || 'General Prescription'}
-                        </h3>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {prescription.diagnosis || 'General Prescription'}
+                          </h3>
+                          {prescription.overallProgress && (
+                            <StatusBadge 
+                              status={convertToFrontendProgress(prescription.overallProgress).status} 
+                              statusText={convertToFrontendProgress(prescription.overallProgress).statusText}
+                            />
+                          )}
+                        </div>
                         <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mt-1">
                           <FaUser className="w-3 h-3 mr-1" />
                           <span>Dr. {prescription.doctor?.name}</span>
@@ -163,24 +331,37 @@ export default function PatientPrescriptionsPage() {
                       </div>
                     )}
 
-                    {/* Status */}
-                    <div className="flex items-center">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          prescription.isActive
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                            : 'bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400'
-                        }`}
-                      >
-                        {prescription.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
+                    {/* Progress Summary for List View */}
+                    {prescription.overallProgress && (
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Treatment Progress</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {prescription.overallProgress.progressPercentage}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                          <div 
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              prescription.overallProgress.status === 'expired' ? 'bg-red-500' :
+                              prescription.overallProgress.status === 'expiring' ? 'bg-yellow-500' :
+                              'bg-green-500'
+                            }`}
+                            style={{ width: `${prescription.overallProgress.progressPercentage}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          <span>{prescription.activeMedicinesCount} active medicines</span>
+                          <span>{prescription.overallProgress.daysRemaining} days remaining</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Action Button */}
                   <button
                     onClick={() => handleViewPrescription(prescription)}
-                    className="flex items-center px-4 py-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 border border-teal-600 dark:border-teal-400 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
+                    className="flex items-center px-4 py-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 border border-teal-600 dark:border-teal-400 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors ml-4"
                   >
                     <FaEye className="w-4 h-4 mr-2" />
                     View Details
