@@ -1,4 +1,3 @@
-// lib/verification/api.ts
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface VerificationData {
@@ -20,8 +19,15 @@ export interface VerificationData {
 
 export interface SubmitVerificationRequest {
   pmdcNumber: string;
-  cnic: File;
-  certificate?: File;
+  pmdcRegistrationDate: string;
+  cnicNumber: string;
+  cnicFront: File | null;
+  cnicBack: File | null;
+  verificationPhoto: File | null;
+  degreeCertificate: File | null;
+  pmdcCertificate: File | null;
+  graduationYear: string;
+  degreeInstitution: string;
 }
 
 class VerificationAPI {
@@ -33,12 +39,47 @@ class VerificationAPI {
 
   // Submit verification documents
   async submitVerification(data: SubmitVerificationRequest, token: string): Promise<{ message: string; [key: string]: unknown }> {
-    const formData = new FormData();
-    formData.append('pmdcNumber', data.pmdcNumber);
-    formData.append('cnic', data.cnic);
+    // Validate minimum requirements
+    if (!data.pmdcNumber) {
+      throw new Error('PMDC Number is required');
+    }
     
-    if (data.certificate) {
-      formData.append('certificate', data.certificate);
+    if (!data.cnicFront && !data.cnicBack) {
+      throw new Error('At least one CNIC document (front or back) is required');
+    }
+
+    // Real backend implementation - Full document support
+    const formData = new FormData();
+    
+    // Add all form fields
+    formData.append('pmdcNumber', data.pmdcNumber);
+    formData.append('cnicNumber', data.cnicNumber);
+    formData.append('graduationYear', data.graduationYear);
+    formData.append('degreeInstitution', data.degreeInstitution);
+    
+    if (data.pmdcRegistrationDate) {
+      formData.append('pmdcRegistrationDate', data.pmdcRegistrationDate);
+    }
+    
+    // Add all document files with correct field names
+    if (data.cnicFront) {
+      formData.append('cnicFront', data.cnicFront);
+    }
+    
+    if (data.cnicBack) {
+      formData.append('cnicBack', data.cnicBack);
+    }
+    
+    if (data.verificationPhoto) {
+      formData.append('verificationPhoto', data.verificationPhoto);
+    }
+    
+    if (data.degreeCertificate) {
+      formData.append('degreeCertificate', data.degreeCertificate);
+    }
+    
+    if (data.pmdcCertificate) {
+      formData.append('pmdcCertificate', data.pmdcCertificate);
     }
 
     const response = await fetch(`${API_URL}/api/verification`, {

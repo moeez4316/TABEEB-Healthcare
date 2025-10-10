@@ -1,6 +1,6 @@
 import admin from '../config/firebase';
 import { Request, Response, NextFunction} from 'express';
-
+import prisma from '../lib/prisma';
 
 export const verifyToken = async (req: Request, res: Response, next: NextFunction) => {
   const token = req.headers.authorization?.split(' ')[1];

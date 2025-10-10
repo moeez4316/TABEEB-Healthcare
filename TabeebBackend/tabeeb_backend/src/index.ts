@@ -10,6 +10,7 @@ import adminRoutes from './routes/adminRoutes';
 import verificationRoutes from './routes/verificationRoutes';
 import appointmentRoutes from './routes/appointmentRoutes';
 import availabilityRoutes from './routes/availabilityRoutes';
+import prescriptionRoutes from './routes/prescriptionRoutes';
 
 dotenv.config();
 connectDB();
@@ -27,6 +28,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/availability', availabilityRoutes);
+app.use('/api/prescriptions', prescriptionRoutes);
 
 
 const PORT = process.env.PORT || 5002;

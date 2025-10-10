@@ -27,8 +27,11 @@ const router = express.Router();
 
 // Doctor routes (require auth token)
 router.post('/', verifyToken, upload.fields([
-  { name: 'cnic', maxCount: 1 },
-  { name: 'certificate', maxCount: 1 }
+  { name: 'cnicFront', maxCount: 1 },
+  { name: 'cnicBack', maxCount: 1 },
+  { name: 'verificationPhoto', maxCount: 1 },
+  { name: 'degreeCertificate', maxCount: 1 },
+  { name: 'pmdcCertificate', maxCount: 1 }
 ]), submitVerification);
 
 router.get('/', verifyToken, getVerification);

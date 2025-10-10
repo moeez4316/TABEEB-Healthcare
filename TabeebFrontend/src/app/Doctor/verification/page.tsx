@@ -5,15 +5,26 @@ import { useAuth } from '@/lib/auth-context';
 import { verificationAPI } from '@/lib/verification/api';
 import { validateVerificationForm, formatFileSize } from '@/lib/verification/utils';
 import { VerificationFormData, FileUploadError } from '@/lib/verification/types';
+import { formatCNIC } from '@/lib/profile-utils';
 import { Toast } from '@/components/Toast';
+import { User, Calendar, FileText, Camera, Upload, AlertCircle, CheckCircle, Info } from 'lucide-react';
+
+type FileFieldName = 'cnicFront' | 'cnicBack' | 'verificationPhoto' | 'degreeCertificate' | 'pmdcCertificate';
 
 export default function DoctorVerificationPage() {
   const { user, verificationStatus, loading: authLoading, token, refreshVerificationStatus, verificationLoading, role } = useAuth();
   
   const [formData, setFormData] = useState<VerificationFormData>({
     pmdcNumber: '',
-    cnic: null,
-    certificate: null,
+    pmdcRegistrationDate: '',
+    cnicNumber: '',
+    cnicFront: null,
+    cnicBack: null,
+    verificationPhoto: null,
+    degreeCertificate: null,
+    pmdcCertificate: null,
+    graduationYear: '',
+    degreeInstitution: '',
   });
   
   const [errors, setErrors] = useState<FileUploadError[]>([]);
@@ -23,9 +34,12 @@ export default function DoctorVerificationPage() {
     message: '',
     type: 'info'
   });
-  const [dragStates, setDragStates] = useState({
-    cnic: false,
-    certificate: false,
+  const [dragStates, setDragStates] = useState<Record<FileFieldName, boolean>>({
+    cnicFront: false,
+    cnicBack: false,
+    verificationPhoto: false,
+    degreeCertificate: false,
+    pmdcCertificate: false,
   });
 
   // Show loading state while determining auth status, role, or verification status
@@ -50,16 +64,23 @@ export default function DoctorVerificationPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    let processedValue = value;
+    
+    // Format CNIC number as user types
+    if (name === 'cnicNumber') {
+      processedValue = formatCNIC(value);
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: processedValue,
     }));
     
     // Clear errors for this field
     setErrors(prev => prev.filter(error => error.field !== name));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'cnic' | 'certificate') => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: FileFieldName) => {
     const file = e.target.files?.[0];
     if (file) {
       setFormData(prev => ({
@@ -72,12 +93,12 @@ export default function DoctorVerificationPage() {
     }
   };
 
-  const handleDragEnter = (e: React.DragEvent, fieldName: 'cnic' | 'certificate') => {
+  const handleDragEnter = (e: React.DragEvent, fieldName: FileFieldName) => {
     e.preventDefault();
     setDragStates(prev => ({ ...prev, [fieldName]: true }));
   };
 
-  const handleDragLeave = (e: React.DragEvent, fieldName: 'cnic' | 'certificate') => {
+  const handleDragLeave = (e: React.DragEvent, fieldName: FileFieldName) => {
     e.preventDefault();
     setDragStates(prev => ({ ...prev, [fieldName]: false }));
   };
@@ -86,7 +107,7 @@ export default function DoctorVerificationPage() {
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent, fieldName: 'cnic' | 'certificate') => {
+  const handleDrop = (e: React.DragEvent, fieldName: FileFieldName) => {
     e.preventDefault();
     setDragStates(prev => ({ ...prev, [fieldName]: false }));
     
@@ -109,13 +130,7 @@ export default function DoctorVerificationPage() {
     const validation = validateVerificationForm(formData);
     if (!validation.isValid) {
       setErrors(validation.errors);
-      showToast('Please fix the errors below: ' + validation.errors.map(e => `${e.field}: ${e.message}`).join(', '), 'error');
-      return;
-    }
-
-    // Ensure required files are present
-    if (!formData.cnic) {
-      showToast('CNIC document is required', 'error');
+      showToast('Please fix the errors below', 'error');
       return;
     }
 
@@ -127,14 +142,7 @@ export default function DoctorVerificationPage() {
         throw new Error('Authentication token not found');
       }
 
-      // Prepare submission data with required files
-      const submissionData = {
-        pmdcNumber: formData.pmdcNumber,
-        cnic: formData.cnic,
-        ...(formData.certificate && { certificate: formData.certificate }),
-      };
-
-      await verificationAPI.submitVerification(submissionData, token);
+      await verificationAPI.submitVerification(formData, token);
       
       showToast('Verification documents submitted successfully!', 'success');
       
@@ -166,10 +174,11 @@ export default function DoctorVerificationPage() {
   };
 
   const renderFileUpload = (
-    fieldName: 'cnic' | 'certificate',
+    fieldName: FileFieldName,
     label: string,
-    required: boolean = true,
-    description?: string
+    description: string,
+    icon: React.ReactNode,
+    acceptedTypes: string = ".jpg,.jpeg,.png,.pdf"
   ) => {
     const file = formData[fieldName];
     const error = getFieldError(fieldName);
@@ -178,14 +187,12 @@ export default function DoctorVerificationPage() {
     return (
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-          {label} {required && <span className="text-red-500">*</span>}
+          {label} <span className="text-red-500">*</span>
         </label>
-        {description && (
-          <p className="text-sm text-slate-600 dark:text-slate-400">{description}</p>
-        )}
+        <p className="text-sm text-slate-600 dark:text-slate-400 min-h-[40px]">{description}</p>
         
         <div
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
+          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 min-h-[200px] flex flex-col justify-center ${
             isDragging
               ? 'border-teal-400 bg-teal-50 dark:bg-teal-900/20'
               : error
@@ -202,9 +209,7 @@ export default function DoctorVerificationPage() {
           {file ? (
             <div className="space-y-3">
               <div className="flex items-center justify-center space-x-2">
-                <svg className="w-8 h-8 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <CheckCircle className="w-6 h-6 text-teal-600 dark:text-teal-400" />
                 <span className="text-teal-600 dark:text-teal-400 font-medium">File selected</span>
               </div>
               <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">{file.name}</p>
@@ -219,10 +224,10 @@ export default function DoctorVerificationPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <svg className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              <div>
+              <div className="flex justify-center">
+                {icon}
+              </div>
+              <div className="text-center">
                 <label htmlFor={fieldName} className="cursor-pointer">
                   <span className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium transition-colors">Click to upload</span>
                   <span className="text-slate-600 dark:text-slate-400"> or drag and drop</span>
@@ -231,12 +236,12 @@ export default function DoctorVerificationPage() {
                   id={fieldName}
                   type="file"
                   className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png"
+                  accept={acceptedTypes}
                   onChange={(e) => handleFileChange(e, fieldName)}
                 />
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                PDF, PNG, JPG up to 10MB
+                {fieldName.includes('Photo') ? 'JPG, PNG up to 5MB' : 'PDF, JPG, PNG up to 10MB'}
               </p>
             </div>
           )}
@@ -297,67 +302,228 @@ export default function DoctorVerificationPage() {
             </div>
           </div>
 
-          {/* Resubmission Notice for Rejected Applications */}
-          {verificationStatus === 'rejected' && (
-            <div className="px-8 py-6 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-b border-orange-200 dark:border-orange-800">
-              <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
-                    <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.876c1.184 0 2.046-1.184 1.563-2.23L13.563 4.77c-.482-1.044-1.785-1.044-2.267 0L4.358 15.77C3.875 16.816 4.737 18 5.921 18z" />
-                    </svg>
+          {/* Important Notice */}
+          <div className="px-8 py-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b border-blue-200 dark:border-blue-800">
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0">
+                <Info className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">Verification Requirements</h3>
+                <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-disc list-inside">
+                  <li>All documents must be clear and legible</li>
+                  <li>CNIC images must show all four corners clearly</li>
+                  <li>Verification photo must match your CNIC photo</li>
+                  <li>Certificates must be from recognized Pakistani institutions</li>
+                  <li>PMDC registration must be active and valid</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="px-8 py-10 space-y-8">
+            {/* Personal Information Section */}
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">
+                Personal Information
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="cnicNumber" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    CNIC Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <input
+                      type="text"
+                      id="cnicNumber"
+                      name="cnicNumber"
+                      value={formData.cnicNumber}
+                      onChange={handleInputChange}
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white transition-all duration-200 ${
+                        getFieldError('cnicNumber') ? 'border-red-300 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'
+                      }`}
+                      placeholder="42401-1234567-8"
+                    />
                   </div>
+                  {getFieldError('cnicNumber') && (
+                    <p className="mt-1 text-sm text-red-500 dark:text-red-400">{getFieldError('cnicNumber')}</p>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-orange-800 dark:text-orange-200">Application Resubmission</p>
-                  <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                    Submitting new documents will replace your previous application. Please ensure all documents meet the requirements.
-                  </p>
+
+                <div>
+                  <label htmlFor="graduationYear" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Graduation Year <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <input
+                      type="number"
+                      id="graduationYear"
+                      name="graduationYear"
+                      min="1950"
+                      max={new Date().getFullYear()}
+                      value={formData.graduationYear}
+                      onChange={handleInputChange}
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white transition-all duration-200 ${
+                        getFieldError('graduationYear') ? 'border-red-300 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'
+                      }`}
+                      placeholder="2020"
+                    />
+                  </div>
+                  {getFieldError('graduationYear') && (
+                    <p className="mt-1 text-sm text-red-500 dark:text-red-400">{getFieldError('graduationYear')}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="degreeInstitution" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                  Degree Institution <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FileText className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <input
+                    type="text"
+                    id="degreeInstitution"
+                    name="degreeInstitution"
+                    value={formData.degreeInstitution}
+                    onChange={handleInputChange}
+                    className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white transition-all duration-200 ${
+                      getFieldError('degreeInstitution') ? 'border-red-300 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'
+                    }`}
+                    placeholder="King Edward Medical University"
+                  />
+                </div>
+                {getFieldError('degreeInstitution') && (
+                  <p className="mt-1 text-sm text-red-500 dark:text-red-400">{getFieldError('degreeInstitution')}</p>
+                )}
+              </div>
+            </div>
+
+            {/* PMDC Information Section */}
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">
+                PMDC Registration
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="pmdcNumber" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    PMDC License Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="pmdcNumber"
+                    name="pmdcNumber"
+                    value={formData.pmdcNumber}
+                    onChange={handleInputChange}
+                    className={`block w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white transition-all duration-200 ${
+                      getFieldError('pmdcNumber') ? 'border-red-300 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'
+                    }`}
+                    placeholder="100327-P"
+                  />
+                  {getFieldError('pmdcNumber') && (
+                    <p className="mt-1 text-sm text-red-500 dark:text-red-400">{getFieldError('pmdcNumber')}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="pmdcRegistrationDate" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    PMDC Registration Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    id="pmdcRegistrationDate"
+                    name="pmdcRegistrationDate"
+                    value={formData.pmdcRegistrationDate}
+                    onChange={handleInputChange}
+                    max={new Date().toISOString().split('T')[0]}
+                    className={`block w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white transition-all duration-200 ${
+                      getFieldError('pmdcRegistrationDate') ? 'border-red-300 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'
+                    }`}
+                  />
+                  {getFieldError('pmdcRegistrationDate') && (
+                    <p className="mt-1 text-sm text-red-500 dark:text-red-400">{getFieldError('pmdcRegistrationDate')}</p>
+                  )}
                 </div>
               </div>
             </div>
-          )}
 
-          <form onSubmit={handleSubmit} className="px-8 py-10 space-y-8">
-            {/* PMDC Number */}
-            <div className="space-y-3">
-              <label htmlFor="pmdcNumber" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                PMDC License Number <span className="text-red-500">*</span>
-              </label>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                Your Pakistan Medical Commission license number (format: 6 digits-P, e.g., 100327-P)
-              </p>
-              <input
-                type="text"
-                id="pmdcNumber"
-                name="pmdcNumber"
-                value={formData.pmdcNumber}
-                onChange={handleInputChange}
-                className={`block w-full px-4 py-3 border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white transition-all duration-200 ${
-                  getFieldError('pmdcNumber') ? 'border-red-300 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'
-                }`}
-                placeholder="100327-P"
-              />
-              {getFieldError('pmdcNumber') && (
-                <p className="text-sm text-red-500 dark:text-red-400 font-medium">{getFieldError('pmdcNumber')}</p>
-              )}
+            {/* Document Uploads Section */}
+            <div className="space-y-8">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">
+                Document Uploads
+              </h2>
+
+              {/* CNIC Documents */}
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">CNIC Documents</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {renderFileUpload(
+                    'cnicFront',
+                    'CNIC Front Side',
+                    'Upload a clear photo of the front side of your CNIC showing all details',
+                    <FileText className="w-12 h-12 text-slate-400 dark:text-slate-500" />,
+                    ".jpg,.jpeg,.png"
+                  )}
+
+                  {renderFileUpload(
+                    'cnicBack',
+                    'CNIC Back Side',
+                    'Upload a clear photo of the back side of your CNIC showing all details',
+                    <FileText className="w-12 h-12 text-slate-400 dark:text-slate-500" />,
+                    ".jpg,.jpeg,.png"
+                  )}
+                </div>
+              </div>
+
+              {/* Verification Photo */}
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-6">
+                <div className="flex items-start space-x-3 mb-4">
+                  <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-amber-800 dark:text-amber-200">Verification Photo Requirements</h3>
+                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                      Please upload a front-facing photo with proper lighting and plain background for verification. 
+                      This photo should match your original CNIC photo and will be used for identity verification only.
+                    </p>
+                  </div>
+                </div>
+                
+                {renderFileUpload(
+                  'verificationPhoto',
+                  'Verification Photo',
+                  'Front-facing photo with good lighting and plain background matching your CNIC',
+                  <Camera className="w-12 h-12 text-slate-400 dark:text-slate-500" />,
+                  ".jpg,.jpeg,.png"
+                )}
+              </div>
+
+              {/* Certificates */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {renderFileUpload(
+                  'degreeCertificate',
+                  'Medical Degree Certificate',
+                  'Upload your medical degree certificate (MBBS, BDS, etc.)',
+                  <Upload className="w-12 h-12 text-slate-400 dark:text-slate-500" />
+                )}
+
+                {renderFileUpload(
+                  'pmdcCertificate',
+                  'PMDC Registration Certificate',
+                  'Upload your official PMDC registration certificate',
+                  <Upload className="w-12 h-12 text-slate-400 dark:text-slate-500" />
+                )}
+              </div>
             </div>
-
-            {/* CNIC Upload */}
-            {renderFileUpload(
-              'cnic',
-              'CNIC Document',
-              true,
-              'Upload a clear photo or scan of your National Identity Card'
-            )}
-
-            {/* Certificate Upload */}
-            {renderFileUpload(
-              'certificate',
-              'Medical Degree Certificate',
-              false,
-              'Upload your medical degree certificate (optional but recommended)'
-            )}
 
             {/* Submit Button */}
             <div className="pt-8 border-t border-slate-200 dark:border-slate-700">
@@ -377,9 +543,7 @@ export default function DoctorVerificationPage() {
                   </div>
                 ) : (
                   <div className="flex items-center">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <CheckCircle className="w-5 h-5 mr-2" />
                     {verificationStatus === 'rejected' ? 'Resubmit Application' : 'Submit for Verification'}
                   </div>
                 )}
@@ -390,9 +554,7 @@ export default function DoctorVerificationPage() {
             <div className="text-center space-y-2">
               <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-6 border border-slate-200 dark:border-slate-600">
                 <div className="flex items-center justify-center space-x-2 mb-3">
-                  <svg className="w-5 h-5 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <Info className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                   <h3 className="font-semibold text-slate-700 dark:text-slate-300">Important Information</h3>
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
