@@ -35,6 +35,7 @@ export default function PrescribePage() {
         dosage: '',
         frequency: '',
         duration: '',
+        durationDays: 1,
         instructions: '',
         timing: ''
       }
@@ -104,6 +105,7 @@ export default function PrescribePage() {
         dosage: med.dosage,
         frequency: med.frequency,
         duration: med.duration,
+        durationDays: med.durationDays || 1,
         instructions: med.instructions || '',
         timing: med.timing || ''
       }))
@@ -126,6 +128,7 @@ export default function PrescribePage() {
           dosage: '',
           frequency: '',
           duration: '',
+          durationDays: 1,
           instructions: '',
           timing: ''
         }
@@ -199,7 +202,7 @@ export default function PrescribePage() {
     }
   };
 
-  const handleMedicineChange = (index: number, field: keyof MedicineFormData, value: string) => {
+  const handleMedicineChange = (index: number, field: keyof MedicineFormData, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       medicines: prev.medicines.map((medicine, i) => 
@@ -231,6 +234,7 @@ export default function PrescribePage() {
           dosage: '',
           frequency: '',
           duration: '',
+          durationDays: 1,
           instructions: '',
           timing: ''
         }
@@ -268,6 +272,9 @@ export default function PrescribePage() {
       }
       if (!medicine.duration.trim()) {
         medErrors.duration = 'Duration is required';
+      }
+      if (!medicine.durationDays || medicine.durationDays < 1 || medicine.durationDays > 365) {
+        medErrors.durationDays = 'Duration must be between 1 and 365 days';
       }
       if (Object.keys(medErrors).length > 0) {
         medicineErrors[index] = medErrors;
@@ -336,6 +343,7 @@ export default function PrescribePage() {
             dosage: '',
             frequency: '',
             duration: '',
+            durationDays: 1,
             instructions: '',
             timing: ''
           }
@@ -724,21 +732,42 @@ export default function PrescribePage() {
                       )}
                     </div>
 
-                    {/* Duration */}
+                    {/* Duration Days */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Duration *
+                        Duration (Days) *
                       </label>
                       <input
-                        type="text"
-                        value={medicine.duration}
-                        onChange={(e) => handleMedicineChange(index, 'duration', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white ${formErrors.medicines?.[index]?.duration ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'}`}
-                        placeholder="e.g., 7 days, 2 weeks"
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={medicine.durationDays || 1}
+                        onChange={(e) => {
+                          const days = parseInt(e.target.value) || 1;
+                          handleMedicineChange(index, 'durationDays', days);
+                          // Auto-update duration text
+                          const durationText = days === 1 ? '1 day' : days <= 7 ? `${days} days` : 
+                                             days === 7 ? '1 week' : days === 14 ? '2 weeks' : 
+                                             days === 21 ? '3 weeks' : days === 30 ? '1 month' : `${days} days`;
+                          handleMedicineChange(index, 'duration', durationText);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white ${formErrors.medicines?.[index]?.durationDays ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'}`}
+                        placeholder="Enter number of days"
                       />
-                      {formErrors.medicines?.[index]?.duration && (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {medicine.durationDays && medicine.durationDays > 0 ? 
+                          `This will be displayed as: ${medicine.durationDays === 1 ? '1 day' : 
+                            medicine.durationDays <= 7 ? `${medicine.durationDays} days` : 
+                            medicine.durationDays === 7 ? '1 week' : 
+                            medicine.durationDays === 14 ? '2 weeks' : 
+                            medicine.durationDays === 21 ? '3 weeks' : 
+                            medicine.durationDays === 30 ? '1 month' : `${medicine.durationDays} days`}` 
+                          : 'Enter duration in days'
+                        }
+                      </p>
+                      {formErrors.medicines?.[index]?.durationDays && (
                         <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                          {formErrors.medicines[index].duration}
+                          {formErrors.medicines[index].durationDays}
                         </p>
                       )}
                     </div>
