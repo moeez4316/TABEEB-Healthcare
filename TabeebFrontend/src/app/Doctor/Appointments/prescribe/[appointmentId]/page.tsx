@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { useCreatePrescription, useAppointmentPrescriptions, useUpdatePrescription } from '@/lib/prescription-api';
+import { useCreatePrescription, useAppointmentPrescriptions, useUpdatePrescription, useDeletePrescription } from '@/lib/prescription-api';
 import { PrescriptionFormData, MedicineFormData, Prescription } from '@/types/prescription';
 import { Appointment } from '@/types/appointment';
 import { FaArrowLeft, FaPlus, FaTrash, FaPrescriptionBottleAlt, FaUser, FaCalendarAlt, FaEdit, FaEye } from 'react-icons/fa';
@@ -41,6 +41,7 @@ export default function PrescribePage() {
   const [formErrors, setFormErrors] = useState<any>({});
   const createPrescriptionMutation = useCreatePrescription();
   const updatePrescriptionMutation = useUpdatePrescription();
+  const deletePrescriptionMutation = useDeletePrescription();
   
   // Fetch existing prescriptions for this appointment
   const { 
@@ -69,7 +70,6 @@ export default function PrescribePage() {
         }
 
         const data = await response.json();
-        console.log('Fetched appointment:', data);
         
         setAppointment(data);
         setFormData(prev => ({
@@ -127,6 +127,35 @@ export default function PrescribePage() {
       ]
     });
     setShowExistingPrescriptions(true);
+  };
+
+  const handleDeletePrescription = async (prescription: Prescription) => {
+    if (!window.confirm(`Are you sure you want to delete this prescription for "${prescription.diagnosis || 'General Prescription'}"?\n\nThis action will mark the prescription as inactive and cannot be undone.`)) {
+      return;
+    }
+
+    if (!token) {
+      setError('Authentication required');
+      return;
+    }
+
+    try {
+      await deletePrescriptionMutation.mutateAsync({
+        prescriptionId: prescription.prescriptionId,
+        token
+      });
+      
+      // If we were editing this prescription, cancel the edit
+      if (editingPrescription?.prescriptionId === prescription.prescriptionId) {
+        handleCancelEdit();
+      }
+      
+      // Clear any existing errors
+      setError(null);
+    } catch (error) {
+      console.error('Error deleting prescription:', error);
+      setError('Failed to delete prescription. Please try again.');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -374,7 +403,11 @@ export default function PrescribePage() {
               {existingPrescriptions.data.map((prescription) => (
                 <div
                   key={prescription.id}
-                  className="border border-gray-200 dark:border-slate-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                  className={`border rounded-lg p-4 transition-colors ${
+                    prescription.isActive
+                      ? 'border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 opacity-75'
+                  }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -420,13 +453,30 @@ export default function PrescribePage() {
                     </div>
 
                     <div className="flex space-x-2 ml-4">
-                      <button
-                        onClick={() => handleEditPrescription(prescription)}
-                        className="flex items-center px-3 py-1.5 text-sm text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 border border-teal-600 dark:border-teal-400 rounded-md hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
-                      >
-                        <FaEdit className="w-3 h-3 mr-1" />
-                        Edit
-                      </button>
+                      {prescription.isActive ? (
+                        <>
+                          <button
+                            onClick={() => handleEditPrescription(prescription)}
+                            className="flex items-center px-3 py-1.5 text-sm text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 border border-teal-600 dark:border-teal-400 rounded-md hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
+                          >
+                            <FaEdit className="w-3 h-3 mr-1" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePrescription(prescription)}
+                            disabled={deletePrescriptionMutation.isPending}
+                            className="flex items-center px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 border border-red-600 dark:border-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <FaTrash className="w-3 h-3 mr-1" />
+                            {deletePrescriptionMutation.isPending ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </>
+                      ) : (
+                        <div className="flex items-center px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-md">
+                          <FaTrash className="w-3 h-3 mr-1" />
+                          Deleted
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
