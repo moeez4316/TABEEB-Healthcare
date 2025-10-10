@@ -256,6 +256,81 @@ export const getPatientPrescriptions = async (req: Request, res: Response) => {
       take: limitNum
     });
 
+    // Add progress calculations to each prescription
+    const prescriptionsWithProgress = prescriptions.map(prescription => {
+      const now = new Date();
+      const startDate = prescription.prescriptionStartDate || prescription.createdAt;
+      const endDate = prescription.prescriptionEndDate;
+
+      // Calculate overall prescription progress
+      let overallProgress = null;
+      if (endDate) {
+        const daysTotal = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        const daysPassed = Math.max(0, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+        const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+        const progressPercentage = Math.min(100, Math.max(0, (daysPassed / daysTotal) * 100));
+
+        let status = 'active';
+        if (now > endDate) {
+          status = 'expired';
+        } else if (daysRemaining <= 2) {
+          status = 'expiring';
+        }
+
+        overallProgress = {
+          status,
+          daysRemaining,
+          daysTotal,
+          progressPercentage: Math.round(progressPercentage)
+        };
+      }
+
+      // Calculate progress for each medicine
+      const medicinesWithProgress = prescription.medicines.map(medicine => {
+        if (!medicine.durationDays) {
+          return { ...medicine, progress: null };
+        }
+
+        const medicineEndDate = new Date(startDate);
+        medicineEndDate.setDate(medicineEndDate.getDate() + medicine.durationDays);
+
+        const daysTotal = medicine.durationDays;
+        const daysPassed = Math.max(0, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+        const daysRemaining = Math.max(0, Math.ceil((medicineEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+        const progressPercentage = Math.min(100, Math.max(0, (daysPassed / daysTotal) * 100));
+
+        let status = 'active';
+        if (now > medicineEndDate) {
+          status = 'expired';
+        } else if (daysRemaining <= 2) {
+          status = 'expiring';
+        }
+
+        return {
+          ...medicine,
+          progress: {
+            status,
+            daysRemaining,
+            daysTotal,
+            progressPercentage: Math.round(progressPercentage)
+          }
+        };
+      });
+
+      // Count active medicines
+      const activeMedicines = medicinesWithProgress.filter(m => 
+        m.progress && m.progress.status !== 'expired'
+      ).length;
+
+      return {
+        ...prescription,
+        medicines: medicinesWithProgress,
+        overallProgress,
+        activeMedicinesCount: activeMedicines,
+        totalMedicinesCount: prescription.medicines.length
+      };
+    });
+
     const totalCount = await prisma.prescription.count({
       where: {
         patientUid,
@@ -265,7 +340,7 @@ export const getPatientPrescriptions = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: prescriptions,
+      data: prescriptionsWithProgress,
       pagination: {
         currentPage: pageNum,
         totalPages: Math.ceil(totalCount / limitNum),

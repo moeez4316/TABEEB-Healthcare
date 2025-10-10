@@ -46,6 +46,32 @@ export interface MedicineFormData {
   timing?: string;
 }
 
+// Medicine tracking types
+export interface MedicineProgress {
+  status: 'active' | 'expiring' | 'expired' | 'completed';
+  daysRemaining: number;
+  daysTotal: number;
+  progressPercentage: number;
+}
+
+export interface MedicineWithProgress extends Medicine {
+  progress?: MedicineProgress;
+}
+
+export interface PrescriptionOverallProgress {
+  status: 'active' | 'expiring' | 'expired' | 'completed';
+  daysRemaining: number;
+  daysTotal: number;
+  progressPercentage: number;
+}
+
+export interface PrescriptionWithProgress extends Prescription {
+  medicines: MedicineWithProgress[];
+  overallProgress?: PrescriptionOverallProgress;
+  activeMedicinesCount?: number;
+  totalMedicinesCount?: number;
+}
+
 // UI state types
 export interface PrescriptionFormErrors {
   diagnosis?: string;
