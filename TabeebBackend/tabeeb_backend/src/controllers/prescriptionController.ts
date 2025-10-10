@@ -260,7 +260,20 @@ export const getPatientPrescriptions = async (req: Request, res: Response) => {
     const prescriptionsWithProgress = prescriptions.map(prescription => {
       const now = new Date();
       const startDate = prescription.prescriptionStartDate || prescription.createdAt;
-      const endDate = prescription.prescriptionEndDate;
+      let endDate = prescription.prescriptionEndDate;
+
+      // Fallback: If endDate is missing, compute from medicines durationDays (max)
+      if (!endDate && prescription.medicines && prescription.medicines.length > 0) {
+        const durations = prescription.medicines
+          .filter(m => typeof m.durationDays === 'number' && (m.durationDays as number) > 0)
+          .map(m => m.durationDays as number);
+        if (durations.length > 0) {
+          const maxDays = Math.max(...durations);
+          const computedEnd = new Date(startDate);
+          computedEnd.setDate(computedEnd.getDate() + maxDays);
+          endDate = computedEnd;
+        }
+      }
 
       // Calculate overall prescription progress
       let overallProgress = null;
@@ -466,6 +479,20 @@ export const updatePrescription = async (req: Request, res: Response) => {
       updateData.medicines = {
         create: validatedData.medicines
       };
+
+      // Recalculate prescription end date based on updated medicine durations (max durationDays)
+      const hasDurationDays = validatedData.medicines.some(m => typeof m.durationDays === 'number' && m.durationDays! > 0);
+      if (hasDurationDays) {
+        const maxDurationDays = Math.max(
+          ...validatedData.medicines
+            .filter(m => typeof m.durationDays === 'number' && m.durationDays! > 0)
+            .map(m => m.durationDays as number)
+        );
+        const startDate = existingPrescription.prescriptionStartDate ?? existingPrescription.createdAt;
+        const newEndDate = new Date(startDate);
+        newEndDate.setDate(newEndDate.getDate() + maxDurationDays);
+        updateData.prescriptionEndDate = newEndDate;
+      }
     }
 
     const updatedPrescription = await prisma.prescription.update({
