@@ -76,7 +76,8 @@ export const createPrescription = async (req: Request, res: Response) => {
     const maxDuration = Math.max(...validatedData.medicines.map(med => med.durationDays));
     const prescriptionStartDate = new Date();
     const prescriptionEndDate = new Date();
-    prescriptionEndDate.setDate(prescriptionStartDate.getDate() + maxDuration);
+    // For a 3-day prescription: Day 1, Day 2, Day 3 (so end on Day 3, not Day 4)
+    prescriptionEndDate.setDate(prescriptionStartDate.getDate() + maxDuration - 1);
 
     const prescription = await prisma.prescription.create({
       data: {
@@ -270,7 +271,8 @@ export const getPatientPrescriptions = async (req: Request, res: Response) => {
         if (durations.length > 0) {
           const maxDays = Math.max(...durations);
           const computedEnd = new Date(startDate);
-          computedEnd.setDate(computedEnd.getDate() + maxDays);
+          // For a 3-day prescription: Day 1, Day 2, Day 3 (so end on Day 3, not Day 4)
+          computedEnd.setDate(computedEnd.getDate() + maxDays - 1);
           endDate = computedEnd;
         }
       }
@@ -278,16 +280,38 @@ export const getPatientPrescriptions = async (req: Request, res: Response) => {
       // Calculate overall prescription progress
       let overallProgress = null;
       if (endDate) {
-        const daysTotal = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-        const daysPassed = Math.max(0, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-        const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-        const progressPercentage = Math.min(100, Math.max(0, (daysPassed / daysTotal) * 100));
+        // Reset time components for accurate day calculations
+        const startDateOnly = new Date(startDate);
+        const endDateOnly = new Date(endDate);
+        const nowDateOnly = new Date(now);
+        
+        startDateOnly.setHours(0, 0, 0, 0);
+        endDateOnly.setHours(23, 59, 59, 999);
+        nowDateOnly.setHours(0, 0, 0, 0);
+        
+        const daysTotal = Math.ceil((endDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Calculate current day of prescription (1-based: Day 1, Day 2, Day 3, etc.)
+        const currentDay = Math.floor((nowDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        
+        // Days remaining: how many days left including today (if prescription is active)
+        let daysRemaining;
+        if (nowDateOnly > endDateOnly) {
+          daysRemaining = 0; // Prescription completed/expired
+        } else {
+          daysRemaining = daysTotal - currentDay + 1;
+        }
+        
+        // Progress percentage: completed full days / total days
+        // Day 1: 0% (just started), Day 2: 33% (1 day completed), Day 3: 67% (2 days completed), After Day 3: 100%
+        const completedDays = Math.max(0, Math.min(currentDay - 1, daysTotal));
+        const progressPercentage = (completedDays / daysTotal) * 100;
 
         let status = 'active';
-        if (now > endDate) {
-          status = 'expired';
-        } else if (daysRemaining <= 2) {
-          status = 'expiring';
+        if (nowDateOnly > endDateOnly) {
+          status = 'expired'; // After the last day ends
+        } else if (daysRemaining === 1) {
+          status = 'expiring'; // Last day of prescription
         }
 
         overallProgress = {
@@ -304,19 +328,42 @@ export const getPatientPrescriptions = async (req: Request, res: Response) => {
           return { ...medicine, progress: null };
         }
 
+        const medicineStartDate = new Date(startDate);
         const medicineEndDate = new Date(startDate);
-        medicineEndDate.setDate(medicineEndDate.getDate() + medicine.durationDays);
+        // For a 3-day medicine: Day 1, Day 2, Day 3 (so end on Day 3, not Day 4)
+        medicineEndDate.setDate(medicineEndDate.getDate() + medicine.durationDays - 1);
+        
+        // Reset time components for accurate day calculations
+        const startDateOnly = new Date(medicineStartDate);
+        const endDateOnly = new Date(medicineEndDate);
+        const nowDateOnly = new Date(now);
+        
+        startDateOnly.setHours(0, 0, 0, 0);
+        endDateOnly.setHours(23, 59, 59, 999);
+        nowDateOnly.setHours(0, 0, 0, 0);
 
         const daysTotal = medicine.durationDays;
-        const daysPassed = Math.max(0, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-        const daysRemaining = Math.max(0, Math.ceil((medicineEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-        const progressPercentage = Math.min(100, Math.max(0, (daysPassed / daysTotal) * 100));
+        
+        // Calculate current day of medicine (1-based: Day 1, Day 2, Day 3, etc.)
+        const currentDay = Math.floor((nowDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        
+        // Days remaining: how many days left including today
+        let daysRemaining;
+        if (nowDateOnly > endDateOnly) {
+          daysRemaining = 0; // Medicine completed/expired
+        } else {
+          daysRemaining = daysTotal - currentDay + 1;
+        }
+        
+        // Progress percentage: completed full days / total days
+        const completedDays = Math.max(0, Math.min(currentDay - 1, daysTotal));
+        const progressPercentage = (completedDays / daysTotal) * 100;
 
         let status = 'active';
-        if (now > medicineEndDate) {
-          status = 'expired';
-        } else if (daysRemaining <= 2) {
-          status = 'expiring';
+        if (nowDateOnly > endDateOnly) {
+          status = 'expired'; // After the last day ends
+        } else if (daysRemaining === 1) {
+          status = 'expiring'; // Last day of medicine
         }
 
         return {
@@ -490,7 +537,8 @@ export const updatePrescription = async (req: Request, res: Response) => {
         );
         const startDate = existingPrescription.prescriptionStartDate ?? existingPrescription.createdAt;
         const newEndDate = new Date(startDate);
-        newEndDate.setDate(newEndDate.getDate() + maxDurationDays);
+        // For a 3-day prescription: Day 1, Day 2, Day 3 (so end on Day 3, not Day 4)
+        newEndDate.setDate(newEndDate.getDate() + maxDurationDays - 1);
         updateData.prescriptionEndDate = newEndDate;
       }
     }

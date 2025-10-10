@@ -38,10 +38,21 @@ export function calculatePrescriptionProgress(
   now.setHours(0, 0, 0, 0);
   
   const daysTotal = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  const daysPassed = Math.max(0, Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-  const daysRemaining = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   
-  const progressPercentage = Math.min(100, Math.max(0, (daysPassed / daysTotal) * 100));
+  // Calculate current day of prescription (1-based: Day 1, Day 2, Day 3, etc.)
+  const currentDay = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  
+  // Days remaining: how many days left including today
+  let daysRemaining;
+  if (now > end) {
+    daysRemaining = 0; // Prescription completed/expired
+  } else {
+    daysRemaining = daysTotal - currentDay + 1;
+  }
+  
+  // Progress percentage: completed full days / total days
+  const completedDays = Math.max(0, Math.min(currentDay - 1, daysTotal));
+  const progressPercentage = (completedDays / daysTotal) * 100;
   
   let status: PrescriptionStatus;
   let statusColor: string;
@@ -54,11 +65,11 @@ export function calculatePrescriptionProgress(
   } else if (now > end) {
     status = PrescriptionStatus.EXPIRED;
     statusColor = 'red';
-    statusText = 'Expired';
-  } else if (daysRemaining <= 2) {
+    statusText = 'Completed';
+  } else if (daysRemaining === 1) {
     status = PrescriptionStatus.EXPIRING;
     statusColor = 'yellow';
-    statusText = 'Expiring Soon';
+    statusText = 'Last Day';
   } else {
     status = PrescriptionStatus.ACTIVE;
     statusColor = 'green';
@@ -81,12 +92,9 @@ export function calculatePrescriptionProgress(
  */
 export function formatDaysRemaining(daysRemaining: number): string {
   if (daysRemaining === 0) {
-    return 'Last day';
+    return 'Completed';
   } else if (daysRemaining === 1) {
-    return '1 day left';
-  } else if (daysRemaining < 0) {
-    const daysOverdue = Math.abs(daysRemaining);
-    return `Expired ${daysOverdue} day${daysOverdue > 1 ? 's' : ''} ago`;
+    return 'Last day';
   } else {
     return `${daysRemaining} days left`;
   }
@@ -155,7 +163,8 @@ export function calculateMedicineProgress(
 ): PrescriptionProgress {
   const startDate = new Date(prescriptionStartDate);
   const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + medicineDurationDays);
+  // For a 3-day medicine: Day 1, Day 2, Day 3 (so end on Day 3, not Day 4)
+  endDate.setDate(startDate.getDate() + medicineDurationDays - 1);
   
   return calculatePrescriptionProgress(startDate, endDate, isActive);
 }
