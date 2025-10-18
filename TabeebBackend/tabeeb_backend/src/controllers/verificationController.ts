@@ -204,12 +204,9 @@ export const getAllVerifications = async (req: Request, res: Response) => {
       }
     });
     
-    console.log('📊 Found verifications:', verifications.length);
-    
     // Process verifications to ensure doctor data is properly formatted
     const processedVerifications = verifications.map(verification => {
       const doctorData = verification.doctor;
-      console.log(`Processing verification for doctor ${verification.doctorUid}:`, doctorData);
       
       return {
         ...verification,
@@ -222,14 +219,6 @@ export const getAllVerifications = async (req: Request, res: Response) => {
         } : null
       };
     });
-    
-    console.log('📄 Sample processed verification:', 
-      processedVerifications.length > 0 ? {
-        doctorUid: processedVerifications[0].doctorUid,
-        doctor: processedVerifications[0].doctor,
-        hasDoctor: !!processedVerifications[0].doctor
-      } : 'No verifications found'
-    );
     
     res.json(processedVerifications);
   } catch (error) {

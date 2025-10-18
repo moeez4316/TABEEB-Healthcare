@@ -45,11 +45,8 @@ export const deleteRecord = async (req: Request, res: Response) => {
     const record = await MedicalRecord.findOne({ _id: req.params.id, userId: req.user!.uid });
     if (!record) return res.status(404).json({ error: 'Record not found' });
 
-    // Use stored publicId for deletion
-
-    console.log('Attempting to delete Cloudinary asset with publicId:', record.publicId, 'and resourceType:', record.resourceType);
+    // Delete from Cloudinary using stored publicId
     const cloudinaryResult = await cloudinary.uploader.destroy(record.publicId, { resource_type: record.resourceType || 'raw' });
-    console.log('Cloudinary destroy result:', cloudinaryResult);
 
     if (cloudinaryResult.result !== 'ok' && cloudinaryResult.result !== 'not found') {
       return res.status(500).json({ error: 'Cloudinary deletion failed', details: cloudinaryResult });

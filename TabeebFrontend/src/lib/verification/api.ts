@@ -124,8 +124,8 @@ class VerificationAPI {
       try {
         const status = await this.getVerificationStatus(token);
         onStatusChange(status);
-      } catch (error) {
-        console.error('Polling error:', error);
+      } catch {
+        // Polling error
       }
     };
 

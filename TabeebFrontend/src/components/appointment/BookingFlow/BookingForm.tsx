@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Doctor, TimeSlot, AppointmentBooking } from '@/types/appointment';
 import { formatTime, formatDate, formatDateForAPI } from '@/lib/dateUtils';
 import { DocumentSelector } from '@/components/appointment/DocumentSelector';
+import { CurrentMedicationsModal } from '@/components/appointment/CurrentMedicationsModal';
+import { FaPills } from 'react-icons/fa';
 
 interface BookingFormProps {
   doctor: Doctor;
@@ -24,6 +26,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const [emergencyContact, setEmergencyContact] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
+  const [showMedicationsModal, setShowMedicationsModal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +129,32 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           />
         </div>
 
+        {/* Current Medications Button */}
+        <div className="bg-gradient-to-r from-teal-50 to-blue-50 dark:from-teal-900/20 dark:to-blue-900/20 border border-teal-200 dark:border-teal-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h5 className="font-medium text-gray-900 dark:text-white flex items-center">
+                <FaPills className="w-4 h-4 mr-2 text-teal-600 dark:text-teal-400" />
+                Current Medications
+              </h5>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Help your doctor understand your current treatment plan
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowMedicationsModal(true)}
+            className="w-full mt-3 flex items-center justify-center space-x-2 bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-slate-600 border-2 border-teal-600 dark:border-teal-500 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            <FaPills className="w-4 h-4" />
+            <span>View My Current Medications</span>
+          </button>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+            This information helps prevent drug interactions
+          </p>
+        </div>
+
         {/* Terms and Conditions */}
         <div className="flex items-start space-x-3">
           <input
@@ -182,6 +211,12 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           )}
         </button>
       </form>
+
+      {/* Current Medications Modal */}
+      <CurrentMedicationsModal
+        isOpen={showMedicationsModal}
+        onClose={() => setShowMedicationsModal(false)}
+      />
     </div>
   );
 };

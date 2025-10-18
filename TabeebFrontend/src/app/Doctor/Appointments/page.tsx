@@ -5,13 +5,16 @@ import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate, formatAge } from '@/lib/dateUtils';
-import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaChevronDown, FaChevronUp, FaPrescriptionBottleAlt } from 'react-icons/fa';
+import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaChevronDown, FaChevronUp, FaPrescriptionBottleAlt, FaVideo, FaPills } from 'react-icons/fa';
 import { SharedDocumentsView } from '@/components/appointment/SharedDocumentsView';
 import { useRouter } from 'next/navigation';
+import DoctorVideoCallModal from '@/components/VideoCall/DoctorVideoCallModal';
+import { Toast } from '@/components/Toast';
 
 export default function DoctorAppointmentsPage() {
   const { token } = useAuth();
   const router = useRouter();
+  
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +24,11 @@ export default function DoctorAppointmentsPage() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return;
@@ -42,11 +50,8 @@ export default function DoctorAppointmentsPage() {
       }
 
       const data = await response.json();
-      console.log('Fetched doctor appointments:', data);
-      
       setAppointments(data.appointments || []);
-    } catch (err) {
-      console.error('Error fetching appointments:', err);
+    } catch {
       setError('Failed to load appointments. Please try again.');
     } finally {
       setLoading(false);
@@ -80,8 +85,7 @@ export default function DoctorAppointmentsPage() {
 
       // Refresh appointments
       fetchAppointments();
-    } catch (err) {
-      console.error('Error updating appointment:', err);
+    } catch {
       setError('Failed to update appointment. Please try again.');
     } finally {
       setUpdating(null);
@@ -109,6 +113,31 @@ export default function DoctorAppointmentsPage() {
     setShowCancelModal(false);
     setAppointmentToCancel(null);
     setCancelReason('');
+  };
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
+  const handleVideoCallClick = (appointment: Appointment, canStart: boolean) => {
+    if (!canStart) {
+      showNotification(
+        'Video call is available 15 minutes before appointment time',
+        'info'
+      );
+    } else {
+      setSelectedAppointmentId(appointment.id);
+      setShowVideoCall(true);
+    }
+  };
+
+  const handleMedicationClick = () => {
+    showNotification(
+      'Patient Medication Management feature will be implemented in the future',
+      'info'
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -466,44 +495,125 @@ export default function DoctorAppointmentsPage() {
                         </>
                       )}
                     </button>
-                    {appointment.status === 'PENDING' && (
-                      <div className="flex flex-col space-y-2 w-full">
-                        <button
-                          onClick={() => updateAppointmentStatus(appointment.id, 'CONFIRMED')}
-                          disabled={updating === appointment.id}
-                          className="flex items-center space-x-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 px-2 py-1 rounded border border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50 text-xs sm:text-sm max-w-full"
-                          style={{wordBreak: 'break-word'}}
-                        >
-                          <FaCheckCircle className="w-3 h-3" />
-                          <span className="">
-                            {updating === appointment.id ? 'Confirming...' : 'Confirm'}
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => handleCancelClick(appointment.id)}
-                          disabled={updating === appointment.id}
-                          className="flex items-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-2 py-1 rounded border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 text-xs sm:text-sm max-w-full"
-                          style={{wordBreak: 'break-word'}}
-                        >
-                          <FaTimesCircle className="w-3 h-3" />
-                          <span className="">
-                            {updating === appointment.id ? 'Cancelling...' : 'Cancel'}
-                          </span>
-                        </button>
-                      </div>
-                    )}
-                    {(appointment.status === 'COMPLETED' || appointment.status === 'CONFIRMED') && (
-                      <div className="flex flex-col space-y-2 w-full">
-                        <button
-                          onClick={() => router.push(`/Doctor/Appointments/prescribe/${appointment.id}`)}
-                          className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-2 py-1 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors text-xs sm:text-sm max-w-full"
-                          style={{wordBreak: 'break-word'}}
-                        >
-                          <FaPrescriptionBottleAlt className="w-3 h-3" />
-                          <span className="">Assign Prescription</span>
-                        </button>
-                      </div>
-                    )}
+                    {appointment.status === 'PENDING' && (() => {
+                      // PENDING appointments can be cancelled anytime (no time restriction)
+                      return (
+                        <div className="flex flex-col space-y-2 w-full">
+                          <button
+                            onClick={() => updateAppointmentStatus(appointment.id, 'CONFIRMED')}
+                            disabled={updating === appointment.id}
+                            className="flex items-center space-x-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 px-2 py-1 rounded border border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50 text-xs sm:text-sm max-w-full"
+                            style={{wordBreak: 'break-word'}}
+                          >
+                            <FaCheckCircle className="w-3 h-3" />
+                            <span className="">
+                              {updating === appointment.id ? 'Confirming...' : 'Confirm'}
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => handleCancelClick(appointment.id)}
+                            disabled={updating === appointment.id}
+                            className="flex items-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-2 py-1 rounded border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 text-xs sm:text-sm max-w-full"
+                            style={{wordBreak: 'break-word'}}
+                          >
+                            <FaTimesCircle className="w-3 h-3" />
+                            <span className="">
+                              {updating === appointment.id ? 'Cancelling...' : 'Cancel'}
+                            </span>
+                          </button>
+                        </div>
+                      );
+                    })()}
+                    {(appointment.status === 'COMPLETED' || appointment.status === 'CONFIRMED') && (() => {
+                      const now = new Date();
+                      
+                      // Parse appointment date and time
+                      const dateStr = appointment.appointmentDate;
+                      const timeStr = appointment.startTime;
+                      
+                      // Extract just the date part if it's a full ISO timestamp
+                      // e.g., "2025-10-18T00:00:00.000Z" -> "2025-10-18"
+                      const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+                      
+                      // Ensure time has seconds (HH:MM:SS format)
+                      const timeWithSeconds = timeStr.includes(':') && timeStr.split(':').length === 2 
+                        ? `${timeStr}:00` 
+                        : timeStr;
+                      
+                      // Create appointment date time by combining date and time
+                      const appointmentDateTime = new Date(`${datePart}T${timeWithSeconds}`);
+                      
+                      const hoursSinceAppointment = (now.getTime() - appointmentDateTime.getTime()) / (1000 * 60 * 60);
+                      const minutesUntilAppointment = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60);
+                      const hoursUntilAppointment = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+                      
+                      // For prescription button:
+                      // - CONFIRMED: Always show (appointment hasn't happened yet or is ongoing)
+                      // - COMPLETED: Only show within 48 hours after appointment time
+                      const isWithin48HoursAfterAppointment = hoursSinceAppointment >= 0 && hoursSinceAppointment <= 48;
+                      const showPrescriptionButton = appointment.status === 'CONFIRMED' || 
+                                                     (appointment.status === 'COMPLETED' && isWithin48HoursAfterAppointment);
+                      
+                      // Video call only available 15 minutes before appointment start (and only for CONFIRMED)
+                      const canStartVideoCall = appointment.status === 'CONFIRMED' && minutesUntilAppointment <= 15 && minutesUntilAppointment >= -60; // 15 min before to 60 min after
+                      
+                      // Can cancel only if appointment is at least 2 hours away (only for CONFIRMED)
+                      const canCancel = appointment.status === 'CONFIRMED' && hoursUntilAppointment >= 2;
+                      
+                      if (!showPrescriptionButton && !canStartVideoCall && !canCancel) return null;
+                      
+                      return (
+                        <div className="flex flex-col space-y-2 w-full">
+                          {showPrescriptionButton && (
+                            <button
+                              onClick={() => router.push(`/Doctor/Appointments/prescribe/${appointment.id}`)}
+                              className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-2 py-1 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors text-xs sm:text-sm max-w-full"
+                              style={{wordBreak: 'break-word'}}
+                            >
+                              <FaPrescriptionBottleAlt className="w-3 h-3" />
+                              <span className="">Assign Prescription</span>
+                            </button>
+                          )}
+                          {appointment.status === 'CONFIRMED' && (
+                            <button
+                              onClick={() => handleVideoCallClick(appointment, canStartVideoCall)}
+                              className="flex items-center space-x-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-2 py-1 rounded border border-blue-600 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-xs sm:text-sm max-w-full"
+                              style={{wordBreak: 'break-word'}}
+                            >
+                              <FaVideo className="w-3 h-3" />
+                              <span className="">Start Video Call</span>
+                            </button>
+                          )}
+                          
+                          {/* Patient Medications Button */}
+                          {appointment.status === 'CONFIRMED' && (
+                            <button
+                              onClick={handleMedicationClick}
+                              className="flex items-center space-x-2 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 px-2 py-1 rounded border border-purple-600 dark:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors text-xs sm:text-sm max-w-full"
+                              style={{wordBreak: 'break-word'}}
+                              title="Coming Soon - Feature under development"
+                            >
+                              <FaPills className="w-3 h-3" />
+                              <span className="">Patient Medications</span>
+                            </button>
+                          )}
+                          
+                          {canCancel && (
+                            <button
+                              onClick={() => handleCancelClick(appointment.id)}
+                              disabled={updating === appointment.id}
+                              className="flex items-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-2 py-1 rounded border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 text-xs sm:text-sm max-w-full"
+                              style={{wordBreak: 'break-word'}}
+                            >
+                              <FaTimesCircle className="w-3 h-3" />
+                              <span className="">
+                                {updating === appointment.id ? 'Cancelling...' : 'Cancel'}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
                 
@@ -609,6 +719,29 @@ export default function DoctorAppointmentsPage() {
           </div>
         </div>
       )}
+      
+      {/* Video Call Modal */}
+      {showVideoCall && selectedAppointmentId && token && (
+        <DoctorVideoCallModal
+          appointmentId={selectedAppointmentId}
+          isOpen={showVideoCall}
+          onClose={() => {
+            setShowVideoCall(false);
+            setSelectedAppointmentId(null);
+            // Refresh appointments to update status
+            fetchAppointments();
+          }}
+          firebaseToken={token}
+        />
+      )}
+
+      {/* Toast Notification */}
+      <Toast
+        message={toastMessage}
+        type={toastType}
+        show={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </div>
   );
 }

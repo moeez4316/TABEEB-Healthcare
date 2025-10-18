@@ -66,7 +66,6 @@ export default function BookAppointmentPage() {
       }
 
       const data = await response.json();
-      console.log('Fetched doctors:', data);
       
       // Transform the data to match our Doctor interface
       const transformedDoctors: Doctor[] = data.doctors?.map((doctor: {
@@ -85,8 +84,7 @@ export default function BookAppointmentPage() {
       })) || [];
 
       setDoctors(transformedDoctors);
-    } catch (err) {
-      console.error('Error fetching doctors:', err);
+    } catch {
       setError('Failed to load doctors. Please try again.');
     } finally {
       setLoading(false);
@@ -104,12 +102,10 @@ export default function BookAppointmentPage() {
       });
 
       if (!response.ok) {
-        console.error('Failed to fetch doctor availability');
         return;
       }
 
       const data = await response.json();
-      console.log('Fetched doctor availability:', data);
       
       // Convert availability dates to Date objects
       const availableDates = (Array.isArray(data) ? data : []).map((availability: { date: string }) => 
@@ -117,8 +113,7 @@ export default function BookAppointmentPage() {
       );
       
       setDoctorAvailability(availableDates);
-    } catch (err) {
-      console.error('Error fetching doctor availability:', err);
+    } catch {
       setDoctorAvailability([]);
     } finally {
       setAvailabilityLoading(false);
@@ -151,8 +146,6 @@ export default function BookAppointmentPage() {
     setError(null);
 
     try {
-      console.log('Submitting booking:', bookingData);
-      
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       const response = await fetch(`${API_URL}/api/appointments/book`, {
         method: 'POST',
@@ -169,12 +162,10 @@ export default function BookAppointmentPage() {
       }
 
       const result = await response.json();
-      console.log('Booking successful:', result);
       
       setBookedAppointment(result.appointment);
       setCurrentStep('confirmation');
     } catch (err) {
-      console.error('Booking error:', err);
       setError(err instanceof Error ? err.message : 'Failed to book appointment');
     } finally {
       setLoading(false);
@@ -320,36 +311,58 @@ export default function BookAppointmentPage() {
           {currentStep !== 'confirmation' && (
             <div className="mt-6">
               <div className="flex items-center space-x-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent py-2 -mx-2 px-2">
-                {['doctor', 'date', 'time', 'details'].map((step, index) => (
-                  <div key={step} className="flex items-center flex-shrink-0">
-                    <div
-                      className={`
-                        w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shadow-lg
-                        ${
-                          step === currentStep
-                            ? 'bg-teal-600 text-white'
-                            : ['doctor', 'date', 'time', 'details'].indexOf(currentStep) > index
-                            ? 'bg-green-500 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                        }
-                      `}
-                    >
-                      {index + 1}
-                    </div>
-                    {index < 3 && (
-                      <div
+                {['doctor', 'date', 'time', 'details'].map((step, index) => {
+                  const stepIndex = ['doctor', 'date', 'time', 'details'].indexOf(currentStep);
+                  const isCompleted = stepIndex > index;
+                  const isCurrent = step === currentStep;
+                  const canNavigate = isCompleted;
+
+                  const handleStepClick = () => {
+                    if (canNavigate) {
+                      setCurrentStep(step as BookingStep);
+                    }
+                  };
+
+                  return (
+                    <div key={step} className="flex items-center flex-shrink-0">
+                      <button
+                        onClick={handleStepClick}
+                        disabled={!canNavigate}
                         className={`
-                          w-10 sm:w-16 h-1 mx-1 sm:mx-2 rounded-full flex-shrink-0
+                          w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shadow-lg transition-all
                           ${
-                            ['doctor', 'date', 'time', 'details'].indexOf(currentStep) > index
-                              ? 'bg-green-500'
-                              : 'bg-gray-200 dark:bg-gray-700'
+                            isCurrent
+                              ? 'bg-teal-600 text-white scale-110'
+                              : isCompleted
+                              ? 'bg-green-500 text-white hover:bg-green-600 hover:scale-105 cursor-pointer'
+                              : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 cursor-not-allowed'
                           }
                         `}
-                      />
-                    )}
-                  </div>
-                ))}
+                        title={canNavigate ? `Go to ${step} step` : isCurrent ? 'Current step' : 'Complete previous steps first'}
+                      >
+                        {isCompleted ? (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          index + 1
+                        )}
+                      </button>
+                      {index < 3 && (
+                        <div
+                          className={`
+                            w-10 sm:w-16 h-1 mx-1 sm:mx-2 rounded-full flex-shrink-0
+                            ${
+                              isCompleted
+                                ? 'bg-green-500'
+                                : 'bg-gray-200 dark:bg-gray-700'
+                            }
+                          `}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

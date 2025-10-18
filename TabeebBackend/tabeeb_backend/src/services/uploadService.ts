@@ -50,7 +50,6 @@ export const uploadVerificationDocument = (
           console.error('Cloudinary upload error:', error);
           return reject(error);
         }
-        console.log('✅ Document uploaded successfully:', result?.secure_url);
         resolve(result);
       }
     );
@@ -82,7 +81,6 @@ export const uploadProfileImage = (buffer: Buffer, userId: string) => {
           console.error('Cloudinary profile image upload error:', error);
           return reject(error);
         }
-        console.log('✅ Profile image uploaded successfully:', result?.secure_url);
         resolve(result);
       }
     );

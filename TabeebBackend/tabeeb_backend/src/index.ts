@@ -11,6 +11,7 @@ import verificationRoutes from './routes/verificationRoutes';
 import appointmentRoutes from './routes/appointmentRoutes';
 import availabilityRoutes from './routes/availabilityRoutes';
 import prescriptionRoutes from './routes/prescriptionRoutes';
+import videoCallRoutes from './routes/videoCallRoutes';
 
 dotenv.config();
 connectDB();
@@ -29,6 +30,7 @@ app.use('/api/verification', verificationRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
+app.use('/api/video-calls', videoCallRoutes);
 
 
 const PORT = process.env.PORT || 5002;
