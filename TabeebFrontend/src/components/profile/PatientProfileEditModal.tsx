@@ -5,6 +5,7 @@ import { X, Save, User, Heart, Settings, Phone, AlertCircle } from 'lucide-react
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile, selectHasUnsavedChanges } from '@/store/slices/patientSlice';
+import { resetProfile } from '@/store/slices/patientSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import HeightInput from '../shared/HeightInput';
 import { formatCNIC, formatPhoneNumber, pakistaniProvinces, bloodGroups, pakistaniLanguages } from '@/lib/profile-utils';
@@ -61,9 +62,9 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
     console.log('Save button clicked');
     setSaving(true);
     setErrors({});
-    
     try {
       await handleSaveProfile();
+      dispatch(resetProfile());
       onClose();
     } catch (error) {
       console.error('Error saving profile:', error);
