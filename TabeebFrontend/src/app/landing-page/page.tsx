@@ -141,13 +141,13 @@ const LandingPage = () => {
                 TABEEB is a comprehensive health application — book appointments and video visits, get e‑prescriptions, manage medical records, track lab tests, and receive smart reminders — all powered by AI.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link 
+                <a
                   href="/auth"
-                  className="group inline-flex items-center justify-center bg-gradient-to-r from-teal-500 to-cyan-500 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-xl hover:shadow-teal-500/20 transition-all duration-300 transform hover:-translate-y-0.5"
+                  className="z-10 group inline-flex items-center justify-center bg-gradient-to-r from-teal-500 to-cyan-500 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-xl hover:shadow-teal-500/20 transition-all duration-300 transform hover:-translate-y-0.5"
                 >
                   Start Consultation
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
+                </a>
               </div>
             </motion.div>
             
@@ -349,7 +349,9 @@ const LandingPage = () => {
             <div>
               <h3 className="text-lg font-semibold text-white mb-4">Company</h3>
               <ul className="space-y-2">
-                <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
+                  <li>
+                    <Link href="/about" className="hover:text-white transition-colors">About Us</Link>
+                  </li>
                 <li>
                   <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
                 </li>
