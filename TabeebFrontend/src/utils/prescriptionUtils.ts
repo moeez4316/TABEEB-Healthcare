@@ -63,8 +63,8 @@ export function calculatePrescriptionProgress(
     statusColor = 'gray';
     statusText = 'Completed';
   } else if (now > end) {
-    status = PrescriptionStatus.EXPIRED;
-    statusColor = 'red';
+    status = PrescriptionStatus.COMPLETED;
+    statusColor = 'gray';
     statusText = 'Completed';
   } else if (daysRemaining === 1) {
     status = PrescriptionStatus.EXPIRING;
@@ -83,7 +83,7 @@ export function calculatePrescriptionProgress(
     progressPercentage,
     statusColor,
     statusText,
-    canMarkCompleted: isActive && status !== PrescriptionStatus.EXPIRED
+    canMarkCompleted: isActive && status !== PrescriptionStatus.COMPLETED
   };
 }
 
