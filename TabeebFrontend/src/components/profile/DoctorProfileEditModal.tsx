@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { updateProfile, saveDoctorProfile, uploadDoctorProfileImage, DoctorProfile, selectHasUnsavedChanges } from '@/store/slices/doctorSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
-import { formatCNIC, formatPhoneNumber, pakistaniProvinces } from '@/lib/profile-utils';
+import { formatPhoneNumber, pakistaniProvinces } from '@/lib/profile-utils';
 
 // Pakistani medical specializations
 const medicalSpecializations = [

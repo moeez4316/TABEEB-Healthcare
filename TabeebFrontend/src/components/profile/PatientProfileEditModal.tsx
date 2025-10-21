@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Save, User, Heart, Settings, Phone, MapPin, AlertCircle } from 'lucide-react';
+import { X, Save, User, Heart, Settings, Phone, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile, selectHasUnsavedChanges } from '@/store/slices/patientSlice';

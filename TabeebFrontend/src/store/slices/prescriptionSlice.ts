@@ -269,7 +269,7 @@ const prescriptionSlice = createSlice({
     },
     
     // Reset state
-    resetPrescriptionState: (state) => {
+    resetPrescriptionState: () => {
       return initialState;
     },
   },
