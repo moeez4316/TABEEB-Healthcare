@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useCreatePrescription, useAppointmentPrescriptions, useUpdatePrescription, useDeletePrescription } from '@/lib/prescription-api';
 import { PrescriptionFormData, MedicineFormData, Prescription } from '@/types/prescription';
 import { Appointment } from '@/types/appointment';
-import { FaArrowLeft, FaPlus, FaTrash, FaPrescriptionBottleAlt, FaUser, FaCalendarAlt, FaEdit, FaEye } from 'react-icons/fa';
+import { FaArrowLeft, FaPlus, FaTrash, FaPrescriptionBottleAlt, FaUser, FaCalendarAlt, FaEdit } from 'react-icons/fa';
 
 export default function PrescribePage() {
   const router = useRouter();
@@ -42,15 +42,20 @@ export default function PrescribePage() {
     ]
   });
 
-  const [formErrors, setFormErrors] = useState<any>({});
+  interface FormErrors {
+    [key: string]: string | Record<number, Partial<Record<keyof MedicineFormData, string>>> | undefined;
+    diagnosis?: string;
+    medicines?: Record<number, Partial<Record<keyof MedicineFormData, string>>>;
+  }
+
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const createPrescriptionMutation = useCreatePrescription();
   const updatePrescriptionMutation = useUpdatePrescription();
   const deletePrescriptionMutation = useDeletePrescription();
   
   // Fetch existing prescriptions for this appointment
   const { 
-    data: existingPrescriptions, 
-    isLoading: prescriptionsLoading, 
+    data: existingPrescriptions,
     error: prescriptionsError 
   } = useAppointmentPrescriptions(appointmentId, token);
 
@@ -195,7 +200,7 @@ export default function PrescribePage() {
     }));
     // Clear error when user starts typing
     if (formErrors[field]) {
-      setFormErrors((prev: any) => ({
+      setFormErrors((prev) => ({
         ...prev,
         [field]: ''
       }));
@@ -211,12 +216,12 @@ export default function PrescribePage() {
     }));
     // Clear error when user starts typing
     if (formErrors.medicines?.[index]?.[field]) {
-      setFormErrors((prev: any) => ({
+      setFormErrors((prev) => ({
         ...prev,
         medicines: {
           ...prev.medicines,
           [index]: {
-            ...prev.medicines?.[index],
+            ...(prev.medicines?.[index] || {}),
             [field]: ''
           }
         }
@@ -252,15 +257,15 @@ export default function PrescribePage() {
   };
 
   const validateForm = () => {
-    const errors: any = {};
+    const errors: FormErrors = {};
 
     if (!formData.diagnosis.trim()) {
       errors.diagnosis = 'Diagnosis is required';
     }
 
-    const medicineErrors: any = {};
+    const medicineErrors: Record<number, Partial<Record<keyof MedicineFormData, string>>> = {};
     formData.medicines.forEach((medicine, index) => {
-      const medErrors: any = {};
+      const medErrors: Partial<Record<keyof MedicineFormData, string>> = {};
       if (!medicine.medicineName.trim()) {
         medErrors.medicineName = 'Medicine name is required';
       }

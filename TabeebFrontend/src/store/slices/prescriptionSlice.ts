@@ -53,6 +53,14 @@ export interface PrescriptionStats {
   thisMonthPrescriptions: number;
 }
 
+  export interface PaginationPayload {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  }
+
 interface PrescriptionState {
   // Doctor-related state
   doctorPrescriptions: Prescription[];
@@ -176,7 +184,7 @@ const prescriptionSlice = createSlice({
     },
     
     // Doctor prescriptions
-    setDoctorPrescriptions: (state, action: PayloadAction<{ data: Prescription[]; pagination?: any }>) => {
+  setDoctorPrescriptions: (state, action: PayloadAction<{ data: Prescription[]; pagination?: PaginationPayload }>) => {
       state.doctorPrescriptions = action.payload.data;
       if (action.payload.pagination) {
         state.pagination.doctorPrescriptions = action.payload.pagination;
@@ -184,7 +192,7 @@ const prescriptionSlice = createSlice({
     },
     
     // Patient prescriptions
-    setPatientPrescriptions: (state, action: PayloadAction<{ data: Prescription[]; pagination?: any }>) => {
+  setPatientPrescriptions: (state, action: PayloadAction<{ data: Prescription[]; pagination?: PaginationPayload }>) => {
       state.patientPrescriptions = action.payload.data;
       if (action.payload.pagination) {
         state.pagination.patientPrescriptions = action.payload.pagination;

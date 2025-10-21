@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { usePatientPrescriptions } from '@/lib/prescription-api';
 import { PrescriptionWithProgress } from '@/types/prescription';
@@ -79,7 +79,7 @@ export default function PatientPrescriptionsPage() {
   };
 
   // Convert backend progress data to frontend format
-  const convertToFrontendProgress = (backendProgress: any): PrescriptionProgress => {
+  const convertToFrontendProgress = (backendProgress: { status: string; daysRemaining: number; daysTotal: number; progressPercentage: number }): PrescriptionProgress => {
     const statusMap: Record<string, PrescriptionStatus> = {
       'active': PrescriptionStatus.ACTIVE,
       'expiring': PrescriptionStatus.EXPIRING,
@@ -523,7 +523,7 @@ export default function PatientPrescriptionsPage() {
               {/* Notes */}
               {selectedPrescription.notes && (
                 <div className="mb-6">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Doctor's Notes</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Doctor&apos;s Notes</h3>
                   <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
                     {selectedPrescription.notes}
                   </p>

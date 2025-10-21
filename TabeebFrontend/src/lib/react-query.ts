@@ -39,7 +39,7 @@ export const QUERY_KEYS = {
 } as const;
 
 // Helper function to create query keys with parameters
-export const createQueryKey = (baseKey: string, params?: Record<string, any>) => {
+export const createQueryKey = (baseKey: string, params?: Record<string, string | number | boolean | null | undefined>) => {
   if (!params) return [baseKey];
   return [baseKey, params];
 };
