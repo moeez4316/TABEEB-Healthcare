@@ -114,26 +114,19 @@ model Prescription {
 }
 
 model PrescriptionMedicine {
-  id                 String            @id @default(cuid())
-  prescriptionId     String
-  medicineName       String
-  dosage             String
-  frequency          String
-  duration           String
-  durationDays       Int?
-  instructions       String?
-  timing             String?
-  status             MedicationStatus  @default(ACTIVE)
-  discontinuedAt     DateTime?
-  discontinuedBy     String?           @db.VarChar(255)
-  discontinuedReason String?           @db.Text
-  modificationNotes  String?           @db.Text
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @default(now()) @updatedAt
-  prescription       Prescription      @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  id             String       @id @default(cuid())
+  prescriptionId String
+  medicineName   String
+  dosage         String
+  frequency      String
+  duration       String
+  durationDays   Int?
+  instructions   String?
+  timing         String?
+  createdAt      DateTime     @default(now())
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
   @@index([prescriptionId])
-  @@index([status])
   @@map("prescription_medicines")
 }
 
@@ -181,7 +174,7 @@ model doctor {
   privacyShareData     Boolean              @default(false)
   privacyMarketing     Boolean              @default(false)
   createdAt            DateTime             @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime             @default(now()) @updatedAt
   appointments         Appointment[]
   user                 user                 @relation(fields: [uid], references: [uid], map: "Doctor_uid_fkey")
   availability         DoctorAvailability[]
@@ -220,7 +213,7 @@ model patient {
   privacyShareData             Boolean        @default(false)
   privacyMarketing             Boolean        @default(false)
   createdAt                    DateTime       @default(now())
-  updatedAt                    DateTime
+  updatedAt                    DateTime       @default(now()) @updatedAt
   appointments                 Appointment[]
   user                         user           @relation(fields: [uid], references: [uid], map: "Patient_uid_fkey")
   prescriptions                Prescription[]
@@ -270,10 +263,4 @@ enum VideoCallStatus {
   CANCELLED
   FAILED
   NO_SHOW
-}
-
-enum MedicationStatus {
-  ACTIVE
-  DISCONTINUED
-  COMPLETED
 }
