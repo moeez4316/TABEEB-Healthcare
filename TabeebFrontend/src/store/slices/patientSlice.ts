@@ -126,7 +126,7 @@ export const createPatientProfile = createAsyncThunk(
         return rejectWithValue(errorData.error || 'Failed to create profile');
       }
 
-      const result = await response.json();
+      await response.json();
       return {
         profile: profileData,
         timestamp: new Date().toISOString()
@@ -156,7 +156,7 @@ export const savePatientProfile = createAsyncThunk(
         return rejectWithValue(errorData.error || 'Failed to save profile');
       }
 
-      const result = await response.json();
+      await response.json();
       return {
         profile: profileData,
         timestamp: new Date().toISOString()

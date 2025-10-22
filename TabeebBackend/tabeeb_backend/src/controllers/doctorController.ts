@@ -116,9 +116,8 @@ export const getDoctor = async (req: Request, res: Response) => {
         verification: true // Include verification data if exists
       }
     });
-    console.log('[TABEEB DEBUG] doctorController: Prisma doctor query result:', doctor);
+    
     if (!doctor) {
-      console.log('[TABEEB DEBUG] doctorController: No doctor profile found for UID:', uid);
       return res.status(404).json({ message: 'Doctor profile not found' });
     }
     
@@ -137,7 +136,7 @@ export const getDoctor = async (req: Request, res: Response) => {
     
     res.json(response);
   } catch (error) {
-    console.error('[TABEEB DEBUG] doctorController: Error fetching doctor profile:', error);
+    console.error('Error fetching doctor profile:', error);
     res.status(500).json({ error: 'Failed to fetch doctor profile' });
   }
 };

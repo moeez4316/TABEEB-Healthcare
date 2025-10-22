@@ -112,7 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           status = verificationData.isVerified ? 'approved' : 'pending';
         }
         
-        console.log("[AuthContext] Setting verification status:", status);
         setVerificationStatus(status);
         // Cache verification status in localStorage
         if (status) {
@@ -120,23 +119,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else if (verificationRes.status === 404) {
         // No verification submitted yet
-        console.log("[AuthContext] No verification found, setting to not-submitted");
         setVerificationStatus('not-submitted');
         localStorage.setItem('verificationStatus', 'not-submitted');
       } else {
         // Default to 'not-submitted' for other errors (500, etc.)
-        console.log("[AuthContext] API error, setting to not-submitted");
         setVerificationStatus('not-submitted');
         localStorage.setItem('verificationStatus', 'not-submitted');
       }
-    } catch (err) {
-      console.error("[AuthContext] Error fetching verification status:", err);
+    } catch {
       // Default to 'not-submitted' if there's an error fetching status
       // This ensures the user can still access the verification form
       setVerificationStatus('not-submitted');
       localStorage.setItem('verificationStatus', 'not-submitted');
     } finally {
-      console.log("[AuthContext] Verification loading complete");
       setVerificationLoading(false);
     }
   }, [token, role]);
@@ -173,8 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('role');
         return
       }
-    } catch (err) {
-      console.error("[AuthContext] Error fetching role from backend:", err);
+    } catch {
       setRole('no-role');
       localStorage.removeItem('role');
     } finally {
@@ -190,8 +184,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log("[AuthContext] Auth state changed:", !!user);
-      
       setUser(user);
       if (user) {
         const token = await user.getIdToken();
@@ -202,7 +194,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Check if role exists in localStorage first
         const cachedRole = localStorage.getItem('role');
-        console.log("[AuthContext] Cached role found:", cachedRole);
         if (cachedRole) {
           setRole(cachedRole);
           setRoleFetchAttempted(true); // We have a cached role, no need to fetch
@@ -210,10 +201,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // If role is doctor, also check for cached verification status
           if (cachedRole === 'doctor') {
             const cachedVerificationStatus = localStorage.getItem('verificationStatus') as VerificationStatus;
-            console.log("[AuthContext] Cached verification status for doctor:", cachedVerificationStatus);
             if (cachedVerificationStatus) {
               setVerificationStatus(cachedVerificationStatus);
-              console.log("[AuthContext] Using cached verification status:", cachedVerificationStatus);
             }
           }
         } else {
@@ -232,7 +221,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       setLoading(false);
       setAuthInitialized(true);
-      console.log("[AuthContext] Auth initialization complete");
     });
 
     return unsubscribe;
@@ -254,7 +242,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedUid = localStorage.getItem('lastUserUid');
     
     if (storedUid && currentUid && storedUid !== currentUid) {
-      console.log("[AuthContext] User changed, resetting verification status");
       setVerificationStatus(null);
       localStorage.removeItem('verificationStatus');
     }
@@ -268,16 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch verification status when user becomes a doctor
   useEffect(() => {
-    console.log("[AuthContext] Verification fetch effect triggered:", {
-      authInitialized,
-      token: !!token,
-      role,
-      verificationStatus,
-      verificationLoading
-    });
-    
     if (authInitialized && token && role === 'doctor' && verificationStatus === null && !verificationLoading) {
-      console.log("[AuthContext] Fetching verification status for doctor");
       fetchVerificationStatus();
     }
   }, [authInitialized, token, role, verificationStatus, verificationLoading, fetchVerificationStatus]);

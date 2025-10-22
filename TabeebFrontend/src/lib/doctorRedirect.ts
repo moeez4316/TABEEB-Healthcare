@@ -1,6 +1,5 @@
 // Utility function to get the correct doctor redirect path based on verification status
 export function getDoctorRedirectPath(verificationStatus: string | null): string {
-    console.log(verificationStatus);
   switch (verificationStatus) {
     case 'not-submitted':
         return '/Doctor/verification';

@@ -6,7 +6,9 @@ import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
-import { FaCalendarPlus, FaEye, FaTimes, FaClock, FaUserMd } from 'react-icons/fa';
+import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import PatientVideoCallModal from '@/components/VideoCall/PatientVideoCallModal';
+import { Toast } from '@/components/Toast';
 
 export default function PatientAppointmentsPage() {
   const { token } = useAuth();
@@ -15,6 +17,12 @@ export default function PatientAppointmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
+  const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return;
@@ -36,12 +44,10 @@ export default function PatientAppointmentsPage() {
       }
 
       const data = await response.json();
-      console.log('Fetched appointments:', data);
       
       // Backend returns the appointments array directly, not wrapped in an object
       setAppointments(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error fetching appointments:', err);
+    } catch {
       setError('Failed to load appointments. Please try again.');
     } finally {
       setLoading(false);
@@ -51,6 +57,24 @@ export default function PatientAppointmentsPage() {
   useEffect(() => {
     fetchAppointments();
   }, [fetchAppointments]);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
+  const handleVideoCallClick = (appointment: Appointment, canStart: boolean) => {
+    if (!canStart) {
+      showNotification(
+        'Video call is available 15 minutes before appointment time',
+        'info'
+      );
+    } else {
+      setSelectedAppointmentId(appointment.id);
+      setShowVideoCall(true);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -258,29 +282,198 @@ export default function PatientAppointmentsPage() {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex flex-col space-y-2 mt-4 sm:mt-0 sm:ml-4 flex-shrink-0">
+                  <div className="flex flex-col space-y-2 mt-4 sm:mt-0 sm:ml-4 flex-shrink-0 min-w-[160px]">
+                    {appointment.status === 'CONFIRMED' && (() => {
+                      // Check timing restrictions
+                      const now = new Date();
+                      
+                      // Parse appointment date and time properly
+                      const dateStr = appointment.appointmentDate;
+                      const timeStr = appointment.startTime;
+                      
+                      // Extract just the date part if it's a full ISO timestamp
+                      const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+                      
+                      // Ensure time has seconds (HH:MM:SS format)
+                      const timeWithSeconds = timeStr.includes(':') && timeStr.split(':').length === 2 
+                        ? `${timeStr}:00` 
+                        : timeStr;
+                      
+                      // Create appointment date time by combining date and time
+                      const appointmentDateTime = new Date(`${datePart}T${timeWithSeconds}`);
+                      
+                      const minutesUntilAppointment = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60);
+                      const hoursUntilAppointment = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+                      
+                      // Video call only available 15 minutes before appointment start
+                      const canStartVideoCall = minutesUntilAppointment <= 15 && minutesUntilAppointment >= -60; // 15 min before to 60 min after
+                      
+                      // Can cancel only if appointment is at least 2 hours away
+                      const canCancel = hoursUntilAppointment >= 2;
+                      
+                      return (
+                        <>
+                          <button
+                            onClick={() => handleVideoCallClick(appointment, canStartVideoCall)}
+                            className="flex items-center justify-center space-x-2 bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-500 dark:to-teal-600 text-white hover:from-teal-700 hover:to-teal-800 dark:hover:from-teal-600 dark:hover:to-teal-700 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <FaVideo className="w-4 h-4" />
+                            <span className="text-sm">Start Consultation</span>
+                          </button>
+                          
+                          {canCancel && (
+                            <button
+                              className="flex items-center justify-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-4 py-2 rounded-lg border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <FaTimes className="w-4 h-4" />
+                              <span className="text-sm font-medium">Cancel</span>
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
+                    
                     <button
-                      className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-3 py-1 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
+                      onClick={() => setExpandedAppointment(
+                        expandedAppointment === appointment.id ? null : appointment.id
+                      )}
+                      className="flex items-center justify-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-4 py-2 rounded-lg border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
                     >
-                      <FaEye className="w-3 h-3" />
-                      <span className="text-sm">View</span>
+                      {expandedAppointment === appointment.id ? (
+                        <>
+                          <FaChevronUp className="w-4 h-4" />
+                          <span className="text-sm font-medium">Hide Details</span>
+                        </>
+                      ) : (
+                        <>
+                          <FaChevronDown className="w-4 h-4" />
+                          <span className="text-sm font-medium">View Details</span>
+                        </>
+                      )}
                     </button>
                     
-                    {appointment.status === 'PENDING' && (
-                      <button
-                        className="flex items-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-3 py-1 rounded border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                      >
-                        <FaTimes className="w-3 h-3" />
-                        <span className="text-sm">Cancel</span>
-                      </button>
-                    )}
+                    {appointment.status === 'PENDING' && (() => {
+                      // Check if appointment is at least 2 hours away for cancellation
+                      const now = new Date();
+                      
+                      // Parse appointment date and time properly
+                      const dateStr = appointment.appointmentDate;
+                      const timeStr = appointment.startTime;
+                      const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+                      const timeWithSeconds = timeStr.includes(':') && timeStr.split(':').length === 2 
+                        ? `${timeStr}:00` 
+                        : timeStr;
+                      const appointmentDateTime = new Date(`${datePart}T${timeWithSeconds}`);
+                      
+                      const hoursUntilAppointment = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+                      const canCancel = hoursUntilAppointment >= 2;
+                      
+                      return (
+                        <button
+                          disabled={!canCancel}
+                          className="flex items-center justify-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-4 py-2 rounded-lg border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={!canCancel ? 'Cannot cancel within 2 hours of appointment time' : ''}
+                        >
+                          <FaTimes className="w-4 h-4" />
+                          <span className="text-sm font-medium">Cancel</span>
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
+
+                {/* Expanded Details Section */}
+                {expandedAppointment === appointment.id && (
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
+                        <h5 className="font-semibold text-gray-900 dark:text-white mb-3">Appointment Information</h5>
+                        <div className="space-y-2 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-600 dark:text-gray-400">Appointment ID:</span>
+                            <span className="ml-2 text-gray-800 dark:text-gray-200">{appointment.id}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600 dark:text-gray-400">Status:</span>
+                            <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                              {appointment.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600 dark:text-gray-400">Created:</span>
+                            <span className="ml-2 text-gray-800 dark:text-gray-200">
+                              {new Date(appointment.createdAt || appointment.appointmentDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
+                        <h5 className="font-semibold text-gray-900 dark:text-white mb-3">Doctor Information</h5>
+                        <div className="space-y-2 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-600 dark:text-gray-400">Name:</span>
+                            <span className="ml-2 text-gray-800 dark:text-gray-200">
+                              Dr. {appointment.doctor?.name || 'Unknown'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600 dark:text-gray-400">Specialization:</span>
+                            <span className="ml-2 text-gray-800 dark:text-gray-200">
+                              {appointment.doctor?.specialization || 'N/A'}
+                            </span>
+                          </div>
+                          {appointment.doctor?.experience && (
+                            <div>
+                              <span className="font-medium text-gray-600 dark:text-gray-400">Experience:</span>
+                              <span className="ml-2 text-gray-800 dark:text-gray-200">
+                                {appointment.doctor.experience}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {appointment.patientNotes && (
+                      <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                        <h5 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
+                          <span className="mr-2">📝</span>
+                          Your Notes
+                        </h5>
+                        <p className="text-sm text-gray-700 dark:text-gray-300">{appointment.patientNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+      
+      {/* Video Call Modal */}
+      {showVideoCall && selectedAppointmentId && token && (
+        <PatientVideoCallModal
+          appointmentId={selectedAppointmentId}
+          isOpen={showVideoCall}
+          onClose={() => {
+            setShowVideoCall(false);
+            setSelectedAppointmentId(null);
+            // Refresh appointments to update status
+            fetchAppointments();
+          }}
+          firebaseToken={token}
+        />
+      )}
+
+      {/* Toast Notification */}
+      <Toast
+        message={toastMessage}
+        type={toastType}
+        show={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </div>
   );
 }

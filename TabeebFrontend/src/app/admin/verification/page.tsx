@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { formatDate } from '@/lib/verification/utils';
+import { Toast } from '@/components/Toast';
 import { 
   Search, 
   Eye, 
@@ -60,6 +61,11 @@ export default function AdminVerificationPage() {
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Toast notification states
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   
   // Image popup states
   const [imageModal, setImageModal] = useState(false);
@@ -202,6 +208,12 @@ export default function AdminVerificationPage() {
     document.body.style.overflow = 'unset';
   };
 
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
   const handleReview = async () => {
     if (!selectedVerification || !reviewData.action) return;
 
@@ -209,8 +221,10 @@ export default function AdminVerificationPage() {
     try {
       const adminToken = localStorage.getItem('adminToken');
       if (!adminToken) {
-        alert('Authentication error. Please login again.');
-        window.location.href = '/admin/login';
+        showNotification('Authentication error. Please login again.', 'error');
+        setTimeout(() => {
+          window.location.href = '/admin/login';
+        }, 2000);
         return;
       }
 
@@ -229,21 +243,29 @@ export default function AdminVerificationPage() {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         
         if (response.status === 401) {
-          alert('Session expired. Please login again.');
-          localStorage.removeItem('adminToken');
-          window.location.href = '/admin/login';
+          showNotification('Session expired. Please login again.', 'error');
+          setTimeout(() => {
+            localStorage.removeItem('adminToken');
+            window.location.href = '/admin/login';
+          }, 2000);
           return;
         }
         
         throw new Error(errorData.error || `Failed to ${reviewData.action} verification`);
       }
 
-      alert(`Verification ${reviewData.action === 'approve' ? 'approved' : 'rejected'} successfully!`);
+      showNotification(
+        `Verification ${reviewData.action === 'approve' ? 'approved' : 'rejected'} successfully!`,
+        reviewData.action === 'approve' ? 'success' : 'error'
+      );
       closeReviewModal();
       await fetchVerifications();
     } catch (error) {
       console.error('Error updating verification:', error);
-      alert(`Failed to ${reviewData.action} verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      showNotification(
+        `Failed to ${reviewData.action} verification: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'error'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -788,6 +810,14 @@ export default function AdminVerificationPage() {
           </div>
         )}
       </div>
+
+      {/* Toast Notification */}
+      <Toast
+        message={toastMessage}
+        type={toastType}
+        show={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </div>
   );
 }

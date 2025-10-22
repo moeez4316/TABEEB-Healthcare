@@ -1,0 +1,18 @@
+
+VIDEO CALL LINKS - GENERATED ON 10/18/2025, 5:48:00 PM
+========================================================================
+
+🩺 DOCTOR LINK:
+https://cloud.sehat.dpdns.org/appointment_appt_12345?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJ0YWJlZWIiLCJpc3MiOiJ0YWJlZWIiLCJzdWIiOiJjbG91ZC5zZWhhdC5kcGRucy5vcmciLCJyb29tIjoiYXBwb2ludG1lbnRfYXBwdF8xMjM0NSIsImV4cCI6MTc2MDc5ODg4MCwibW9kZXJhdG9yIjp0cnVlLCJjb250ZXh0Ijp7InVzZXIiOnsibmFtZSI6IkRyLiBTYXJhaCBKb2huc29uIiwiZW1haWwiOiJzYXJhaC5qb2huc29uQGhvc3BpdGFsLmNvbSIsImxvYmJ5X2J5cGFzcyI6dHJ1ZX19LCJpYXQiOjE3NjA3OTE2ODB9.tA6mzD2JrcVlrzjfNFbfcmlScixHQQyTZOXmqLY3ElI&config.startWithAudioMuted=true&config.startWithVideoMuted=true
+
+🤒 PATIENT LINK:
+https://cloud.sehat.dpdns.org/appointment_appt_12345?userInfo.displayName=John%20Smith&config.startWithAudioMuted=true&config.startWithVideoMuted=true
+
+📝 NOTES:
+- Doctor enters directly (has JWT token with moderator + lobby_bypass)
+- Patient waits in lobby (no JWT token)
+- Both start with microphone and camera muted
+- Same room: /appointment_appt_12345
+- Domain: cloud.sehat.dpdns.org
+
+========================================================================

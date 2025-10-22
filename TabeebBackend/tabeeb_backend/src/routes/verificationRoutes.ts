@@ -41,31 +41,4 @@ router.get('/all', authenticateAdminFromHeaders, getAllVerifications);
 router.patch('/approve/:uid', authenticateAdminFromHeaders, approveVerification);
 router.patch('/reject/:uid', authenticateAdminFromHeaders, rejectVerification);
 
-// Debug route to check specific verification (temporary)
-router.get('/debug/:uid', authenticateAdminFromHeaders, async (req, res) => {
-  const { uid } = req.params;
-  console.log('[DEBUG] Checking verification for UID:', uid);
-  
-  try {
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    
-    const verification = await prisma.verification.findUnique({
-      where: { doctorUid: uid },
-      include: { doctor: true }
-    });
-    
-    console.log('[DEBUG] Database result:', verification);
-    
-    res.json({
-      uid,
-      found: !!verification,
-      data: verification
-    });
-  } catch (error) {
-    console.error('[DEBUG] Error:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
-  }
-});
-
 export default router;

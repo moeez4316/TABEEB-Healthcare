@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useCreatePrescription, useAppointmentPrescriptions, useUpdatePrescription, useDeletePrescription } from '@/lib/prescription-api';
 import { PrescriptionFormData, MedicineFormData, Prescription } from '@/types/prescription';
 import { Appointment } from '@/types/appointment';
-import { FaArrowLeft, FaPlus, FaTrash, FaPrescriptionBottleAlt, FaUser, FaCalendarAlt, FaEdit, FaEye } from 'react-icons/fa';
+import { FaArrowLeft, FaPlus, FaTrash, FaPrescriptionBottleAlt, FaUser, FaCalendarAlt, FaEdit } from 'react-icons/fa';
 
 export default function PrescribePage() {
   const router = useRouter();
@@ -34,7 +34,7 @@ export default function PrescribePage() {
         medicineName: '',
         dosage: '',
         frequency: '',
-        duration: '',
+        duration: '1 day',
         durationDays: 1,
         instructions: '',
         timing: ''
@@ -42,15 +42,20 @@ export default function PrescribePage() {
     ]
   });
 
-  const [formErrors, setFormErrors] = useState<any>({});
+  interface FormErrors {
+    [key: string]: string | Record<number, Partial<Record<keyof MedicineFormData, string>>> | undefined;
+    diagnosis?: string;
+    medicines?: Record<number, Partial<Record<keyof MedicineFormData, string>>>;
+  }
+
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const createPrescriptionMutation = useCreatePrescription();
   const updatePrescriptionMutation = useUpdatePrescription();
   const deletePrescriptionMutation = useDeletePrescription();
   
   // Fetch existing prescriptions for this appointment
   const { 
-    data: existingPrescriptions, 
-    isLoading: prescriptionsLoading, 
+    data: existingPrescriptions,
     error: prescriptionsError 
   } = useAppointmentPrescriptions(appointmentId, token);
 
@@ -127,7 +132,7 @@ export default function PrescribePage() {
           medicineName: '',
           dosage: '',
           frequency: '',
-          duration: '',
+          duration: '1 day',
           durationDays: 1,
           instructions: '',
           timing: ''
@@ -195,7 +200,7 @@ export default function PrescribePage() {
     }));
     // Clear error when user starts typing
     if (formErrors[field]) {
-      setFormErrors((prev: any) => ({
+      setFormErrors((prev) => ({
         ...prev,
         [field]: ''
       }));
@@ -211,12 +216,12 @@ export default function PrescribePage() {
     }));
     // Clear error when user starts typing
     if (formErrors.medicines?.[index]?.[field]) {
-      setFormErrors((prev: any) => ({
+      setFormErrors((prev) => ({
         ...prev,
         medicines: {
           ...prev.medicines,
           [index]: {
-            ...prev.medicines?.[index],
+            ...(prev.medicines?.[index] || {}),
             [field]: ''
           }
         }
@@ -233,7 +238,7 @@ export default function PrescribePage() {
           medicineName: '',
           dosage: '',
           frequency: '',
-          duration: '',
+          duration: '1 day',
           durationDays: 1,
           instructions: '',
           timing: ''
@@ -252,15 +257,15 @@ export default function PrescribePage() {
   };
 
   const validateForm = () => {
-    const errors: any = {};
+    const errors: FormErrors = {};
 
     if (!formData.diagnosis.trim()) {
       errors.diagnosis = 'Diagnosis is required';
     }
 
-    const medicineErrors: any = {};
+    const medicineErrors: Record<number, Partial<Record<keyof MedicineFormData, string>>> = {};
     formData.medicines.forEach((medicine, index) => {
-      const medErrors: any = {};
+      const medErrors: Partial<Record<keyof MedicineFormData, string>> = {};
       if (!medicine.medicineName.trim()) {
         medErrors.medicineName = 'Medicine name is required';
       }
@@ -754,9 +759,9 @@ export default function PrescribePage() {
                         className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white ${formErrors.medicines?.[index]?.durationDays ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'}`}
                         placeholder="Enter number of days"
                       />
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {/* <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         {medicine.durationDays && medicine.durationDays > 0 ? 
-                          `This will be displayed as: ${medicine.durationDays === 1 ? '1 day' : 
+                          `${medicine.durationDays === 1 ? '': 
                             medicine.durationDays <= 7 ? `${medicine.durationDays} days` : 
                             medicine.durationDays === 7 ? '1 week' : 
                             medicine.durationDays === 14 ? '2 weeks' : 
@@ -764,7 +769,7 @@ export default function PrescribePage() {
                             medicine.durationDays === 30 ? '1 month' : `${medicine.durationDays} days`}` 
                           : 'Enter duration in days'
                         }
-                      </p>
+                      </p> */}
                       {formErrors.medicines?.[index]?.durationDays && (
                         <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                           {formErrors.medicines[index].durationDays}

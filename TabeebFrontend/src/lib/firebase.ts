@@ -16,10 +16,8 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 const auth = getAuth(app);
 
-setPersistence(auth, browserLocalPersistence).catch((error) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.error('Error setting auth persistence:', error);
-  }
+setPersistence(auth, browserLocalPersistence).catch(() => {
+  // Silent fail - auth persistence error
 });
 
 export { auth };

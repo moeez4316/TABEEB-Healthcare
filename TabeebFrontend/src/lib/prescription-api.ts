@@ -67,7 +67,7 @@ const makeAuthenticatedRequest = async (
     let errorData;
     try {
       errorData = await response.json();
-    } catch (e) {
+    } catch {
       errorData = { error: 'Network error or invalid JSON response' };
     }
     throw new Error(errorData.error || `HTTP ${response.status} - ${response.statusText}`);

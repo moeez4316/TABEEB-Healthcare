@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { usePatientPrescriptions } from '@/lib/prescription-api';
 import { PrescriptionWithProgress } from '@/types/prescription';
@@ -61,7 +61,7 @@ export default function PatientPrescriptionsPage() {
         ...prescriptionWithProgress,
         overallProgress,
         medicines: medicinesWithProgress,
-        activeMedicinesCount: medicinesWithProgress.filter(m => 'progress' in m && m.progress && m.progress.status !== 'expired').length,
+        activeMedicinesCount: medicinesWithProgress.filter(m => 'progress' in m && m.progress && m.progress.status !== 'completed').length,
         totalMedicinesCount: prescriptionWithProgress.medicines.length
       };
     }
@@ -79,11 +79,11 @@ export default function PatientPrescriptionsPage() {
   };
 
   // Convert backend progress data to frontend format
-  const convertToFrontendProgress = (backendProgress: any): PrescriptionProgress => {
+  const convertToFrontendProgress = (backendProgress: { status: string; daysRemaining: number; daysTotal: number; progressPercentage: number }): PrescriptionProgress => {
     const statusMap: Record<string, PrescriptionStatus> = {
       'active': PrescriptionStatus.ACTIVE,
       'expiring': PrescriptionStatus.EXPIRING,
-      'expired': PrescriptionStatus.EXPIRED,
+      'expired': PrescriptionStatus.COMPLETED,
       'completed': PrescriptionStatus.COMPLETED
     };
 
@@ -97,7 +97,7 @@ export default function PatientPrescriptionsPage() {
       progressPercentage: backendProgress.progressPercentage,
       statusColor: statusColors.text,
       statusText: backendProgress.status.charAt(0).toUpperCase() + backendProgress.status.slice(1),
-      canMarkCompleted: status !== PrescriptionStatus.EXPIRED
+      canMarkCompleted: status !== PrescriptionStatus.COMPLETED
     };
   };
 
@@ -343,7 +343,7 @@ export default function PatientPrescriptionsPage() {
                         <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                           <div 
                             className={`h-2 rounded-full transition-all duration-300 ${
-                              prescription.overallProgress.status === 'expired' ? 'bg-red-500' :
+                              prescription.overallProgress.status === 'completed' ? 'bg-gray-500' :
                               prescription.overallProgress.status === 'expiring' ? 'bg-yellow-500' :
                               'bg-green-500'
                             }`}
@@ -523,7 +523,7 @@ export default function PatientPrescriptionsPage() {
               {/* Notes */}
               {selectedPrescription.notes && (
                 <div className="mb-6">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Doctor's Notes</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Doctor&apos;s Notes</h3>
                   <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
                     {selectedPrescription.notes}
                   </p>

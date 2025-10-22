@@ -89,7 +89,6 @@ export const calculateAge = (dateOfBirth: string | Date): number => {
   
   // Check if date is valid
   if (isNaN(birthDate.getTime())) {
-    console.warn('Invalid birth date:', dateOfBirth);
     return 0;
   }
   
@@ -97,7 +96,6 @@ export const calculateAge = (dateOfBirth: string | Date): number => {
   
   // Check if birth date is in the future
   if (birthDate > today) {
-    console.warn('Birth date is in the future:', dateOfBirth);
     return 0;
   }
   

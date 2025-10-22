@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,154 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-model User {
-  uid  String @id @db.VarChar(255)
-  role String @db.VarChar(50) // 'doctor' or 'patient'
-
-  doctor  Doctor?
-  patient Patient?
-}
-
-model Doctor {
-  uid            String   @id @db.VarChar(255)
-  
-  // Personal Information
-  firstName      String   @db.VarChar(100)
-  lastName       String   @db.VarChar(100)
-  name           String   @db.VarChar(255)
-  email          String   @unique @db.VarChar(255)
-  phone          String?  @db.VarChar(20)
-  dateOfBirth    DateTime?
-  gender         String?  @db.VarChar(10)
-  profileImageUrl      String?  @db.VarChar(500) // Cloudinary image URL
-  profileImagePublicId String?  @db.VarChar(255) // Cloudinary public ID for deletion
-  
-  // Medical/Professional Information
-  specialization String   @db.VarChar(100)
-  qualification  String   @db.Text
-  experience     String?  @db.VarChar(50) // Changed from Int to String for flexibility
-  
-  // Address Information
-  addressStreet     String? @db.VarChar(255)
-  addressCity       String? @db.VarChar(100)
-  addressProvince   String? @db.VarChar(100)
-  addressPostalCode String? @db.VarChar(10)
-  
-  // Preferences
-  language          String  @default("English") @db.VarChar(50)
-  notificationsEmail Boolean @default(true)
-  notificationsSms   Boolean @default(true)
-  notificationsPush  Boolean @default(true)
-  privacyShareData   Boolean @default(false)
-  privacyMarketing   Boolean @default(false)
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [uid], references: [uid])
-
-  verification   Verification?
-  availability   DoctorAvailability[]
-  appointments   Appointment[]
-  prescriptions  Prescription[]
-}
-
-model Patient {
-  uid            String   @id @db.VarChar(255)
-  
-  // Personal Information
-  firstName      String   @db.VarChar(100)
-  lastName       String   @db.VarChar(100)
-  email          String   @unique @db.VarChar(255)
-  phone          String?  @db.VarChar(20)
-  cnic           String?  @db.VarChar(15)
-  dateOfBirth    DateTime 
-  gender         String   @db.VarChar(10)
-  profileImageUrl      String?  @db.VarChar(500) // Cloudinary image URL
-  profileImagePublicId String?  @db.VarChar(255) // Cloudinary public ID for deletion
-  
-  // Medical Information
-  bloodType      String?  @db.VarChar(5)
-  height         String?  @db.VarChar(10) // in cm
-  weight         String?  @db.VarChar(10) // in kg
-  allergies      Json?    // Array of strings
-  medications    Json?    // Array of strings
-  medicalConditions Json? // Array of strings
-  
-  // Emergency Contact
-  emergencyContactName         String? @db.VarChar(255)
-  emergencyContactRelationship String? @db.VarChar(100)
-  emergencyContactPhone        String? @db.VarChar(20)
-  
-  // Address
-  addressStreet     String? @db.VarChar(255)
-  addressCity       String? @db.VarChar(100)
-  addressProvince   String? @db.VarChar(100)
-  addressPostalCode String? @db.VarChar(10)
-  
-  // Preferences
-  language          String  @default("English") @db.VarChar(50)
-  notificationsEmail Boolean @default(true)
-  notificationsSms   Boolean @default(true)
-  notificationsPush  Boolean @default(true)
-  privacyShareData   Boolean @default(false)
-  privacyMarketing   Boolean @default(false)
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [uid], references: [uid])
-  appointments   Appointment[]
-  prescriptions  Prescription[]
-}
-
-model Verification {
-  doctorUid      String   @id @db.VarChar(255)
-  isVerified     Boolean  @default(false)
-  status         String   @default("pending") @db.VarChar(20) // "pending", "approved", "rejected"
-  
-  // Personal Information
-  cnicNumber     String   @db.VarChar(15) // CNIC number as entered by doctor
-  
-  // PMDC Information  
-  pmdcNumber     String   @db.VarChar(50)
-  pmdcRegistrationDate DateTime? // When PMDC was registered
-  
-  // Educational Information
-  graduationYear String?  @db.VarChar(4) // Year of graduation
-  degreeInstitution String? @db.VarChar(255) // Institution name
-  
-  // Document URLs (Cloudinary)
-  cnicFrontUrl     String   @db.Text // Front side of CNIC
-  cnicBackUrl      String?  @db.Text // Back side of CNIC 
-  verificationPhotoUrl String @db.Text // Verification photo matching CNIC
-  degreeCertificateUrl String @db.Text // Medical degree certificate
-  pmdcCertificateUrl   String @db.Text // PMDC registration certificate
-  
-  // Admin Review
-  adminComments  String?  @db.Text // Rejection reason or admin notes
-  submittedAt    DateTime @default(now())
-  reviewedAt     DateTime?
-  reviewedBy     String?  @db.VarChar(255) // Admin who reviewed
-
-  doctor         Doctor   @relation(fields: [doctorUid], references: [uid])
-}
-
 model DoctorAvailability {
-  id            String   @id @default(cuid())
-  doctorUid     String   @db.VarChar(255)
-  date          DateTime @db.Date
-  startTime     String   @db.VarChar(8)   // "09:00"
-  endTime       String   @db.VarChar(8)   // "17:00"
-  slotDuration  Int      @default(30)     // minutes
-  isAvailable   Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  doctor        Doctor   @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
-  breakTimes    DoctorBreakTime[]
-  // Removed timeSlots relation - using on-demand generation now
+  id           String            @id @default(cuid())
+  doctorUid    String            @db.VarChar(255)
+  date         DateTime          @db.Date
+  startTime    String            @db.VarChar(8)
+  endTime      String            @db.VarChar(8)
+  slotDuration Int               @default(30)
+  isAvailable  Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  doctor       doctor            @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+  breakTimes   DoctorBreakTime[]
 
   @@unique([doctorUid, date])
   @@index([doctorUid])
@@ -166,11 +28,10 @@ model DoctorAvailability {
 
 model DoctorBreakTime {
   id             String             @id @default(cuid())
-  availabilityId String             @db.VarChar(191)
-  startTime      String             @db.VarChar(8)   // "12:00"
-  endTime        String             @db.VarChar(8)   // "13:00"
+  availabilityId String
+  startTime      String             @db.VarChar(8)
+  endTime        String             @db.VarChar(8)
   createdAt      DateTime           @default(now())
-
   availability   DoctorAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
 
   @@index([availabilityId])
@@ -178,51 +39,212 @@ model DoctorBreakTime {
 }
 
 model Appointment {
-  id              String            @id @default(cuid())
-  doctorUid       String            @db.VarChar(255)
-  patientUid      String            @db.VarChar(255)
-  appointmentDate DateTime          @db.Date
-  startTime       String            @db.VarChar(8)  // "09:00" - actual booked time
-  endTime         String            @db.VarChar(8)  // "09:30" - calculated end time
-  duration        Int               @default(30)    // minutes
-  status          AppointmentStatus @default(PENDING)
-  patientNotes    String?           @db.Text        // Patient's reason for visit
-  doctorNotes     String?           @db.Text        // Doctor's notes after consultation
-  cancelReason    String?           @db.Text        // Cancellation reason
-  consultationFees Decimal?         @db.Decimal(10,2) // Consultation fees
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  completedAt     DateTime?         // When appointment was marked complete
-
-  doctor          Doctor            @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
-  patient         Patient           @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
-  sharedDocuments AppointmentSharedDocument[]
-  prescriptions   Prescription[]
-  // Removed timeSlot relation - storing time directly in appointment
+  id               String                      @id @default(cuid())
+  doctorUid        String                      @db.VarChar(255)
+  patientUid       String                      @db.VarChar(255)
+  appointmentDate  DateTime                    @db.Date
+  startTime        String                      @db.VarChar(8)
+  endTime          String                      @db.VarChar(8)
+  duration         Int                         @default(30)
+  status           AppointmentStatus           @default(PENDING)
+  patientNotes     String?                     @db.Text
+  doctorNotes      String?                     @db.Text
+  cancelReason     String?                     @db.Text
+  consultationFees Decimal?                    @db.Decimal(10, 2)
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+  completedAt      DateTime?
+  sharedDocuments  AppointmentSharedDocument[]
+  doctor           doctor                      @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+  patient          patient                     @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
+  prescriptions    Prescription[]
+  videoCall        VideoCall?
 
   @@index([doctorUid])
   @@index([patientUid])
   @@index([appointmentDate])
   @@index([status])
-  @@index([startTime]) // New index for slot filtering
+  @@index([startTime])
   @@map("appointments")
 }
 
 model AppointmentSharedDocument {
   id            String      @id @default(cuid())
   appointmentId String      @db.VarChar(255)
-  documentId    String      @db.VarChar(255) // MongoDB Medical Record _id
+  documentId    String      @db.VarChar(255)
   sharedAt      DateTime    @default(now())
   isVisible     Boolean     @default(true)
-  sharedBy      String      @db.VarChar(255) // Patient UID who shared it
-  
+  sharedBy      String      @db.VarChar(255)
   appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  
+
   @@unique([appointmentId, documentId])
   @@index([appointmentId])
   @@index([documentId])
   @@index([sharedBy])
   @@map("appointment_shared_documents")
+}
+
+model Prescription {
+  id                    String                 @id @default(cuid())
+  prescriptionId        String                 @unique @default(uuid())
+  doctorUid             String                 @db.VarChar(255)
+  patientUid            String                 @db.VarChar(255)
+  appointmentId         String?
+  patientName           String
+  patientAge            Int
+  patientGender         String
+  diagnosis             String?
+  notes                 String?
+  instructions          String?
+  prescriptionStartDate DateTime               @default(now())
+  prescriptionEndDate   DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  isActive              Boolean                @default(true)
+  medicines             PrescriptionMedicine[]
+  appointment           Appointment?           @relation(fields: [appointmentId], references: [id])
+  doctor                doctor                 @relation(fields: [doctorUid], references: [uid])
+  patient               patient                @relation(fields: [patientUid], references: [uid])
+
+  @@index([doctorUid])
+  @@index([patientUid])
+  @@index([appointmentId])
+  @@index([prescriptionId])
+  @@map("prescriptions")
+}
+
+model PrescriptionMedicine {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  medicineName   String
+  dosage         String
+  frequency      String
+  duration       String
+  durationDays   Int?
+  instructions   String?
+  timing         String?
+  createdAt      DateTime     @default(now())
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([prescriptionId])
+  @@map("prescription_medicines")
+}
+
+model VideoCall {
+  id              String          @id @default(cuid())
+  appointmentId   String          @unique
+  roomName        String          @db.VarChar(255)
+  status          VideoCallStatus @default(SCHEDULED)
+  startedAt       DateTime?
+  endedAt         DateTime?
+  duration        Int?
+  doctorJoinedAt  DateTime?
+  patientJoinedAt DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  appointment     Appointment     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+  @@index([status])
+  @@map("video_calls")
+}
+
+model doctor {
+  uid                  String               @id @db.VarChar(255)
+  firstName            String               @db.VarChar(100)
+  lastName             String               @db.VarChar(100)
+  name                 String               @db.VarChar(255)
+  email                String               @unique(map: "Doctor_email_key") @db.VarChar(255)
+  phone                String?              @db.VarChar(20)
+  dateOfBirth          DateTime?
+  gender               String?              @db.VarChar(10)
+  profileImageUrl      String?              @db.VarChar(500)
+  profileImagePublicId String?              @db.VarChar(255)
+  specialization       String               @db.VarChar(100)
+  qualification        String               @db.Text
+  experience           String?              @db.VarChar(50)
+  addressStreet        String?              @db.VarChar(255)
+  addressCity          String?              @db.VarChar(100)
+  addressProvince      String?              @db.VarChar(100)
+  addressPostalCode    String?              @db.VarChar(10)
+  language             String               @default("English") @db.VarChar(50)
+  notificationsEmail   Boolean              @default(true)
+  notificationsSms     Boolean              @default(true)
+  notificationsPush    Boolean              @default(true)
+  privacyShareData     Boolean              @default(false)
+  privacyMarketing     Boolean              @default(false)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @default(now()) @updatedAt
+  appointments         Appointment[]
+  user                 user                 @relation(fields: [uid], references: [uid], map: "Doctor_uid_fkey")
+  availability         DoctorAvailability[]
+  prescriptions        Prescription[]
+  verification         verification?
+}
+
+model patient {
+  uid                          String         @id @db.VarChar(255)
+  firstName                    String         @db.VarChar(100)
+  lastName                     String         @db.VarChar(100)
+  email                        String         @unique(map: "Patient_email_key") @db.VarChar(255)
+  phone                        String?        @db.VarChar(20)
+  cnic                         String?        @db.VarChar(15)
+  dateOfBirth                  DateTime
+  gender                       String         @db.VarChar(10)
+  profileImageUrl              String?        @db.VarChar(500)
+  profileImagePublicId         String?        @db.VarChar(255)
+  bloodType                    String?        @db.VarChar(5)
+  height                       String?        @db.VarChar(10)
+  weight                       String?        @db.VarChar(10)
+  allergies                    Json?
+  medications                  Json?
+  medicalConditions            Json?
+  emergencyContactName         String?        @db.VarChar(255)
+  emergencyContactRelationship String?        @db.VarChar(100)
+  emergencyContactPhone        String?        @db.VarChar(20)
+  addressStreet                String?        @db.VarChar(255)
+  addressCity                  String?        @db.VarChar(100)
+  addressProvince              String?        @db.VarChar(100)
+  addressPostalCode            String?        @db.VarChar(10)
+  language                     String         @default("English") @db.VarChar(50)
+  notificationsEmail           Boolean        @default(true)
+  notificationsSms             Boolean        @default(true)
+  notificationsPush            Boolean        @default(true)
+  privacyShareData             Boolean        @default(false)
+  privacyMarketing             Boolean        @default(false)
+  createdAt                    DateTime       @default(now())
+  updatedAt                    DateTime       @default(now()) @updatedAt
+  appointments                 Appointment[]
+  user                         user           @relation(fields: [uid], references: [uid], map: "Patient_uid_fkey")
+  prescriptions                Prescription[]
+}
+
+model user {
+  uid     String   @id @db.VarChar(255)
+  role    String   @db.VarChar(50)
+  doctor  doctor?
+  patient patient?
+}
+
+model verification {
+  doctorUid            String    @id @db.VarChar(255)
+  isVerified           Boolean   @default(false)
+  status               String    @default("pending") @db.VarChar(20)
+  cnicNumber           String    @db.VarChar(15)
+  pmdcNumber           String    @db.VarChar(50)
+  pmdcRegistrationDate DateTime?
+  graduationYear       String?   @db.VarChar(4)
+  degreeInstitution    String?   @db.VarChar(255)
+  cnicFrontUrl         String    @db.Text
+  cnicBackUrl          String?   @db.Text
+  verificationPhotoUrl String    @db.Text
+  degreeCertificateUrl String    @db.Text
+  pmdcCertificateUrl   String    @db.Text
+  adminComments        String?   @db.Text
+  submittedAt          DateTime  @default(now())
+  reviewedAt           DateTime?
+  reviewedBy           String?   @db.VarChar(255)
+  doctor               doctor    @relation(fields: [doctorUid], references: [uid], map: "Verification_doctorUid_fkey")
 }
 
 enum AppointmentStatus {
@@ -234,52 +256,11 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
-model Prescription {
-  id              String   @id @default(cuid())
-  prescriptionId  String   @unique @default(uuid())
-  doctorUid       String   @db.VarChar(255)
-  patientUid      String   @db.VarChar(255)
-  appointmentId   String?
-  patientName     String
-  patientAge      Int
-  patientGender   String
-  diagnosis       String?
-  notes           String?
-  instructions    String?
-  prescriptionStartDate DateTime @default(now())
-  prescriptionEndDate   DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  isActive        Boolean  @default(true)
-  
-  // Relations
-  doctor          Doctor      @relation(fields: [doctorUid], references: [uid])
-  patient         Patient     @relation(fields: [patientUid], references: [uid])
-  appointment     Appointment? @relation(fields: [appointmentId], references: [id])
-  medicines       PrescriptionMedicine[]
-  
-  @@index([doctorUid])
-  @@index([patientUid])
-  @@index([appointmentId])
-  @@index([prescriptionId])
-  @@map("prescriptions")
-}
-
-model PrescriptionMedicine {
-  id               String   @id @default(cuid())
-  prescriptionId   String
-  medicineName     String
-  dosage           String
-  frequency        String
-  duration         String   // Keep as String for now
-  durationDays     Int?     // New field for duration in days
-  instructions     String?
-  timing           String?  // e.g., "Before meals", "After meals", "With meals"
-  createdAt        DateTime @default(now())
-  
-  // Relations
-  prescription     Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-  
-  @@index([prescriptionId])
-  @@map("prescription_medicines")
+enum VideoCallStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+  NO_SHOW
 }

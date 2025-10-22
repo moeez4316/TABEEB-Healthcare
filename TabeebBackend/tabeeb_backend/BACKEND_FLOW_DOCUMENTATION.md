@@ -74,11 +74,16 @@ src/
 User (uid, role)
 Doctor (uid, name, email, specialization, fees, ...)
 Patient (uid, name, email, dob, gender, ...)
-Verification (doctorUid, isVerified, status, ...)
+Verification (doctorUid, isVerified, status, documents, ...)
+
+-- Admin System
+Admin (id, email, password)
 
 -- Optimized Appointment System (No TimeSlot table!)
 DoctorAvailability (id, doctorUid, date, startTime, endTime, slotDuration, ...)
 Appointment (id, doctorUid, patientUid, appointmentDate, startTime, endTime, ...)
+BreakTime (id, availabilityId, startTime, endTime)
+Prescription (id, appointmentId, doctorUid, patientUid, medications, ...)
 -- ❌ TimeSlot table REMOVED for scalability
 ```
 
@@ -138,6 +143,29 @@ graph TD
 3. Extract user UID and role from token
 4. Attach user info to request object
 5. Continue to next middleware/controller
+
+### 2.1 🔐 Admin Authentication Flow
+
+```mermaid
+graph TD
+    A[Admin Login Request] --> B[Validate Credentials]
+    B --> C{Credentials Valid?}
+    C -->|No| D[Return 401 Invalid Credentials]
+    C -->|Yes| E[Generate JWT Token]
+    E --> F[Return Token + Admin Info]
+    F --> G[Client Stores Token]
+    G --> H[Include Token in Requests]
+    H --> I[Backend Verifies Admin Token]
+```
+
+**Code Path:** `src/controllers/adminController.ts` + `src/middleware/adminAuth.ts`
+1. Admin submits email/password via `/api/admin/login`
+2. Backend validates credentials against Admin table (bcrypt password comparison)
+3. Generate JWT token with admin identifier
+4. Return token to frontend
+5. Frontend includes token in Authorization header for protected admin routes
+6. `authenticateAdminFromHeaders` middleware verifies token on each request
+7. Admin can access verification approvals, dashboard stats, etc.
 
 ### 3. 🏥 Doctor Availability Management Flow
 
@@ -246,6 +274,53 @@ graph TD
     H --> J[Doctor Must Resubmit]
 ```
 
+**Code Path:** `src/controllers/verificationController.ts` + `src/controllers/adminController.ts`
+1. **Doctor Submission**: Doctor uploads verification documents (license, certificates)
+2. **File Storage**: Documents uploaded to Cloudinary, URLs saved in Verification table
+3. **Status**: Verification record created with status='pending'
+4. **Admin Review**: Admin accesses pending verifications via `/api/verification/pending`
+5. **Approval/Rejection**: Admin uses `/api/verification/approve` or `/api/verification/reject`
+6. **Status Update**: Verification status updated in database
+7. **Frontend Notification**: Toast notifications displayed on frontend for approval/rejection
+
+### 8. 📊 Admin Analytics Flow
+
+```mermaid
+graph TD
+    A[Admin Dashboard Request] --> B[Verify Admin Token]
+    B --> C[Query Verification Stats]
+    C --> D[Query Doctor/Patient Counts]
+    D --> E[Calculate Metrics]
+    E --> F[Return Analytics Data]
+```
+
+**Code Path:** `src/controllers/adminController.ts::getDashboardStats`
+1. **Authentication**: Verify admin token via middleware
+2. **Data Aggregation**: Query Prisma for:
+   - Total verifications (all statuses)
+   - Pending verifications (status='pending')
+   - Approved verifications (status='approved')
+   - Rejected verifications (status='rejected')
+   - Total doctors count
+   - Total patients count
+3. **Response Structure**:
+```json
+{
+  "totalVerifications": number,
+  "pendingVerifications": number,
+  "approvedVerifications": number,
+  "rejectedVerifications": number,
+  "totalDoctors": number,
+  "totalPatients": number,
+  "recentActivity": []
+}
+```
+4. **Frontend Display**: Admin analytics page shows:
+   - Verification status breakdown (approved/pending/rejected percentages)
+   - Platform growth metrics (total users, doctor/patient ratio)
+   - Key metrics (approval rate, rejection rate)
+   - Quick actions (navigate to verification page)
+
 ## 🛣️ API Route Structure
 
 ### Core Routes
@@ -253,11 +328,12 @@ graph TD
 /api/user/*           - User authentication and profile
 /api/doctor/*         - Doctor profile management
 /api/patient/*        - Patient profile management
-/api/admin/*          - Admin operations
+/api/admin/*          - Admin operations and analytics
 /api/verification/*   - Doctor verification process
 /api/records/*        - Medical records (MongoDB)
 /api/appointments/*   - Appointment management (MySQL)
 /api/availability/*   - Doctor availability (MySQL)
+/api/prescription/*   - Prescription management
 ```
 
 ### Appointment System Routes
@@ -275,6 +351,27 @@ PATCH  /api/appointments/:id/status             # Update appointment status
 PATCH  /api/appointments/:id/cancel             # Cancel appointment
 GET    /api/appointments/:id                    # Get appointment details
 GET    /api/appointments/stats/overview         # Dashboard statistics
+
+POST   /api/prescription/create                 # Doctor creates prescription
+GET    /api/prescription/appointment/:id        # Get prescription by appointment
+GET    /api/prescription/patient/:patientUid    # Get patient's prescriptions
+GET    /api/prescription/doctor/:doctorUid      # Get doctor's prescriptions
+```
+
+### Admin Routes
+```
+POST   /api/admin/login                         # Admin login (JWT-based)
+POST   /api/admin/verify                        # Verify admin credentials
+GET    /api/admin/dashboard/stats               # Dashboard analytics
+                                                 # Returns: totalDoctors, totalPatients,
+                                                 # totalVerifications, pendingVerifications,
+                                                 # approvedVerifications, rejectedVerifications
+
+POST   /api/verification/submit                 # Doctor submits verification
+GET    /api/verification/status/:doctorUid      # Check verification status
+POST   /api/verification/approve                # Admin approves doctor (requires admin auth)
+POST   /api/verification/reject                 # Admin rejects doctor (requires admin auth)
+GET    /api/verification/pending                # Get all pending verifications (admin only)
 ```
 
 ## 🔐 Security & Authorization
@@ -297,9 +394,11 @@ Patient: {
 }
 
 Admin: {
-  - Verify doctors
-  - View system analytics
-  - Manage user accounts
+  - Verify doctors (approve/reject)
+  - View system analytics (dashboard stats)
+  - Access verification records
+  - View platform statistics (doctors, patients, verifications)
+  - Manage doctor verification workflow
 }
 ```
 
@@ -365,5 +464,72 @@ PORT=5002
 - [ ] CORS configured for production domains
 - [ ] Error logging implemented
 - [ ] Health check endpoints added
+- [ ] Admin credentials securely stored
+- [ ] JWT secret keys configured
+- [ ] Database indexes optimized
+
+## 📱 Frontend Integration Points
+
+### Admin Dashboard Integration
+**Frontend Path:** `TabeebFrontend/src/app/admin/`
+
+1. **Login Page** (`admin/login/page.tsx`)
+   - JWT-based authentication
+   - Credentials validation
+   - Token storage in localStorage
+   - "Back to Home" navigation button
+
+2. **Dashboard** (`admin/dashboard/page.tsx`)
+   - Overview statistics cards
+   - Quick actions (verification review, analytics)
+   - Real-time data fetching
+
+3. **Analytics Page** (`admin/analytics/page.tsx`)
+   - API: `GET /api/admin/dashboard/stats`
+   - Data visualization:
+     - Total doctors, patients, verifications
+     - Verification status breakdown (approved/pending/rejected)
+     - Platform growth metrics
+     - Approval/rejection rates
+   - Responsive grid layout with dark mode support
+
+4. **Verification Page** (`admin/verification/page.tsx`)
+   - API: `GET /api/verification/pending`
+   - API: `POST /api/verification/approve`
+   - API: `POST /api/verification/reject`
+   - Toast notifications for approve/reject actions
+   - Document preview and review workflow
+
+### Data Flow Example: Admin Analytics
+```
+1. Admin navigates to /admin/analytics
+2. Frontend fetches: GET /api/admin/dashboard/stats (with admin token)
+3. Backend authenticateAdminFromHeaders middleware verifies token
+4. adminController.getDashboardStats queries database
+5. Response returned with verification stats
+6. Frontend displays data with percentage calculations
+7. User sees real-time metrics and visualizations
+```
+
+## 🔧 Recent Updates & Optimizations
+
+### Analytics System (October 2025)
+- ✅ Fixed data structure mismatch between API and frontend
+- ✅ Updated TypeScript interfaces to match API response
+- ✅ Corrected percentage calculations for verification status
+- ✅ Implemented proper approval/rejection rate calculations
+- ✅ Added comprehensive admin analytics dashboard
+- ✅ Integrated toast notifications for admin actions
+
+### Admin Sidebar
+- ✅ Fixed TypeScript errors with NavigationItem interface
+- ✅ Added proper icon type definitions
+- ✅ Activated Analytics navigation option
+
+### Build Optimizations
+- ✅ Fixed all ESLint errors (escaped quotes/apostrophes)
+- ✅ Removed unused imports
+- ✅ Fixed React Hook dependencies
+- ✅ Production build successful (30 pages generated)
 
 This comprehensive backend flow documentation should give you a complete understanding of how the TABEEB appointment system works! 🏥✨

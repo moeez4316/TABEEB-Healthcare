@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Mail, Calendar, Edit3, Heart, Activity, Phone, MapPin, Settings, ChevronRight, AlertCircle } from 'lucide-react';
+import { User, Mail, Edit3, Heart, Activity, Phone, MapPin, Settings, ChevronRight, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';

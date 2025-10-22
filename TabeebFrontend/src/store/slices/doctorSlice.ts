@@ -185,7 +185,7 @@ export const createDoctorProfile = createAsyncThunk(
         return rejectWithValue(errorData.error || 'Failed to create profile');
       }
 
-      const result = await response.json();
+      await response.json();
       return {
         profile: profileData,
         timestamp: new Date().toISOString()
@@ -274,9 +274,6 @@ export const loadDoctorProfile = createAsyncThunk(
       }
 
       const backendData = await response.json();
-      
-      // Debug: Log what we're receiving from backend
-      console.log('Backend data received:', backendData);
       
       // Transform backend data to frontend format
       const profileData: DoctorProfile = {

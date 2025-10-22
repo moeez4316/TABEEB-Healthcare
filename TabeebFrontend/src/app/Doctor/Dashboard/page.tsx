@@ -5,7 +5,7 @@ import { Mail, Calendar, Stethoscope, Clock, Users, Activity, AlertTriangle, Che
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { loadDoctorProfile, selectHasUnsavedChanges } from '@/store/slices/doctorSlice';
+import { loadDoctorProfile } from '@/store/slices/doctorSlice';
 import { calculateDoctorProfileCompletion } from '@/lib/doctor-profile-completion';
 import DoctorProfileEditModal from '@/components/profile/DoctorProfileEditModal';
 import Link from 'next/link';

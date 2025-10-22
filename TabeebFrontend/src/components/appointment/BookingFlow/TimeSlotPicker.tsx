@@ -81,6 +81,19 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
     });
   };
 
+  // Check if a time slot is in the past
+  const isSlotInPast = (slotStartTime: string): boolean => {
+    const now = new Date();
+    const slotDate = new Date(selectedDate);
+    
+    // Parse the slot time (format: "HH:MM")
+    const [hours, minutes] = slotStartTime.split(':').map(Number);
+    slotDate.setHours(hours, minutes, 0, 0);
+    
+    // If the slot date/time is before current time, it's in the past
+    return slotDate < now;
+  };
+
   if (loading) {
     return <LoadingCard className={className} />;
   }
@@ -113,7 +126,7 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
   }
 
   // Handle case when doctor has no availability set for the selected date
-  if (!slotData.availableSlots || slotData.availableSlots.length === 0) {
+  if (!slotData.allSlots || slotData.allSlots.length === 0) {
     return (
       <div className={`border border-yellow-200 dark:border-yellow-700 rounded-lg p-6 bg-yellow-50 dark:bg-yellow-900/20 ${className}`}>
         <div className="text-center">
@@ -214,42 +227,73 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
 
       {/* Available Slots */}
       <div className="space-y-3">
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg border border-gray-200 dark:border-slate-700">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded"></div>
+            <span>Available</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-teal-600 dark:bg-teal-500 rounded"></div>
+            <span>Selected</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-gray-300 dark:bg-gray-700 border border-gray-400 dark:border-gray-600 rounded"></div>
+            <span>Booked</span>
+          </div>
+        </div>
+
         <h4 className="font-medium text-gray-900 dark:text-white">
-          Select a Time Slot ({slotData.availableSlots.length} available)
+          Select a Time Slot ({slotData.availableSlots.filter(slot => !isSlotInPast(slot.startTime)).length} available out of {slotData.allSlots.filter(slot => !isSlotInPast(slot.startTime)).length} total)
         </h4>
         
-        {slotData.availableSlots.length === 0 ? (
+        {slotData.allSlots.filter(slot => !isSlotInPast(slot.startTime)).length === 0 ? (
           <div className="border border-yellow-200 dark:border-yellow-700 rounded-lg p-6 bg-yellow-50 dark:bg-yellow-900/20 text-center">
-            <div className="text-yellow-800 dark:text-yellow-400 font-medium">No Available Slots</div>
+            <div className="text-yellow-800 dark:text-yellow-400 font-medium">No Available Time Slots</div>
             <div className="text-yellow-600 dark:text-yellow-300 text-sm mt-1">
-              All slots are booked for this date. Please select another date.
+              All remaining time slots for today are already booked or have passed. Please select another date.
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            {slotData.availableSlots.map((slot, index) => (
-              <button
-                key={`${slot.startTime}-${index}`}
-                onClick={() => onSlotSelect(slot)}
-                className={`
-                  border rounded-lg p-3 text-center transition-all duration-200 shadow-sm
-                  ${
-                    selectedSlot?.startTime === slot.startTime
-                      ? 'bg-teal-600 dark:bg-teal-500 text-white border-teal-600 dark:border-teal-500 shadow-lg'
-                      : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:border-teal-300 dark:hover:border-teal-500'
-                  }
-                  ${!slot.isAvailable ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'}
-                `}
-                disabled={!slot.isAvailable}
-              >
-                <div className="font-medium text-sm">
-                  {formatTime(slot.startTime)}
-                </div>
-                <div className="text-xs opacity-75 mt-1">
-                  {slot.duration}min
-                </div>
-              </button>
-            ))}
+            {slotData.allSlots
+              .filter(slot => !isSlotInPast(slot.startTime)) // Hide past slots
+              .map((slot, index) => {
+              // Check if slot is booked
+              const isSlotBooked = slot.isBooked || !slot.isAvailable;
+              const isSelected = selectedSlot?.startTime === slot.startTime;
+
+              return (
+                <button
+                  key={`${slot.startTime}-${index}`}
+                  onClick={() => !isSlotBooked && onSlotSelect(slot)}
+                  className={`
+                    border rounded-lg p-3 text-center transition-all duration-200 shadow-sm relative
+                    ${
+                      isSlotBooked
+                        ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 border-gray-400 dark:border-gray-600 cursor-not-allowed opacity-60'
+                        : isSelected
+                        ? 'bg-teal-600 dark:bg-teal-500 text-white border-teal-600 dark:border-teal-500 shadow-lg'
+                        : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:border-teal-300 dark:hover:border-teal-500 hover:shadow-md'
+                    }
+                  `}
+                  disabled={isSlotBooked}
+                  title={isSlotBooked ? 'This time slot is already booked' : 'Click to select this time slot'}
+                >
+                  <div className="font-medium text-sm">
+                    {formatTime(slot.startTime)}
+                  </div>
+                  <div className="text-xs opacity-75 mt-1">
+                    {slot.duration}min
+                  </div>
+                  {isSlotBooked && (
+                    <div className="text-[10px] mt-1 font-semibold text-gray-600 dark:text-gray-400">
+                      BOOKED
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
