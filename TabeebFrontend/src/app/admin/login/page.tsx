@@ -160,13 +160,13 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6">
             <button
               onClick={() => router.push('/landing-page')}
-              className="inline-flex items-center text-sm text-slate-600 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-all shadow-sm hover:shadow-md"
             >
-              <Home className="w-4 h-4 mr-1" />
-              Back to Homepage
+              <Home className="w-5 h-5" />
+              Back to Home
             </button>
           </div>
         </div>

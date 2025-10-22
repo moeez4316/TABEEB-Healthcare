@@ -21,6 +21,14 @@ interface SidebarAdminProps {
   className?: string;
 }
 
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<any>;
+  description: string;
+  disabled?: boolean;
+}
+
 export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -40,7 +48,7 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  const navigation = [
+  const navigation: NavigationItem[] = [
     {
       name: 'Dashboard',
       href: '/admin/dashboard',
@@ -57,8 +65,7 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       name: 'Analytics',
       href: '/admin/analytics',
       icon: BarChart3,
-      description: 'Platform Insights',
-      disabled: true
+      description: 'Platform Insights'
     },
   ];
 
