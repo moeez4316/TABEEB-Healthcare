@@ -7,7 +7,7 @@ import { motion, useAnimation } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { 
   ArrowRight, BrainCircuit, ShieldCheck, UserCheck, HeartPulse,
-  Stethoscope, ChevronRight, X, Mail, Phone, MapPin, MessageSquareQuote 
+  Stethoscope, X, Mail, Phone, MapPin, MessageSquareQuote 
 } from 'lucide-react';
 
 // Animation variants for sections (use cubic-bezier array for type-safe easing)
@@ -274,7 +274,7 @@ const LandingPage = () => {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Testimonial Card */}
             <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-              <p className="text-slate-600 dark:text-slate-400 mb-6">"TABEEB was a lifesaver when my child had a fever late at night. The AI gave me clear instructions and peace of mind instantly."</p>
+              <p className="text-slate-600 dark:text-slate-400 mb-6">&quot;TABEEB was a lifesaver when my child had a fever late at night. The AI gave me clear instructions and peace of mind instantly.&quot;</p>
               <div className="flex items-center">
                 <Image src="/avatar1.webp" alt="User" width={40} height={40} className="rounded-full" />
                 <div className="ml-4">
@@ -285,7 +285,7 @@ const LandingPage = () => {
             </div>
              {/* Testimonial Card */}
              <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-              <p className="text-slate-600 dark:text-slate-400 mb-6">"As a busy professional, I don't have time for long clinic waits. This app lets me consult with a doctor from my office. Highly recommended!"</p>
+              <p className="text-slate-600 dark:text-slate-400 mb-6">&quot;As a busy professional, I don&apos;t have time for long clinic waits. This app lets me consult with a doctor from my office. Highly recommended!&quot;</p>
               <div className="flex items-center">
                 <Image src="/avatar1.webp" alt="User" width={40} height={40} className="rounded-full" />
                 <div className="ml-4">
@@ -296,7 +296,7 @@ const LandingPage = () => {
             </div>
              {/* Testimonial Card */}
              <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-              <p className="text-slate-600 dark:text-slate-400 mb-6">"Finally, a healthcare solution that understands our needs. The medicine finder helped me save a lot on my monthly prescriptions."</p>
+              <p className="text-slate-600 dark:text-slate-400 mb-6">&quot;Finally, a healthcare solution that understands our needs. The medicine finder helped me save a lot on my monthly prescriptions.&quot;</p>
               <div className="flex items-center">
                 <Image src="/avatar1.webp" alt="User" width={40} height={40} className="rounded-full" />
                 <div className="ml-4">
@@ -362,7 +362,7 @@ const LandingPage = () => {
             </div>
           </div>
           <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm">
-            <p>© {new Date().getFullYear()} TABEEB. All rights reserved. Made with ❤️ for Pakistan's healthcare.</p>
+            <p>© {new Date().getFullYear()} TABEEB. All rights reserved. Made with ❤️ for Pakistan&apos;s healthcare.</p>
           </div>
         </div>
       </footer>
@@ -402,7 +402,7 @@ const LandingPage = () => {
               ))}
               <div className="pt-6 border-t border-slate-200 dark:border-slate-700">
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                  We're here to help! Reach out for any questions or support.
+                  We&apos;re here to help! Reach out for any questions or support.
                 </p>
                 <button
                   onClick={() => setShowContactModal(false)}

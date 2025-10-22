@@ -24,7 +24,7 @@ interface SidebarAdminProps {
 interface NavigationItem {
   name: string;
   href: string;
-  icon: React.ComponentType<any>;
+  icon: React.ElementType;
   description: string;
   disabled?: boolean;
 }

@@ -137,7 +137,7 @@ const AboutPage = () => {
                 <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Our Vision</h3>
               </div>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                To become Pakistan's leading digital health platform, setting the standard for AI-driven 
+                To become Pakistan&apos;s leading digital health platform, setting the standard for AI-driven 
                 healthcare innovation. We envision a future where every Pakistani has instant access to 
                 medical guidance, trusted healthcare professionals, and comprehensive health management 
                 tools at their fingertips.
@@ -240,19 +240,19 @@ const AboutPage = () => {
             </div>
             <div className="space-y-4 text-slate-700 dark:text-slate-300 leading-relaxed">
               <p>
-                <strong className="text-amber-700 dark:text-amber-400">We're building something special for Pakistan.</strong> 
+                <strong className="text-amber-700 dark:text-amber-400">We&apos;re building something special for Pakistan.</strong> 
                 TABEEB is currently in active development, with our team working around the clock to ensure 
                 every feature meets the highest standards of quality, security, and user experience.
               </p>
               <p>
                 Our production environment is being used for rigorous internal testing over our network. 
                 This allows us to identify and resolve any issues before making the platform publicly available. 
-                We're committed to launching a product that Pakistanis can trust with their health.
+                We&apos;re committed to launching a product that Pakistanis can trust with their health.
               </p>
               <div className="bg-white dark:bg-slate-800 rounded-xl p-6 mt-6 border border-amber-200 dark:border-amber-700">
                 <h4 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center">
                   <Sparkles className="w-5 h-5 text-teal-500 mr-2" />
-                  What's Coming Soon
+                  What&apos;s Coming Soon
                 </h4>
                 <ul className="space-y-2 text-slate-600 dark:text-slate-400">
                   <li className="flex items-center space-x-2">
@@ -328,8 +328,8 @@ const AboutPage = () => {
           <section className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl p-8 md:p-12 text-white text-center">
             <h2 className="text-3xl font-bold mb-4">Join Us on This Journey</h2>
             <p className="text-teal-50 text-lg mb-8 max-w-2xl mx-auto">
-              We're building TABEEB with the people of Pakistan in mind. Have questions, suggestions, 
-              or want to be part of our mission? We'd love to hear from you.
+              We&apos;re building TABEEB with the people of Pakistan in mind. Have questions, suggestions, 
+              or want to be part of our mission? We&apos;d love to hear from you.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -358,7 +358,7 @@ const AboutPage = () => {
               <span className="text-xl font-bold text-white">TABEEB</span>
             </div>
             <p className="text-sm text-center">
-              © {new Date().getFullYear()} TABEEB. All rights reserved. Made with ❤️ for Pakistan's healthcare.
+              © {new Date().getFullYear()} TABEEB. All rights reserved. Made with ❤️ for Pakistan&apos;s healthcare.
             </p>
           </div>
         </div>

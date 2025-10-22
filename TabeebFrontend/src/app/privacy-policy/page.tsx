@@ -117,7 +117,7 @@ const PrivacyPolicyPage = () => {
             </h2>
             <div className="prose prose-slate dark:prose-invert max-w-none">
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                Welcome to TABEEB ("we," "our," or "us"). This Privacy Policy explains how we collect, 
+                Welcome to TABEEB (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). This Privacy Policy explains how we collect, 
                 use, disclose, and safeguard your information when you use our comprehensive health 
                 application and related services. We are committed to protecting your privacy and ensuring 
                 the security of your personal and medical information.
@@ -355,7 +355,7 @@ const PrivacyPolicyPage = () => {
           {/* Children's Privacy */}
           <section className="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-sm border border-slate-200 dark:border-slate-700">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
-              Children's Privacy
+              Children&apos;s Privacy
             </h2>
             <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
               TABEEB is not intended for users under the age of 13 without parental consent. We do not 
@@ -403,7 +403,7 @@ const PrivacyPolicyPage = () => {
               <span className="text-xl font-bold text-white">TABEEB</span>
             </div>
             <p className="text-sm text-center">
-              © {new Date().getFullYear()} TABEEB. All rights reserved. Made with ❤️ for Pakistan's healthcare.
+              © {new Date().getFullYear()} TABEEB. All rights reserved. Made with ❤️ for Pakistan&apos;s healthcare.
             </p>
           </div>
         </div>

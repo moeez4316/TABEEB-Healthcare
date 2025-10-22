@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   BarChart3, 
@@ -10,12 +10,9 @@ import {
   Activity, 
   ArrowLeft,
   UserCheck,
-  UserX,
   Shield,
-  FileText,
   CheckCircle,
   XCircle,
-  Calendar,
   ArrowUp,
   ArrowDown,
   AlertCircle
@@ -42,11 +39,7 @@ export default function AdminAnalyticsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       const adminToken = localStorage.getItem('adminToken');
       if (!adminToken) {
@@ -77,7 +70,11 @@ export default function AdminAnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const calculatePercentage = (value: number, total: number) => {
     if (total === 0) return 0;
