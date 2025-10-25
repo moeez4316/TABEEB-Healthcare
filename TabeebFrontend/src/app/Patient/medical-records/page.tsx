@@ -23,6 +23,7 @@ export default function MedicalRecordsPage() {
   const [tags, setTags] = useState("");
   const [notes, setNotes] = useState("");
   const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
     if (token) {
@@ -34,6 +35,22 @@ export default function MedicalRecordsPage() {
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (!file || !token) return;
+    
+    setUploadError("");
+    
+    // Validate file size (10MB limit to match backend)
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError("File size must be less than 10MB");
+      return;
+    }
+    
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError("Only PDF and image files (JPG, PNG, GIF) are allowed");
+      return;
+    }
+    
     setUploading(true);
     try {
       await uploadMedicalRecord(file, tags, notes, token);
@@ -42,7 +59,7 @@ export default function MedicalRecordsPage() {
       setRecords(updated);
     } catch (error) {
       console.error('Upload error:', error);
-      alert("Upload failed");
+      setUploadError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -81,6 +98,13 @@ export default function MedicalRecordsPage() {
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Notes</label>
               <textarea placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 bg-gray-50 dark:bg-[#23232a] text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-400 min-h-[80px]" />
             </div>
+            
+            {uploadError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+                {uploadError}
+              </div>
+            )}
+            
             <div className="flex justify-end">
               <button
                 type="submit"

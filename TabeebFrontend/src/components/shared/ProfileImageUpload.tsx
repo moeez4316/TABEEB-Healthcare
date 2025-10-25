@@ -43,9 +43,9 @@ const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
       return
     }
 
-    // Validate file size (max 10MB for better UX)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File size must be less than 10MB')
+    // Validate file size (max 5MB to match backend limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File size must be less than 5MB')
       return
     }
 

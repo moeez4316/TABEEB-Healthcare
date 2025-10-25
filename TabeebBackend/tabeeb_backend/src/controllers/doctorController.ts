@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { uploadProfileImage } from '../services/uploadService';
+import { uploadProfileImage, deleteFromCloudinary } from '../services/uploadService';
 
 export const createDoctor = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
+  const file = req.file; // Get uploaded file from multer
   const { 
     firstName, 
     lastName, 
@@ -24,16 +25,18 @@ export const createDoctor = async (req: Request, res: Response) => {
     notificationsSms,
     notificationsPush,
     privacyShareData,
-    privacyMarketing,
-    profileImage // Base64 image data
+    privacyMarketing
   } = req.body;
 
   if (!uid) {
     return res.status(400).json({ error: 'User UID is required' });
   }
 
+  // Variables for cleanup
+  let uploadedImagePublicId: string | null = null;
+
   try {
-    // Validate required fields
+    // Validate required fields BEFORE any database operations
     if (!firstName || !lastName || !email || !specialization || !qualification) {
       return res.status(400).json({ 
         error: 'Required fields missing: firstName, lastName, email, specialization, qualification' 
@@ -45,64 +48,84 @@ export const createDoctor = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Postal code must be exactly 5 digits' });
     }
 
-    // Handle profile image upload if provided
-    let profileImageUrl = null;
-    let profileImagePublicId = null;
-    if (profileImage && profileImage.startsWith('data:image/')) {
+    // Step 1: Create database records in a transaction (atomic operation)
+    const doctor = await prisma.$transaction(async (tx) => {
+      // Check if user already exists, if not create it
+      const existingUser = await tx.user.findUnique({ where: { uid: uid as string } });
+      if (!existingUser) {
+        await tx.user.create({
+          data: { uid: uid as string, role: 'doctor' }
+        });
+      }
+      
+      // Create Doctor record (without image URLs yet)
+      const newDoctor = await tx.doctor.create({
+        data: {
+          uid: uid as string,
+          firstName,
+          lastName,
+          name: name || `${firstName} ${lastName}`,
+          email,
+          phone,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+          gender,
+          specialization,
+          qualification,
+          experience: experience ? String(experience) : null,
+          addressStreet,
+          addressCity,
+          addressProvince,
+          addressPostalCode,
+          language: language || 'English',
+          notificationsEmail: notificationsEmail !== undefined ? notificationsEmail === 'true' || notificationsEmail === true : true,
+          notificationsSms: notificationsSms !== undefined ? notificationsSms === 'true' || notificationsSms === true : true,
+          notificationsPush: notificationsPush !== undefined ? notificationsPush === 'true' || notificationsPush === true : true,
+          privacyShareData: privacyShareData === 'true' || privacyShareData === true || false,
+          privacyMarketing: privacyMarketing === 'true' || privacyMarketing === true || false,
+          profileImageUrl: null, // Will update after Cloudinary upload
+          profileImagePublicId: null,
+        },
+      });
+
+      return newDoctor;
+    });
+
+    // Step 2: If file exists, upload to Cloudinary AFTER successful DB creation
+    if (file) {
       try {
-        // Convert base64 to buffer
-        const base64Data = profileImage.replace(/^data:image\/\w+;base64,/, '');
-        const imageBuffer = Buffer.from(base64Data, 'base64');
+        const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
+        uploadedImagePublicId = uploadResult.public_id;
         
-        // Upload to Cloudinary
-        const uploadResult = await uploadProfileImage(imageBuffer, uid) as any;
-        
-        profileImageUrl = uploadResult.secure_url;
-        profileImagePublicId = uploadResult.public_id;
+        // Step 3: Update doctor record with image URLs
+        await prisma.doctor.update({
+          where: { uid },
+          data: {
+            profileImageUrl: uploadResult.secure_url,
+            profileImagePublicId: uploadResult.public_id
+          }
+        });
+
+        // Update the doctor object to return with image URLs
+        doctor.profileImageUrl = uploadResult.secure_url;
+        doctor.profileImagePublicId = uploadResult.public_id;
+
       } catch (imageError) {
         console.error('Profile image upload error:', imageError);
-        // Continue without profile image if upload fails
+        // Doctor is created successfully, just without image
+        // This is acceptable - user can upload image later
       }
     }
 
-    // Check if user already exists, if not create it
-    const existingUser = await prisma.user.findUnique({ where: { uid: uid as string } });
-    if (!existingUser) {
-      await prisma.user.create({
-        data: { uid: uid as string, role: 'doctor' }
-      });
-    }
-    
-    const doctor = await prisma.doctor.create({
-      data: {
-        uid: uid as string,
-        firstName,
-        lastName,
-        name: name || `${firstName} ${lastName}`, // Fallback to firstName + lastName
-        email,
-        phone,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        gender,
-        specialization,
-        qualification,
-        experience: experience ? String(experience) : null,
-        addressStreet,
-        addressCity,
-        addressProvince,
-        addressPostalCode,
-        language: language || 'English',
-        notificationsEmail: notificationsEmail !== undefined ? notificationsEmail : true,
-        notificationsSms: notificationsSms !== undefined ? notificationsSms : true,
-        notificationsPush: notificationsPush !== undefined ? notificationsPush : true,
-        privacyShareData: privacyShareData || false,
-        privacyMarketing: privacyMarketing || false,
-        profileImageUrl,
-        profileImagePublicId,
-      },
-    });
     res.status(201).json(doctor);
+
   } catch (error) {
     console.error(error);
+    
+    // Cleanup: Delete uploaded image if it exists
+    if (uploadedImagePublicId) {
+      await deleteFromCloudinary(uploadedImagePublicId);
+    }
+
     res.status(500).json({ error: 'Failed to create doctor profile' });
   }
 };
