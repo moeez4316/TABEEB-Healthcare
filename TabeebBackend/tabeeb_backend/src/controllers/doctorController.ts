@@ -4,6 +4,7 @@ import { uploadProfileImage } from '../services/uploadService';
 
 export const createDoctor = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
+  const file = req.file; // Get uploaded file from multer
   const { 
     firstName, 
     lastName, 
@@ -24,8 +25,7 @@ export const createDoctor = async (req: Request, res: Response) => {
     notificationsSms,
     notificationsPush,
     privacyShareData,
-    privacyMarketing,
-    profileImage // Base64 image data
+    privacyMarketing
   } = req.body;
 
   if (!uid) {
@@ -48,14 +48,10 @@ export const createDoctor = async (req: Request, res: Response) => {
     // Handle profile image upload if provided
     let profileImageUrl = null;
     let profileImagePublicId = null;
-    if (profileImage && profileImage.startsWith('data:image/')) {
+    if (file) {
       try {
-        // Convert base64 to buffer
-        const base64Data = profileImage.replace(/^data:image\/\w+;base64,/, '');
-        const imageBuffer = Buffer.from(base64Data, 'base64');
-        
-        // Upload to Cloudinary
-        const uploadResult = await uploadProfileImage(imageBuffer, uid) as any;
+        // Upload to Cloudinary using the file buffer
+        const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
         
         profileImageUrl = uploadResult.secure_url;
         profileImagePublicId = uploadResult.public_id;
@@ -91,11 +87,11 @@ export const createDoctor = async (req: Request, res: Response) => {
         addressProvince,
         addressPostalCode,
         language: language || 'English',
-        notificationsEmail: notificationsEmail !== undefined ? notificationsEmail : true,
-        notificationsSms: notificationsSms !== undefined ? notificationsSms : true,
-        notificationsPush: notificationsPush !== undefined ? notificationsPush : true,
-        privacyShareData: privacyShareData || false,
-        privacyMarketing: privacyMarketing || false,
+        notificationsEmail: notificationsEmail !== undefined ? notificationsEmail === 'true' || notificationsEmail === true : true,
+        notificationsSms: notificationsSms !== undefined ? notificationsSms === 'true' || notificationsSms === true : true,
+        notificationsPush: notificationsPush !== undefined ? notificationsPush === 'true' || notificationsPush === true : true,
+        privacyShareData: privacyShareData === 'true' || privacyShareData === true || false,
+        privacyMarketing: privacyMarketing === 'true' || privacyMarketing === true || false,
         profileImageUrl,
         profileImagePublicId,
       },

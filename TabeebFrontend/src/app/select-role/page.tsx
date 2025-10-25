@@ -238,47 +238,112 @@ export default function SelectRolePage() {
     
     try {
       let endpoint = "";
-      let body = {};
       
       if (role === "doctor") {
         endpoint = "/api/doctor";
+        const formData = new FormData();
+        
         // Use custom specialization if "Other" is selected
         const finalSpecialization = doctorForm.specialization === "Other" ? customSpecialization : doctorForm.specialization;
         // Use custom qualification if "Other" is selected
         const finalQualification = doctorForm.qualification === "Other" ? customQualification : doctorForm.qualification;
-        body = { 
-          ...doctorForm, 
-          specialization: finalSpecialization,
-          qualification: finalQualification,
-          dateOfBirth: doctorForm.dateOfBirth ? new Date(doctorForm.dateOfBirth).toISOString() : ""
-        };
+        
+        // Append all text fields
+        formData.append("firstName", doctorForm.firstName);
+        formData.append("lastName", doctorForm.lastName);
+        formData.append("email", doctorForm.email);
+        formData.append("phone", doctorForm.phone);
+        formData.append("gender", doctorForm.gender);
+        formData.append("specialization", finalSpecialization);
+        formData.append("qualification", finalQualification);
+        formData.append("experience", doctorForm.experience.toString());
+        if (doctorForm.dateOfBirth) {
+          formData.append("dateOfBirth", new Date(doctorForm.dateOfBirth).toISOString());
+        }
+        
+        // Convert base64 image to File if exists
+        if (doctorForm.profileImage && doctorForm.profileImage.startsWith('data:image')) {
+          const blob = await fetch(doctorForm.profileImage).then(r => r.blob());
+          
+          // Validate file size (5MB limit to match backend)
+          if (blob.size > 5 * 1024 * 1024) {
+            setError("Profile image must be less than 5MB");
+            setSubmitting(false);
+            return;
+          }
+          
+          const file = new File([blob], "profile.jpg", { type: blob.type });
+          formData.append("profileImage", file);
+        }
+        
+        const res = await fetch(`${API_URL}${endpoint}`, {
+          method: "POST",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: formData,
+        });
+        
+        if (res.ok) {
+          console.log("Selected role:", role);
+          setUserRole(role);
+          setSuccess("Profile created successfully! Redirecting...");
+          setTimeout(() => {
+            router.replace(getDoctorRedirectPath(null));
+          }, 1500);
+        } else {
+          const errorData = await res.json().catch(() => ({}));
+          setError(errorData.message || "Failed to create profile. Please try again.");
+        }
+        
       } else if (role === "patient") {
         endpoint = "/api/patient";
-        body = {
-          ...patientForm,
-          dateOfBirth: patientForm.dateOfBirth ? new Date(patientForm.dateOfBirth).toISOString() : ""
-        };
-      }
-      
-      const res = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(body),
-      });
-      
-      if (res.ok) {
-        console.log("Selected role:", role);
-        setUserRole(role);
-        setSuccess("Profile created successfully! Redirecting...");
-        setTimeout(() => {
-          router.replace(role === "doctor" ? getDoctorRedirectPath(null) : "/Patient/dashboard");
-        }, 1500);
-      } else {
-        const errorData = await res.json().catch(() => ({}));
-        setError(errorData.message || "Failed to create profile. Please try again.");
+        const formData = new FormData();
+        
+        // Append all text fields
+        formData.append("firstName", patientForm.firstName);
+        formData.append("lastName", patientForm.lastName);
+        formData.append("email", patientForm.email);
+        formData.append("phone", patientForm.phone);
+        formData.append("gender", patientForm.gender);
+        if (patientForm.dateOfBirth) {
+          formData.append("dateOfBirth", new Date(patientForm.dateOfBirth).toISOString());
+        }
+        
+        // Convert base64 image to File if exists
+        if (patientForm.profileImage && patientForm.profileImage.startsWith('data:image')) {
+          const blob = await fetch(patientForm.profileImage).then(r => r.blob());
+          
+          // Validate file size (5MB limit to match backend)
+          if (blob.size > 5 * 1024 * 1024) {
+            setError("Profile image must be less than 5MB");
+            setSubmitting(false);
+            return;
+          }
+          
+          const file = new File([blob], "profile.jpg", { type: blob.type });
+          formData.append("profileImage", file);
+        }
+        
+        const res = await fetch(`${API_URL}${endpoint}`, {
+          method: "POST",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: formData,
+        });
+        
+        if (res.ok) {
+          console.log("Selected role:", role);
+          setUserRole(role);
+          setSuccess("Profile created successfully! Redirecting...");
+          setTimeout(() => {
+            router.replace("/Patient/dashboard");
+          }, 1500);
+        } else {
+          const errorData = await res.json().catch(() => ({}));
+          setError(errorData.message || "Failed to create profile. Please try again.");
+        }
       }
     } catch {
       setError("Network error. Please check your connection and try again.");

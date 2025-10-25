@@ -6,6 +6,7 @@ import { v2 as cloudinary } from 'cloudinary';
 // Create new patient profile
 export const createPatient = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
+  const file = req.file; // Get uploaded file from multer
   const { 
     firstName, 
     lastName, 
@@ -14,7 +15,6 @@ export const createPatient = async (req: Request, res: Response) => {
     cnic,
     dateOfBirth, 
     gender,
-    profileImage, // Base64 image data
     // Medical Information
     bloodType,
     height,
@@ -23,13 +23,21 @@ export const createPatient = async (req: Request, res: Response) => {
     medications,
     medicalConditions,
     // Emergency Contact
-    emergencyContact,
+    emergencyContactName,
+    emergencyContactRelationship,
+    emergencyContactPhone,
     // Address
-    address,
+    addressStreet,
+    addressCity,
+    addressProvince,
+    addressPostalCode,
     // Preferences
     language,
-    notifications,
-    privacy
+    notificationsEmail,
+    notificationsSms,
+    notificationsPush,
+    privacyShareData,
+    privacyMarketing
   } = req.body;
 
   if (!uid) {
@@ -47,14 +55,10 @@ export const createPatient = async (req: Request, res: Response) => {
     // Handle profile image upload if provided
     let profileImageUrl = null;
     let profileImagePublicId = null;
-    if (profileImage && profileImage.startsWith('data:image/')) {
+    if (file) {
       try {
-        // Convert base64 to buffer
-        const base64Data = profileImage.replace(/^data:image\/\w+;base64,/, '');
-        const imageBuffer = Buffer.from(base64Data, 'base64');
-
-        // Upload to Cloudinary
-        const uploadResult = await uploadProfileImage(imageBuffer, uid) as any;
+        // Upload to Cloudinary using the file buffer
+        const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
 
         // Store image URL and public ID directly
         profileImageUrl = uploadResult.secure_url;
@@ -64,6 +68,11 @@ export const createPatient = async (req: Request, res: Response) => {
         // Continue with patient creation even if image upload fails
       }
     }
+
+    // Parse JSON arrays if they come as strings from FormData
+    const parsedAllergies = typeof allergies === 'string' ? JSON.parse(allergies || '[]') : (allergies || []);
+    const parsedMedications = typeof medications === 'string' ? JSON.parse(medications || '[]') : (medications || []);
+    const parsedMedicalConditions = typeof medicalConditions === 'string' ? JSON.parse(medicalConditions || '[]') : (medicalConditions || []);
 
     const patient = await prisma.patient.create({
       data: {
@@ -82,28 +91,28 @@ export const createPatient = async (req: Request, res: Response) => {
         bloodType,
         height,
         weight,
-        allergies: allergies || [],
-        medications: medications || [],
-        medicalConditions: medicalConditions || [],
+        allergies: parsedAllergies,
+        medications: parsedMedications,
+        medicalConditions: parsedMedicalConditions,
         
         // Emergency Contact
-        emergencyContactName: emergencyContact?.name,
-        emergencyContactRelationship: emergencyContact?.relationship,
-        emergencyContactPhone: emergencyContact?.phone,
+        emergencyContactName,
+        emergencyContactRelationship,
+        emergencyContactPhone,
         
         // Address
-        addressStreet: address?.street,
-        addressCity: address?.city,
-        addressProvince: address?.province,
-        addressPostalCode: address?.postalCode,
+        addressStreet,
+        addressCity,
+        addressProvince,
+        addressPostalCode,
         
         // Preferences
         language: language || 'English',
-        notificationsEmail: notifications?.email ?? true,
-        notificationsSms: notifications?.sms ?? true,
-        notificationsPush: notifications?.push ?? true,
-        privacyShareData: privacy?.shareDataForResearch ?? false,
-        privacyMarketing: privacy?.allowMarketing ?? false,
+        notificationsEmail: notificationsEmail !== undefined ? notificationsEmail === 'true' || notificationsEmail === true : true,
+        notificationsSms: notificationsSms !== undefined ? notificationsSms === 'true' || notificationsSms === true : true,
+        notificationsPush: notificationsPush !== undefined ? notificationsPush === 'true' || notificationsPush === true : true,
+        privacyShareData: privacyShareData === 'true' || privacyShareData === true || false,
+        privacyMarketing: privacyMarketing === 'true' || privacyMarketing === true || false,
       },
     });
 
