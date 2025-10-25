@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { uploadProfileImage } from '../services/uploadService';
+import { uploadProfileImage, deleteFromCloudinary } from '../services/uploadService';
 import { v2 as cloudinary } from 'cloudinary';
 
 // Create new patient profile
@@ -44,81 +44,106 @@ export const createPatient = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'User UID is required' });
   }
 
+  // Variables for cleanup
+  let uploadedImagePublicId: string | null = null;
+
   try {
-    // Create User record if doesn't exist
-    await prisma.user.upsert({
-      where: { uid },
-      create: { uid, role: 'patient' },
-      update: { role: 'patient' }
-    });
-
-    // Handle profile image upload if provided
-    let profileImageUrl = null;
-    let profileImagePublicId = null;
-    if (file) {
-      try {
-        // Upload to Cloudinary using the file buffer
-        const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
-
-        // Store image URL and public ID directly
-        profileImageUrl = uploadResult.secure_url;
-        profileImagePublicId = uploadResult.public_id;
-      } catch (imageError) {
-        console.error('Profile image upload error:', imageError);
-        // Continue with patient creation even if image upload fails
-      }
-    }
-
     // Parse JSON arrays if they come as strings from FormData
     const parsedAllergies = typeof allergies === 'string' ? JSON.parse(allergies || '[]') : (allergies || []);
     const parsedMedications = typeof medications === 'string' ? JSON.parse(medications || '[]') : (medications || []);
     const parsedMedicalConditions = typeof medicalConditions === 'string' ? JSON.parse(medicalConditions || '[]') : (medicalConditions || []);
 
-    const patient = await prisma.patient.create({
-      data: {
-        uid,
-        firstName,
-        lastName,
-        email,
-        phone,
-        cnic,
-        dateOfBirth: new Date(dateOfBirth),
-        gender,
-        profileImageUrl,
-        profileImagePublicId,
-        
-        // Medical Information
-        bloodType,
-        height,
-        weight,
-        allergies: parsedAllergies,
-        medications: parsedMedications,
-        medicalConditions: parsedMedicalConditions,
-        
-        // Emergency Contact
-        emergencyContactName,
-        emergencyContactRelationship,
-        emergencyContactPhone,
-        
-        // Address
-        addressStreet,
-        addressCity,
-        addressProvince,
-        addressPostalCode,
-        
-        // Preferences
-        language: language || 'English',
-        notificationsEmail: notificationsEmail !== undefined ? notificationsEmail === 'true' || notificationsEmail === true : true,
-        notificationsSms: notificationsSms !== undefined ? notificationsSms === 'true' || notificationsSms === true : true,
-        notificationsPush: notificationsPush !== undefined ? notificationsPush === 'true' || notificationsPush === true : true,
-        privacyShareData: privacyShareData === 'true' || privacyShareData === true || false,
-        privacyMarketing: privacyMarketing === 'true' || privacyMarketing === true || false,
-      },
+    // Step 1: Validate and create database records in a transaction (atomic operation)
+    const patient = await prisma.$transaction(async (tx) => {
+      // Create or update User record
+      await tx.user.upsert({
+        where: { uid },
+        create: { uid, role: 'patient' },
+        update: { role: 'patient' }
+      });
+
+      // Create Patient record (without image URLs yet)
+      const newPatient = await tx.patient.create({
+        data: {
+          uid,
+          firstName,
+          lastName,
+          email,
+          phone,
+          cnic,
+          dateOfBirth: new Date(dateOfBirth),
+          gender,
+          profileImageUrl: null, // Will update after Cloudinary upload
+          profileImagePublicId: null,
+          
+          // Medical Information
+          bloodType,
+          height,
+          weight,
+          allergies: parsedAllergies,
+          medications: parsedMedications,
+          medicalConditions: parsedMedicalConditions,
+          
+          // Emergency Contact
+          emergencyContactName,
+          emergencyContactRelationship,
+          emergencyContactPhone,
+          
+          // Address
+          addressStreet,
+          addressCity,
+          addressProvince,
+          addressPostalCode,
+          
+          // Preferences
+          language: language || 'English',
+          notificationsEmail: notificationsEmail !== undefined ? notificationsEmail === 'true' || notificationsEmail === true : true,
+          notificationsSms: notificationsSms !== undefined ? notificationsSms === 'true' || notificationsSms === true : true,
+          notificationsPush: notificationsPush !== undefined ? notificationsPush === 'true' || notificationsPush === true : true,
+          privacyShareData: privacyShareData === 'true' || privacyShareData === true || false,
+          privacyMarketing: privacyMarketing === 'true' || privacyMarketing === true || false,
+        },
+      });
+
+      return newPatient;
     });
 
+    // Step 2: If file exists, upload to Cloudinary AFTER successful DB creation
+    if (file) {
+      try {
+        const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
+        uploadedImagePublicId = uploadResult.public_id;
+
+        // Step 3: Update patient record with image URLs
+        await prisma.patient.update({
+          where: { uid },
+          data: {
+            profileImageUrl: uploadResult.secure_url,
+            profileImagePublicId: uploadResult.public_id
+          }
+        });
+
+        // Update the patient object to return with image URLs
+        patient.profileImageUrl = uploadResult.secure_url;
+        patient.profileImagePublicId = uploadResult.public_id;
+
+      } catch (imageError) {
+        console.error('Profile image upload error:', imageError);
+        // Patient is created successfully, just without image
+        // This is acceptable - user can upload image later
+      }
+    }
+
     res.status(201).json(patient);
+
   } catch (error) {
     console.error('Create patient error:', error);
+    
+    // Cleanup: Delete uploaded image if it exists
+    if (uploadedImagePublicId) {
+      await deleteFromCloudinary(uploadedImagePublicId);
+    }
+
     res.status(500).json({ error: 'Failed to create patient profile' });
   }
 };

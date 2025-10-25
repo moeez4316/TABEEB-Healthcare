@@ -87,3 +87,47 @@ export const uploadProfileImage = (buffer: Buffer, userId: string) => {
     stream.end(buffer);
   });
 };
+
+// Cleanup utility - Delete files from Cloudinary
+export const deleteFromCloudinary = async (publicId: string): Promise<void> => {
+  try {
+    await cloudinary.uploader.destroy(publicId);
+  } catch (error) {
+    console.error(`Failed to delete file from Cloudinary: ${publicId}`, error);
+    // Don't throw - cleanup failures shouldn't block the error handling
+  }
+};
+
+// Cleanup multiple files from Cloudinary
+export const deleteMultipleFromCloudinary = async (publicIds: string[]): Promise<void> => {
+  try {
+    const deletePromises = publicIds.filter(id => id).map(id => deleteFromCloudinary(id));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    console.error('Failed to cleanup multiple files from Cloudinary', error);
+  }
+};
+
+// Extract public_id from Cloudinary URL
+export const extractPublicIdFromUrl = (url: string): string | null => {
+  try {
+    // Cloudinary URL format: https://res.cloudinary.com/{cloud_name}/{resource_type}/upload/v{version}/{public_id}.{format}
+    // OR: https://res.cloudinary.com/{cloud_name}/{resource_type}/upload/{public_id}.{format}
+    const urlParts = url.split('/upload/');
+    if (urlParts.length < 2) return null;
+    
+    // Get the part after /upload/
+    let publicIdPart = urlParts[1];
+    
+    // Remove version if present (e.g., v1234567890/)
+    publicIdPart = publicIdPart.replace(/^v\d+\//, '');
+    
+    // Remove file extension
+    const publicId = publicIdPart.substring(0, publicIdPart.lastIndexOf('.'));
+    
+    return publicId || null;
+  } catch (error) {
+    console.error('Error extracting public ID from URL:', url, error);
+    return null;
+  }
+};

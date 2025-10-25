@@ -1,7 +1,11 @@
 // src/controllers/verificationController.ts
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { uploadVerificationDocument } from '../services/uploadService';
+import { 
+  uploadVerificationDocument, 
+  deleteMultipleFromCloudinary,
+  extractPublicIdFromUrl 
+} from '../services/uploadService';
 
 // Submit verification (Doctor uploads CNIC, PMDC, Certificate)
 export const submitVerification = async (req: Request, res: Response) => {
@@ -19,7 +23,7 @@ export const submitVerification = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Doctor UID and PMDC number are required' });
   }
 
-  // Validate required documents
+  // Validate required documents BEFORE any operations
   const requiredDocs = ['cnicFront', 'verificationPhoto', 'degreeCertificate', 'pmdcCertificate'];
   const missingDocs = requiredDocs.filter(doc => !files?.[doc]);
   
@@ -29,8 +33,11 @@ export const submitVerification = async (req: Request, res: Response) => {
     });
   }
 
+  // Track uploaded files for cleanup on failure
+  const uploadedPublicIds: string[] = [];
+
   try {
-    // Check if doctor exists
+    // Step 1: Validate doctor exists and verification status
     const doctor = await prisma.doctor.findUnique({ where: { uid: doctorUid } });
     
     if (!doctor) {
@@ -48,27 +55,37 @@ export const submitVerification = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Verification already submitted' });
       }
       // If rejected, we'll update the existing record instead of creating new one
+      // First, delete old files from Cloudinary before uploading new ones
+      const oldPublicIds: (string | null)[] = [
+        existing.cnicFrontUrl ? extractPublicIdFromUrl(existing.cnicFrontUrl) : null,
+        existing.cnicBackUrl ? extractPublicIdFromUrl(existing.cnicBackUrl) : null,
+        existing.verificationPhotoUrl ? extractPublicIdFromUrl(existing.verificationPhotoUrl) : null,
+        existing.degreeCertificateUrl ? extractPublicIdFromUrl(existing.degreeCertificateUrl) : null,
+        existing.pmdcCertificateUrl ? extractPublicIdFromUrl(existing.pmdcCertificateUrl) : null
+      ];
+      
+      const validOldPublicIds = oldPublicIds.filter((id): id is string => id !== null);
+      
+      if (validOldPublicIds.length > 0) {
+        await deleteMultipleFromCloudinary(validOldPublicIds);
+      }
     }
 
-    // Upload all documents to Cloudinary
+    // Step 2: Upload all documents to Cloudinary AFTER validation
     const uploadPromises = [];
 
-    // Upload CNIC Front (required)
     uploadPromises.push(
       uploadVerificationDocument(files.cnicFront[0].buffer, doctorUid, 'cnic_front')
     );
 
-    // Upload Verification Photo (required)
     uploadPromises.push(
       uploadVerificationDocument(files.verificationPhoto[0].buffer, doctorUid, 'verification_photo')
     );
 
-    // Upload Degree Certificate (required)
     uploadPromises.push(
       uploadVerificationDocument(files.degreeCertificate[0].buffer, doctorUid, 'degree_certificate')
     );
 
-    // Upload PMDC Certificate (required)
     uploadPromises.push(
       uploadVerificationDocument(files.pmdcCertificate[0].buffer, doctorUid, 'pmdc_certificate')
     );
@@ -82,10 +99,21 @@ export const submitVerification = async (req: Request, res: Response) => {
 
     const uploadResults = await Promise.all(uploadPromises);
     
-    // Map results
+    // Map results and track public IDs for potential cleanup
     const [cnicFrontResult, verificationPhotoResult, degreeCertificateResult, pmdcCertificateResult, cnicBackResult] = uploadResults;
+    
+    uploadedPublicIds.push(
+      (cnicFrontResult as any).public_id,
+      (verificationPhotoResult as any).public_id,
+      (degreeCertificateResult as any).public_id,
+      (pmdcCertificateResult as any).public_id
+    );
+    
+    if (cnicBackResult) {
+      uploadedPublicIds.push((cnicBackResult as any).public_id);
+    }
 
-    // Create or update verification record
+    // Step 3: Create or update verification record in database
     const verificationData = {
       doctorUid,
       pmdcNumber,
@@ -132,6 +160,12 @@ export const submitVerification = async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error('Error in submitVerification:', error);
+    
+    // Cleanup: Delete all uploaded files from Cloudinary on failure
+    if (uploadedPublicIds.length > 0) {
+      await deleteMultipleFromCloudinary(uploadedPublicIds);
+    }
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({ error: 'Failed to submit verification', details: errorMessage });
   }
