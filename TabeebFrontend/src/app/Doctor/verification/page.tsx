@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { verificationAPI } from '@/lib/verification/api';
 import { validateVerificationForm, formatFileSize } from '@/lib/verification/utils';
 import { VerificationFormData, FileUploadError } from '@/lib/verification/types';
 import { formatCNIC } from '@/lib/profile-utils';
 import { Toast } from '@/components/Toast';
-import { User, Calendar, FileText, Camera, Upload, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { User, Calendar, FileText, Camera, Upload, AlertCircle, CheckCircle, Info, X, Video } from 'lucide-react';
 
 type FileFieldName = 'cnicFront' | 'cnicBack' | 'verificationPhoto' | 'degreeCertificate' | 'pmdcCertificate';
 
@@ -41,6 +41,19 @@ export default function DoctorVerificationPage() {
     degreeCertificate: false,
     pmdcCertificate: false,
   });
+  const [showCamera, setShowCamera] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
 
   // Show loading state while determining auth status, role, or verification status
   if (authLoading || !user || !role || (role === 'doctor' && (verificationLoading || verificationStatus === null))) {
@@ -120,6 +133,62 @@ export default function DoctorVerificationPage() {
       
       // Clear errors for this field
       setErrors(prev => prev.filter(error => error.field !== fieldName));
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user', width: 1280, height: 720 } 
+      });
+      setStream(mediaStream);
+      setShowCamera(true);
+      
+      // Wait for video element to be available
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      showToast('Unable to access camera. Please check permissions.', 'error');
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], 'verification-photo.jpg', { type: 'image/jpeg' });
+            setFormData(prev => ({
+              ...prev,
+              verificationPhoto: file,
+            }));
+            setErrors(prev => prev.filter(error => error.field !== 'verificationPhoto'));
+            stopCamera();
+            showToast('Photo captured successfully!', 'success');
+          }
+        }, 'image/jpeg', 0.95);
+      }
     }
   };
 
@@ -486,25 +555,164 @@ export default function DoctorVerificationPage() {
               </div>
 
               {/* Verification Photo */}
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-6">
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
                 <div className="flex items-start space-x-3 mb-4">
-                  <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <Info className="w-6 h-6 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-semibold text-amber-800 dark:text-amber-200">Verification Photo Requirements</h3>
-                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                      Please upload a front-facing photo with proper lighting and plain background for verification. 
+                    <h3 className="font-semibold text-slate-800 dark:text-slate-200">Verification Photo Requirements</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                      Please provide a front-facing photo with proper lighting and plain background for verification. 
                       This photo should match your original CNIC photo and will be used for identity verification only.
                     </p>
+                    <div className="mt-3 flex items-start space-x-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg p-3">
+                      <CheckCircle className="w-5 h-5 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
+                        <strong>Recommended:</strong> Use the live camera option for best results, and reduces the chance of rejection.
+                      </p>
+                    </div>
                   </div>
                 </div>
-                
-                {renderFileUpload(
-                  'verificationPhoto',
-                  'Verification Photo',
-                  'Front-facing photo with good lighting and plain background matching your CNIC',
-                  <Camera className="w-12 h-12 text-slate-400 dark:text-slate-500" />,
-                  ".jpg,.jpeg,.png"
+
+                {!showCamera ? (
+                  <div className="space-y-4">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Verification Photo <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      Front-facing photo with good lighting and plain background matching your CNIC
+                    </p>
+                    
+                    {formData.verificationPhoto ? (
+                      <div className="border-2 border-dashed border-teal-300 bg-teal-50 dark:bg-teal-900/20 rounded-xl p-8 text-center min-h-[200px] flex flex-col justify-center">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-center space-x-2">
+                            <CheckCircle className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                            <span className="text-teal-600 dark:text-teal-400 font-medium">Photo selected</span>
+                          </div>
+                          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">{formData.verificationPhoto.name}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{formatFileSize(formData.verificationPhoto.size)}</p>
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, verificationPhoto: null }))}
+                            className="text-sm text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium transition-colors"
+                          >
+                            Remove photo
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Camera and Upload Options */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Live Camera Option - Recommended */}
+                          <button
+                            type="button"
+                            onClick={startCamera}
+                            className="relative border-2 border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-xl p-8 text-center hover:border-teal-400 dark:hover:border-teal-500 transition-all duration-200 group min-h-[220px] flex flex-col justify-center"
+                          >
+                            <div className="absolute top-3 right-3 bg-teal-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                              RECOMMENDED
+                            </div>
+                            <div className="space-y-4">
+                              <div className="flex justify-center">
+                                <div className="p-4 bg-teal-50 dark:bg-teal-900/30 rounded-full group-hover:scale-110 transition-transform">
+                                  <Video className="w-10 h-10 text-teal-600 dark:text-teal-400" />
+                                </div>
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-lg mb-2">
+                                  Take Live Photo
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                  Use your camera for instant capture with proper guidance
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+
+                          {/* Upload Option */}
+                          <div 
+                            className="border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-teal-400 dark:hover:border-teal-500 bg-white dark:bg-slate-800 rounded-xl p-8 text-center transition-all duration-200 min-h-[220px] flex flex-col justify-center"
+                            onDragEnter={(e) => handleDragEnter(e, 'verificationPhoto')}
+                            onDragLeave={(e) => handleDragLeave(e, 'verificationPhoto')}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, 'verificationPhoto')}
+                          >
+                            <div className="space-y-4">
+                              <div className="flex justify-center">
+                                <Camera className="w-12 h-12 text-slate-400 dark:text-slate-500" />
+                              </div>
+                              <div className="text-center">
+                                <label htmlFor="verificationPhoto" className="cursor-pointer">
+                                  <span className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium transition-colors">
+                                    Upload from device
+                                  </span>
+                                  <span className="text-slate-600 dark:text-slate-400"> or drag and drop</span>
+                                </label>
+                                <input
+                                  id="verificationPhoto"
+                                  type="file"
+                                  className="hidden"
+                                  accept=".jpg,.jpeg,.png"
+                                  onChange={(e) => handleFileChange(e, 'verificationPhoto')}
+                                />
+                              </div>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                JPG, PNG up to 5MB
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    
+                    {getFieldError('verificationPhoto') && (
+                      <p className="text-sm text-red-500 dark:text-red-400 font-medium">{getFieldError('verificationPhoto')}</p>
+                    )}
+                  </div>
+                ) : (
+                  /* Camera View */
+                  <div className="space-y-4">
+                    <div className="bg-black rounded-xl overflow-hidden relative">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-auto"
+                      />
+                      <div className="absolute top-4 left-4 right-4">
+                        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg p-3 text-sm">
+                          <p className="text-slate-700 dark:text-slate-300 font-medium">
+                            📸 Position your face in the center with good lighting
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={capturePhoto}
+                        className="flex-1 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white py-3 px-6 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg"
+                      >
+                        <Camera className="w-5 h-5" />
+                        <span>Capture Photo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={stopCamera}
+                        className="bg-slate-600 hover:bg-slate-700 text-white py-3 px-6 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2"
+                      >
+                        <X className="w-5 h-5" />
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
+                
+                {/* Hidden canvas for photo capture */}
+                <canvas ref={canvasRef} className="hidden" />
               </div>
 
               {/* Certificates */}
