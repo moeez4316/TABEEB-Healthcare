@@ -58,9 +58,9 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {/* Profile Section */}
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4 sm:p-6 mb-6 border border-gray-200 dark:border-slate-700">
+            <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-4">
+              <div className="flex items-center space-x-4 sm:space-x-6 w-full sm:w-auto">
                 <div className="flex-shrink-0">
                   {profile.profileImage ? (
                     <Image
@@ -68,16 +68,16 @@ export default function DashboardPage() {
                       alt="Profile"
                       width={96}
                       height={96}
-                      className="rounded-full object-cover shadow-xl"
+                      className="rounded-full object-cover shadow-xl w-20 h-20 sm:w-24 sm:h-24"
                     />
                   ) : (
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-xl">
-                      <User className="w-12 h-12 text-white" />
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-xl">
+                      <User className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
                     </div>
                   )}
                 </div>
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2 truncate">
                     {profile.firstName && profile.lastName 
                       ? `${profile.firstName} ${profile.lastName}`
                       : user.displayName || 'Welcome to TABEEB'
@@ -85,12 +85,12 @@ export default function DashboardPage() {
                   </h2>
                   <div className="space-y-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
-                      <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                      {profile.email || user.email}
+                      <Mail className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
+                      <span className="truncate">{profile.email || user.email}</span>
                     </p>
                     {profile.phone && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
-                        <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                        <Phone className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
                         {profile.phone}
                       </p>
                     )}
@@ -100,7 +100,7 @@ export default function DashboardPage() {
               
               <button
                 onClick={() => setShowProfileEdit(true)}
-                className="flex items-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors"
+                className="flex items-center justify-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors w-full sm:w-auto flex-shrink-0"
               >
                 <Edit3 className="w-4 h-4" />
                 <span>Edit Profile</span>

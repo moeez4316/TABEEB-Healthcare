@@ -107,16 +107,16 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-4xl w-full my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
-                    <div className="flex items-center space-x-3">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Edit Profile</h2>
+                <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-slate-700 flex-shrink-0">
+                    <div className="flex items-center space-x-2 sm:space-x-3">
+                        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Edit Profile</h2>
                         {hasUnsavedChanges && (
                             <div className="flex items-center space-x-1 text-orange-600 dark:text-orange-400">
                                 <AlertCircle className="h-4 w-4" />
-                                <span className="text-sm">Unsaved changes</span>
+                                <span className="text-xs sm:text-sm">Unsaved changes</span>
                             </div>
                         )}
                     </div>
@@ -124,66 +124,66 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                         onClick={onClose}
                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     >
-                        <X className="h-6 w-6" />
+                        <X className="h-5 w-5 sm:h-6 sm:w-6" />
                     </button>
                 </div>
 
-                <div className="flex h-[70vh]">
+                <div className="flex flex-col md:flex-row flex-1 min-h-0">
                     {/* Sidebar */}
-                    <div className="w-64 bg-gray-50 dark:bg-slate-700 p-4 border-r border-gray-200 dark:border-slate-600">
-                        <nav className="space-y-2">
+                    <div className="md:w-64 bg-gray-50 dark:bg-slate-700 p-3 sm:p-4 border-b md:border-b-0 md:border-r border-gray-200 dark:border-slate-600 flex-shrink-0">
+                        <nav className="flex md:flex-col md:space-y-2 space-x-2 md:space-x-0 overflow-x-auto md:overflow-x-visible">
                             <button
                                 onClick={() => setActiveTab('personal')}
-                                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                                className={`flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap flex-shrink-0 ${
                                     activeTab === 'personal'
                                         ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
                                         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
                                 }`}
                             >
-                                <User className="h-4 w-4" />
-                                <span className="text-sm font-medium">Personal Info</span>
+                                <User className="h-4 w-4 flex-shrink-0" />
+                                <span className="text-xs sm:text-sm font-medium">Personal Info</span>
                             </button>
 
                             <button
                                 onClick={() => setActiveTab('medical')}
-                                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                                className={`flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap flex-shrink-0 ${
                                     activeTab === 'medical'
                                         ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
                                         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
                                 }`}
                             >
-                                <Stethoscope className="h-4 w-4" />
-                                <span className="text-sm font-medium">Medical Info</span>
+                                <Stethoscope className="h-4 w-4 flex-shrink-0" />
+                                <span className="text-xs sm:text-sm font-medium">Medical Info</span>
                             </button>
 
                             <button
                                 onClick={() => setActiveTab('address')}
-                                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                                className={`flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap flex-shrink-0 ${
                                     activeTab === 'address'
                                         ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
                                         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
                                 }`}
                             >
-                                <MapPin className="h-4 w-4" />
-                                <span className="text-sm font-medium">Address</span>
+                                <MapPin className="h-4 w-4 flex-shrink-0" />
+                                <span className="text-xs sm:text-sm font-medium">Address</span>
                             </button>
 
                             <button
                                 onClick={() => setActiveTab('preferences')}
-                                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                                className={`flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap flex-shrink-0 ${
                                     activeTab === 'preferences'
                                         ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
                                         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
                                 }`}
                             >
-                                <Settings className="h-4 w-4" />
-                                <span className="text-sm font-medium">Preferences</span>
+                                <Settings className="h-4 w-4 flex-shrink-0" />
+                                <span className="text-xs sm:text-sm font-medium">Preferences</span>
                             </button>
                         </nav>
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 p-6 overflow-y-auto">
+                    <div className="flex-1 p-4 sm:p-6 overflow-y-auto min-h-0">
                         {/* Personal Information Tab */}
                         {activeTab === 'personal' && (
                             <div className="space-y-6">
@@ -501,22 +501,22 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 sm:p-6 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 gap-3 sm:gap-0">
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                         {hasUnsavedChanges && 'You have unsaved changes'}
                     </div>
                     
-                    <div className="flex items-center space-x-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
                         <button
                             onClick={onClose}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-600 border border-gray-300 dark:border-slate-500 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-500 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-colors"
+                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-600 border border-gray-300 dark:border-slate-500 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-500 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-colors text-center"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-lg hover:bg-teal-700 focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                            className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-lg hover:bg-teal-700 focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
                         >
                             <Save className="h-4 w-4" />
                             <span>{saving ? 'Saving...' : 'Save Changes'}</span>
