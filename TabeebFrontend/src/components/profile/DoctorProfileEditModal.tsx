@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { updateProfile, saveDoctorProfile, uploadDoctorProfileImage, DoctorProfile, selectHasUnsavedChanges } from '@/store/slices/doctorSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import { formatPhoneNumber, pakistaniProvinces } from '@/lib/profile-utils';
+import { Toast } from '../Toast';
 
 // Pakistani medical specializations
 const medicalSpecializations = [
@@ -67,21 +68,63 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
 
     const [activeTab, setActiveTab] = useState('personal');
     const [saving, setSaving] = useState(false);
+    const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
     if (!isOpen) return null;
 
     const handleSave = async () => {
+        if (!token) return;
+        
         console.log('Save button clicked');
         setSaving(true);
         
         try {
-            await handleSaveProfile();
-            onClose();
+            const result = await dispatch(saveDoctorProfile({ profileData: profile, token }));
+            
+            if (saveDoctorProfile.rejected.match(result)) {
+                // Handle rejection
+                const errorMessage = result.payload as string;
+                setToastMessage(errorMessage || 'Failed to save profile');
+                setToastType('error');
+                setShowToast(true);
+                return;
+            }
+            
+            // Upload profile image if it's a base64 string
+            const prevImage = profile.profileImage || '';
+            if (prevImage && prevImage.startsWith('data:image')) {
+                try {
+                    const response = await fetch(prevImage);
+                    const blob = await response.blob();
+                    const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
+                    await dispatch(uploadDoctorProfileImage({ file, token }));
+                } catch (error) {
+                    console.error('Error uploading profile image:', error);
+                }
+            }
+            
+            setToastMessage('Profile saved successfully!');
+            setToastType('success');
+            setShowToast(true);
+            setTimeout(() => {
+                setShowToast(false);
+                onClose();
+            }, 1500);
         } catch (error) {
             console.error('Error saving profile:', error);
+            setToastMessage('Failed to save profile. Please try again.');
+            setToastType('error');
+            setShowToast(true);
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleClose = () => {
+        setShowToast(false);
+        onClose();
     };
 
     const handleInputChange = (field: string, value: unknown) => {
@@ -121,7 +164,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                         )}
                     </div>
                     <button
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     >
                         <X className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -508,7 +551,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                     
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
                         <button
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-600 border border-gray-300 dark:border-slate-500 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-500 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-colors text-center"
                         >
                             Cancel
@@ -524,6 +567,14 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                     </div>
                 </div>
             </div>
+            
+            {/* Toast Notification */}
+            <Toast
+                message={toastMessage}
+                type={toastType}
+                show={showToast}
+                onClose={() => setShowToast(false)}
+            />
         </div>
     );
 }
