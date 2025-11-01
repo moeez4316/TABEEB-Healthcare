@@ -46,8 +46,8 @@ export interface VerificationValidation {
 export const VALIDATION_RULES = {
   PMDC_NUMBER: {
     required: true,
-    pattern: /^\d{6}-P$/i,
-    message: 'PMDC number must be in format: 6 digits followed by -P (e.g., 100327-P)',
+    pattern: /^\d{1,10}-[A-Z]{1,10}$/i,
+    message: 'PMDC number must be in format: digits followed by dash and letters (e.g., 100327-P or 1004-AJK)',
   },
   CNIC_NUMBER: {
     required: true,

@@ -229,7 +229,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                                         </label>
                                         <input
                                             type="email"
-                                            value={profile.email}
+                                            value={profile.email || ''}
                                             onChange={(e) => handleInputChange('email', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
                                         />
@@ -241,7 +241,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                                         </label>
                                         <input
                                             type="text"
-                                            value={profile.phone}
+                                            value={profile.phone || ''}
                                             onChange={(e) => handleInputChange('phone', formatPhoneNumber(e.target.value))}
                                             placeholder="+92 300 1234567"
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
@@ -254,7 +254,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                                         </label>
                                         <input
                                             type="text"
-                                            value={profile.cnic}
+                                            value={profile.cnic || ''}
                                             readOnly
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                                         />
@@ -266,7 +266,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                                         </label>
                                         <input
                                             type="date"
-                                            value={profile.dateOfBirth}
+                                            value={profile.dateOfBirth || ''}
                                             onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
                                         />
@@ -277,7 +277,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                                             Gender
                                         </label>
                                         <select
-                                            value={profile.gender}
+                                            value={profile.gender || ''}
                                             onChange={(e) => handleInputChange('gender', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
                                         >
@@ -302,7 +302,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                                             Specialization
                                         </label>
                                         <select
-                                            value={profile.specialization}
+                                            value={profile.specialization || ''}
                                             onChange={(e) => handleInputChange('specialization', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
                                         >
@@ -318,7 +318,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                                             Qualification
                                         </label>
                                         <select
-                                            value={profile.qualification}
+                                            value={profile.qualification || ''}
                                             onChange={(e) => handleInputChange('qualification', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
                                         >
@@ -335,7 +335,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                                         </label>
                                         <input
                                             type="text"
-                                            value={profile.pmdcNumber}
+                                            value={profile.pmdcNumber || ''}
                                             readOnly
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                                         />
@@ -347,7 +347,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                                         </label>
                                         <input
                                             type="number"
-                                            value={profile.experience}
+                                            value={profile.experience || ''}
                                             onChange={(e) => handleInputChange('experience', e.target.value)}
                                             min="0"
                                             max="50"

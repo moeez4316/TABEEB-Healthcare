@@ -32,14 +32,25 @@ export const createDoctor = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'User UID is required' });
   }
 
+  // Convert empty strings to null for email and phone
+  const cleanEmail = email?.trim() || null;
+  const cleanPhone = phone?.trim() || null;
+
   // Variables for cleanup
   let uploadedImagePublicId: string | null = null;
 
   try {
     // Validate required fields BEFORE any database operations
-    if (!firstName || !lastName || !email || !specialization || !qualification) {
+    if (!firstName || !lastName || !specialization || !qualification) {
       return res.status(400).json({ 
-        error: 'Required fields missing: firstName, lastName, email, specialization, qualification' 
+        error: 'Required fields missing: firstName, lastName, specialization, qualification' 
+      });
+    }
+
+    // Validate that at least email or phone is provided
+    if (!cleanEmail && !cleanPhone) {
+      return res.status(400).json({ 
+        error: 'At least one of email or phone is required' 
       });
     }
 
@@ -65,8 +76,8 @@ export const createDoctor = async (req: Request, res: Response) => {
           firstName,
           lastName,
           name: name || `${firstName} ${lastName}`,
-          email,
-          phone,
+          email: cleanEmail,
+          phone: cleanPhone,
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
           gender,
           specialization,
@@ -176,6 +187,14 @@ export const updateDoctor = async (req: Request, res: Response) => {
     const updateData = { ...req.body };
     if (updateData.dateOfBirth) {
       updateData.dateOfBirth = new Date(updateData.dateOfBirth);
+    }
+
+    // Convert empty strings to null for email and phone
+    if ('email' in updateData) {
+      updateData.email = updateData.email?.trim() || null;
+    }
+    if ('phone' in updateData) {
+      updateData.phone = updateData.phone?.trim() || null;
     }
 
     // Validate address fields if provided

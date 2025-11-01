@@ -9,38 +9,24 @@ import { useRouter } from 'next/navigation';
 import PhoneInput from 'react-phone-number-input';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
-import type { ConfirmationResult } from 'firebase/auth';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
-
-declare global {
-  interface Window {
-    recaptchaVerifier?: import('firebase/auth').ApplicationVerifier;
-  }
-}
 
 export default function AuthPage() {
   // Use react-phone-number-input for country code and phone input
   const [fullPhone, setFullPhone] = useState('');
-  // Use dynamic import for firebase auth
-  const [firebaseAuth, setFirebaseAuth] = useState<null | typeof import('../../lib/firebase').auth>(null);
-  useEffect(() => {
-    import('../../lib/firebase').then(mod => setFirebaseAuth(mod.auth));
-  }, []);
   // Remove top toggle, default to phone sign in, allow switching to email sign in via link
   const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('phone');
-  // Removed unused phone and setPhone
-  const [otp, setOtp] = useState('');
-  // Use a more specific type for confirmationResult
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phonePassword, setPhonePassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showPhonePassword, setShowPhonePassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const { user, signUp, signIn, signInWithGoogle, resetPassword, signInWithPhone, verifyPhoneOtp } = useAuth();
+  const { user, signUp, signIn, signInWithGoogle, resetPassword, signUpWithPhone, signInWithPhonePassword } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -81,63 +67,29 @@ export default function AuthPage() {
 
   const handlePhoneAuth = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Validate phone number before reCAPTCHA
+    // Validate phone number and password
     if (!fullPhone || !isValidPhoneNumber(fullPhone)) {
       setError('Please enter a valid phone number.');
+      return;
+    }
+    if (!phonePassword.trim()) {
+      setError('Please enter a password.');
       return;
     }
     try {
       setLoading(true);
       setError('');
       setSuccess('');
-      // Ensure recaptcha container exists before initializing
-      const recaptchaElem = document.getElementById('recaptcha-container');
-      if (!recaptchaElem) {
-        setError('reCAPTCHA container not found. Please reload the page and try again.');
-        setLoading(false);
-        return;
-      }
-      // Only initialize if not already present
-      if (!window.recaptchaVerifier) {
-        const { RecaptchaVerifier } = await import('firebase/auth');
-        if (firebaseAuth) {
-          window.recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
-            size: 'invisible',
-          });
-        }
-      }
-      const appVerifier = window.recaptchaVerifier;
-      if (!appVerifier) {
-        setError('Failed to initialize reCAPTCHA. Please reload and try again.');
-        setLoading(false);
-        return;
-      }
-      const result = await signInWithPhone(fullPhone, appVerifier);
-      setConfirmationResult(result);
-      setSuccess('OTP sent to your phone');
-    } catch (error) {
-      // Handle Firebase invalid phone error gracefully
-      if (error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === 'auth/invalid-phone-number') {
-        setError('The phone number is too short or invalid. Please check and try again.');
+      
+      if (mode === 'signup') {
+        await signUpWithPhone(fullPhone, phonePassword);
+        setSuccess('Account created successfully!');
       } else {
-        setError((error instanceof Error ? error.message : 'Failed to send OTP'));
+        await signInWithPhonePassword(fullPhone, phonePassword);
+        setSuccess('Signed in successfully!');
       }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!otp.trim() || !confirmationResult) return;
-    try {
-      setLoading(true);
-      setError('');
-      setSuccess('');
-      await verifyPhoneOtp(confirmationResult, otp);
-      setSuccess('Phone verified and signed in!');
     } catch (error) {
-      setError((error instanceof Error ? error.message : 'OTP verification failed'));
+      setError(getFirebaseErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -360,43 +312,50 @@ export default function AuthPage() {
 
           {/* Only show phone sign in by default, with link to switch to email sign in */}
           {authMethod === 'phone' ? (
-            <form onSubmit={confirmationResult ? handleVerifyOtp : handlePhoneAuth} className="space-y-4">
+            <form onSubmit={handlePhoneAuth} className="space-y-4">
               <div className="relative">
                 <PhoneInput
                   international
                   defaultCountry="PK"
                   value={fullPhone}
                   onChange={value => setFullPhone(value || '')}
-                  disabled={!!confirmationResult}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-slate-600 rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   placeholder="Enter phone number"
                 />
               </div>
-              {confirmationResult !== null && (
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-slate-600 rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Enter OTP"
-                  />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
-              )}
-              <div id="recaptcha-container"></div>
+                <input
+                  type={showPhonePassword ? 'text' : 'password'}
+                  required
+                  value={phonePassword}
+                  onChange={(e) => setPhonePassword(e.target.value)}
+                  className="block w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-slate-600 rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPhonePassword(!showPhonePassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPhonePassword ? (
+                    <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
+                  )}
+                </button>
+              </div>
               <button
                 type="submit"
-                disabled={loading || (confirmationResult === null && !isValidPhoneNumber(fullPhone)) || (confirmationResult !== null && !otp.trim())}
+                disabled={loading || !fullPhone || !isValidPhoneNumber(fullPhone) || !phonePassword.trim()}
                 className="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  confirmationResult ? 'Verify OTP' : 'Continue with Phone'
+                  mode === 'signup' ? 'Sign Up with Phone' : 'Sign In with Phone'
                 )}
               </button>
             </form>
@@ -485,19 +444,17 @@ export default function AuthPage() {
                   </button>
                 )}
               </div>
-              {/* Only show Sign up option on email sign in screen */}
-              {authMethod === 'email' && (
-                <div className="text-center mt-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Don&apos;t have an account? </span>
-                  <button
-                    type="button"
-                    onClick={() => switchMode('signup')}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline ml-1"
-                  >
-                    Sign up
-                  </button>
-                </div>
-              )}
+              {/* Show Sign up option for both phone and email */}
+              <div className="text-center mt-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Don&apos;t have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => switchMode('signup')}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline ml-1"
+                >
+                  Sign up
+                </button>
+              </div>
             </div>
           )}
 

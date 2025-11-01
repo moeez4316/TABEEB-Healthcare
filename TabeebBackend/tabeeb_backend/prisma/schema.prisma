@@ -154,8 +154,8 @@ model doctor {
   firstName            String               @db.VarChar(100)
   lastName             String               @db.VarChar(100)
   name                 String               @db.VarChar(255)
-  email                String               @unique(map: "Doctor_email_key") @db.VarChar(255)
-  phone                String?              @db.VarChar(20)
+  email                String?              @unique(map: "Doctor_email_key") @db.VarChar(255)
+  phone                String?              @unique(map: "Doctor_phone_key") @db.VarChar(20)
   dateOfBirth          DateTime?
   gender               String?              @db.VarChar(10)
   profileImageUrl      String?              @db.VarChar(500)
@@ -186,8 +186,8 @@ model patient {
   uid                          String         @id @db.VarChar(255)
   firstName                    String         @db.VarChar(100)
   lastName                     String         @db.VarChar(100)
-  email                        String         @unique(map: "Patient_email_key") @db.VarChar(255)
-  phone                        String?        @db.VarChar(20)
+  email                        String?        @unique(map: "Patient_email_key") @db.VarChar(255)
+  phone                        String?        @unique(map: "Patient_phone_key") @db.VarChar(20)
   cnic                         String?        @db.VarChar(15)
   dateOfBirth                  DateTime
   gender                       String         @db.VarChar(10)

@@ -46,9 +46,9 @@ export default function SelectRolePage() {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   
   const [doctorForm, setDoctorForm] = useState<DoctorForm>({
-    firstName: user?.displayName?.split(' ')[0] || "",
-    lastName: user?.displayName?.split(' ').slice(1).join(' ') || "",
-    email: user?.email || "",
+    firstName: "",
+    lastName: "",
+    email: "",
     phone: "",
     dateOfBirth: "",
     gender: "",
@@ -62,9 +62,9 @@ export default function SelectRolePage() {
   const [customQualification, setCustomQualification] = useState("");
   
   const [patientForm, setPatientForm] = useState<PatientForm>({
-    firstName: user?.displayName?.split(' ')[0] || "",
-    lastName: user?.displayName?.split(' ').slice(1).join(' ') || "",
-    email: user?.email || "",
+    firstName: "",
+    lastName: "",
+    email: "",
     phone: "",
     dateOfBirth: "",
     gender: "",
@@ -73,20 +73,30 @@ export default function SelectRolePage() {
   
   const router = useRouter();
 
+  // Detect auth method
+  const isPhoneAuth = user?.email?.endsWith('@tabeeb.phone') || false;
+  const isEmailAuth = !isPhoneAuth && !!user?.email;
+
   // Pre-fill form with user data when user becomes available
   useEffect(() => {
     if (user) {
+      // Check if email is a phone-based email (ends with @tabeeb.phone)
+      const isPhoneAuth = user.email?.endsWith('@tabeeb.phone');
+      const phoneFromEmail = isPhoneAuth ? user.email?.replace('@tabeeb.phone', '') : '';
+      
       setDoctorForm(prev => ({
         ...prev,
-        firstName: user.displayName?.split(' ')[0] || prev.firstName,
-        lastName: user.displayName?.split(' ').slice(1).join(' ') || prev.lastName,
-        email: user.email || prev.email,
+        firstName: '', // Let user fill their actual name
+        lastName: '', // Let user fill their actual name
+        email: isPhoneAuth ? '' : (user.email || ''), // Pre-fill for email auth, empty for phone auth
+        phone: phoneFromEmail || '', // Pre-fill phone if from phone auth
       }));
       setPatientForm(prev => ({
         ...prev,
-        firstName: user.displayName?.split(' ')[0] || prev.firstName,
-        lastName: user.displayName?.split(' ').slice(1).join(' ') || prev.lastName,
-        email: user.email || prev.email,
+        firstName: '', // Let user fill their actual name
+        lastName: '', // Let user fill their actual name
+        email: isPhoneAuth ? '' : (user.email || ''), // Pre-fill for email auth, empty for phone auth
+        phone: phoneFromEmail || '', // Pre-fill phone if from phone auth
       }));
     }
   }, [user]);
@@ -113,10 +123,26 @@ export default function SelectRolePage() {
     
     if (!doctorForm.firstName.trim()) errors.firstName = "First name is required";
     if (!doctorForm.lastName.trim()) errors.lastName = "Last name is required";
-    if (!doctorForm.email.trim()) errors.email = "Email is required";
-    else if (!isValidEmail(doctorForm.email)) errors.email = "Invalid email format";
-    if (!doctorForm.phone.trim()) errors.phone = "Phone number is required";
-    else if (!isValidPhoneNumber(doctorForm.phone)) errors.phone = "Invalid phone number format. Use +92-300-1234567";
+    
+    // Email: required for phone auth users, pre-filled and disabled for email auth
+    if (isPhoneAuth) {
+      // Phone auth: email is optional, validate only if provided
+      if (doctorForm.email.trim() && !isValidEmail(doctorForm.email)) errors.email = "Invalid email format";
+    } else {
+      // Email auth: email is pre-filled and required (disabled)
+      if (!doctorForm.email.trim()) errors.email = "Email is required";
+      else if (!isValidEmail(doctorForm.email)) errors.email = "Invalid email format";
+    }
+    
+    // Phone: optional for email auth users, pre-filled and disabled for phone auth
+    if (isEmailAuth) {
+      // Email auth: phone is optional, validate only if provided
+      if (doctorForm.phone.trim() && !isValidPhoneNumber(doctorForm.phone)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
+    } else {
+      // Phone auth: phone is pre-filled and required (disabled)
+      if (!doctorForm.phone.trim()) errors.phone = "Phone number is required";
+      else if (!isValidPhoneNumber(doctorForm.phone)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
+    }
     if (!doctorForm.dateOfBirth) errors.dateOfBirth = "Date of birth is required";
     else if (dobDate > today) errors.dateOfBirth = "Date of birth cannot be in the future";
     else if (age > 150) errors.dateOfBirth = "Invalid date of birth";
@@ -143,10 +169,26 @@ export default function SelectRolePage() {
     
     if (!patientForm.firstName.trim()) errors.firstName = "First name is required";
     if (!patientForm.lastName.trim()) errors.lastName = "Last name is required";
-    if (!patientForm.email.trim()) errors.email = "Email is required";
-    else if (!isValidEmail(patientForm.email)) errors.email = "Invalid email format";
-    if (!patientForm.phone.trim()) errors.phone = "Phone number is required";
-    else if (!isValidPhoneNumber(patientForm.phone)) errors.phone = "Invalid phone number format. Use +92-300-1234567";
+    
+    // Email: required for phone auth users, pre-filled and disabled for email auth
+    if (isPhoneAuth) {
+      // Phone auth: email is optional, validate only if provided
+      if (patientForm.email.trim() && !isValidEmail(patientForm.email)) errors.email = "Invalid email format";
+    } else {
+      // Email auth: email is pre-filled and required (disabled)
+      if (!patientForm.email.trim()) errors.email = "Email is required";
+      else if (!isValidEmail(patientForm.email)) errors.email = "Invalid email format";
+    }
+    
+    // Phone: optional for email auth users, pre-filled and disabled for phone auth
+    if (isEmailAuth) {
+      // Email auth: phone is optional, validate only if provided
+      if (patientForm.phone.trim() && !isValidPhoneNumber(patientForm.phone)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
+    } else {
+      // Phone auth: phone is pre-filled and required (disabled)
+      if (!patientForm.phone.trim()) errors.phone = "Phone number is required";
+      else if (!isValidPhoneNumber(patientForm.phone)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
+    }
     if (!patientForm.dateOfBirth) errors.dateOfBirth = "Date of birth is required";
     else if (dobDate > today) errors.dateOfBirth = "Date of birth cannot be in the future";
     else if (age > 150) errors.dateOfBirth = "Invalid date of birth";
@@ -521,7 +563,7 @@ export default function SelectRolePage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email Address *
+                    Email Address {isPhoneAuth ? '(Optional)' : '*'}
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -530,13 +572,14 @@ export default function SelectRolePage() {
                     <input
                       type="email"
                       name="email"
-                      required
+                      required={!isPhoneAuth}
+                      disabled={isEmailAuth}
                       value={doctorForm.email}
                       onChange={handleDoctorChange}
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
                         formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
-                      }`}
-                      placeholder="Enter your email"
+                      } ${isEmailAuth ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      placeholder={isPhoneAuth ? "Enter your email (optional)" : "Enter your email"}
                     />
                   </div>
                   {formErrors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.email}</p>}
@@ -544,7 +587,7 @@ export default function SelectRolePage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone Number *
+                    Phone Number {isEmailAuth ? '(Optional)' : '*'}
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -553,13 +596,14 @@ export default function SelectRolePage() {
                     <input
                       type="tel"
                       name="phone"
-                      required
+                      required={!isEmailAuth}
+                      disabled={isPhoneAuth}
                       value={doctorForm.phone}
                       onChange={handleDoctorChange}
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
                         formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
-                      }`}
-                      placeholder="+92-300-1234567"
+                      } ${isPhoneAuth ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      placeholder={isEmailAuth ? "+923001234567 or 03001234567 (optional)" : "+923001234567 or 03001234567"}
                     />
                   </div>
                   {formErrors.phone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.phone}</p>}
@@ -814,7 +858,7 @@ export default function SelectRolePage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email Address *
+                    Email Address {isPhoneAuth ? '(Optional)' : '*'}
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -823,13 +867,14 @@ export default function SelectRolePage() {
                     <input
                       type="email"
                       name="email"
-                      required
+                      required={!isPhoneAuth}
+                      disabled={isEmailAuth}
                       value={patientForm.email}
                       onChange={handlePatientChange}
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
                         formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
-                      }`}
-                      placeholder="Enter your email"
+                      } ${isEmailAuth ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      placeholder={isPhoneAuth ? "Enter your email (optional)" : "Enter your email"}
                     />
                   </div>
                   {formErrors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.email}</p>}
@@ -837,7 +882,7 @@ export default function SelectRolePage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone Number *
+                    Phone Number {isEmailAuth ? '(Optional)' : '*'}
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -846,13 +891,14 @@ export default function SelectRolePage() {
                     <input
                       type="tel"
                       name="phone"
-                      required
+                      required={!isEmailAuth}
+                      disabled={isPhoneAuth}
                       value={patientForm.phone}
                       onChange={handlePatientChange}
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
                         formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
-                      }`}
-                      placeholder="+92-300-1234567"
+                      } ${isPhoneAuth ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      placeholder={isEmailAuth ? "+923001234567 or 03001234567 (optional)" : "+923001234567 or 03001234567"}
                     />
                   </div>
                   {formErrors.phone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.phone}</p>}

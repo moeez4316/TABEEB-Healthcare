@@ -239,11 +239,11 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email *
+                    Email
                   </label>
                   <input
                     type="email"
-                    value={profile.email}
+                    value={profile.email || ''}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white ${
                       getFieldError(errors, 'email') 
@@ -264,7 +264,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     </label>
                     <input
                       type="text"
-                      value={profile.cnic}
+                      value={profile.cnic || ''}
                       onChange={(e) => handleInputChange('cnic', formatCNIC(e.target.value))}
                       placeholder="42401-1234567-8"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
@@ -328,7 +328,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     </label>
                     <input
                       type="number"
-                      value={profile.weight}
+                      value={profile.weight || ''}
                       onChange={(e) => handleInputChange('weight', e.target.value)}
                       placeholder="70"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
@@ -339,7 +339,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                       Blood Group
                     </label>
                     <select
-                      value={profile.bloodType}
+                      value={profile.bloodType || ''}
                       onChange={(e) => handleInputChange('bloodType', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
                     >
@@ -400,7 +400,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                       </label>
                       <input
                         type="text"
-                        value={profile.emergencyContact.name}
+                        value={profile.emergencyContact.name || ''}
                         onChange={(e) => handleEmergencyContactChange('name', e.target.value)}
                         placeholder="Emergency contact name"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
@@ -412,7 +412,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                       </label>
                       <input
                         type="text"
-                        value={profile.emergencyContact.relationship}
+                        value={profile.emergencyContact.relationship || ''}
                         onChange={(e) => handleEmergencyContactChange('relationship', e.target.value)}
                         placeholder="e.g., Father, Spouse"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
@@ -424,7 +424,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                       </label>
                       <input
                         type="tel"
-                        value={profile.emergencyContact.phone}
+                        value={profile.emergencyContact.phone || ''}
                         onChange={(e) => handleEmergencyContactChange('phone', formatPhoneNumber(e.target.value))}
                         placeholder="+92-300-1234567"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
@@ -441,11 +441,11 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone Number *
+                    Phone Number
                   </label>
                   <input
                     type="tel"
-                    value={profile.phone}
+                    value={profile.phone || ''}
                     onChange={(e) => handleInputChange('phone', formatPhoneNumber(e.target.value))}
                     placeholder="+92-300-1234567"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
@@ -457,7 +457,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     Street Address
                   </label>
                   <textarea
-                    value={profile.address.street}
+                    value={profile.address.street || ''}
                     onChange={(e) => handleAddressChange('street', e.target.value)}
                     placeholder="House/Flat number, Street name"
                     rows={2}
@@ -472,7 +472,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     </label>
                     <input
                       type="text"
-                      value={profile.address.city}
+                      value={profile.address.city || ''}
                       onChange={(e) => handleAddressChange('city', e.target.value)}
                       placeholder="Islamabad"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
@@ -483,7 +483,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                       Province
                     </label>
                     <select
-                      value={profile.address.province}
+                      value={profile.address.province || ''}
                       onChange={(e) => handleAddressChange('province', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
                     >
@@ -499,7 +499,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     </label>
                     <input
                       type="text"
-                      value={profile.address.postalCode}
+                      value={profile.address.postalCode || ''}
                       onChange={(e) => handleAddressChange('postalCode', e.target.value)}
                       placeholder="44000"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"

@@ -6,6 +6,7 @@ import { FaTachometerAlt, FaCalendarAlt, FaFileMedical, FaPills, FaRobot, FaImag
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useAppSelector } from "@/store/hooks";
 
 const navItems = [
   { label: "Dashboard", href: "/Patient/dashboard", icon: <FaTachometerAlt /> },
@@ -21,6 +22,7 @@ const navItems = [
 
 export default function Sidebar() {
   const { user, signOut } = useAuth();
+  const { profile } = useAppSelector((state) => state.patient);
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -161,7 +163,7 @@ export default function Sidebar() {
           <div className="mb-4 p-3 bg-white/10 rounded-lg transition-opacity duration-300">
             <p className="text-sm text-gray-600 dark:text-gray-400">Signed in as:</p>
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-              {user.displayName || user.email}
+              {profile.email || (user.email && !user.email.endsWith('@tabeeb.phone') ? user.email : (user.displayName || 'User'))}
             </p>
           </div>
         )}
