@@ -199,7 +199,7 @@ export default function DoctorVerificationPage() {
     const validation = validateVerificationForm(formData);
     if (!validation.isValid) {
       setErrors(validation.errors);
-      showToast('Please fix the errors below', 'error');
+      showToast('Please fix the errors highlighted below in the form fields', 'error');
       return;
     }
 

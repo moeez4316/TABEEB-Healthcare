@@ -11,8 +11,6 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
   sendPasswordResetEmail,
-  ApplicationVerifier,
-  ConfirmationResult,
 } from 'firebase/auth';
 import { auth } from './firebase';
 
@@ -33,8 +31,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  signInWithPhone: (phone: string, appVerifier: ApplicationVerifier) => Promise<ConfirmationResult>;
-  verifyPhoneOtp: (confirmationResult: ConfirmationResult, otp: string) => Promise<void>;
+  signUpWithPhone: (phone: string, password: string) => Promise<void>;
+  signInWithPhonePassword: (phone: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   fetchUserRole: () => Promise<void>;
@@ -54,27 +52,35 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Phone Auth
-  const signInWithPhone = async (phone: string, appVerifier: ApplicationVerifier): Promise<ConfirmationResult> => {
+  // Phone Auth with Password (no OTP)
+  const signUpWithPhone = async (phone: string, password: string): Promise<void> => {
     try {
-      const { signInWithPhoneNumber } = await import('firebase/auth');
-      const confirmationResult = await signInWithPhoneNumber(auth, phone, appVerifier);
-      return confirmationResult;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const verifyPhoneOtp = async (confirmationResult: ConfirmationResult, otp: string): Promise<void> => {
-    try {
-      const result = await confirmationResult.confirm(otp);
-      setUser(result.user);
+      // Convert phone number to email format for Firebase
+      const phoneEmail = `${phone.replace(/[^0-9+]/g, '')}@tabeeb.phone`;
+      const result = await createUserWithEmailAndPassword(auth, phoneEmail, password);
+      await updateProfile(result.user, {
+        displayName: phone, // Store phone as display name
+      });
+      setUser({ ...result.user, displayName: phone });
       const token = await result.user.getIdToken();
       setToken(token);
     } catch (error) {
       throw error;
     }
   };
+
+  const signInWithPhonePassword = async (phone: string, password: string): Promise<void> => {
+    try {
+      // Convert phone number to email format for Firebase
+      const phoneEmail = `${phone.replace(/[^0-9+]/g, '')}@tabeeb.phone`;
+      const result = await signInWithEmailAndPassword(auth, phoneEmail, password);
+      const token = await result.user.getIdToken();
+      setToken(token);
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
@@ -329,11 +335,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     roleLoading,
     verificationLoading,
-  signUp,
-  signIn,
-  signInWithGoogle,
-  signInWithPhone,
-  verifyPhoneOtp,
+    signUp,
+    signIn,
+    signInWithGoogle,
+    signUpWithPhone,
+    signInWithPhonePassword,
     resetPassword,
     signOut,
     fetchUserRole,

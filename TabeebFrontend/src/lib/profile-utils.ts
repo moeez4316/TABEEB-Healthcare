@@ -166,8 +166,26 @@ export function isValidCNIC(cnic: string): boolean {
   return cnicRegex.test(cnic)
 }
 
-// Validate Pakistani phone number
+// Validate Pakistani phone number (flexible format)
 export function isValidPhoneNumber(phone: string): boolean {
-  const phoneRegex = /^\+92-\d{3}-\d{7}$/
-  return phoneRegex.test(phone)
+  // Remove all non-digit characters except +
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  
+  // Check for Pakistani number formats:
+  // +923001234567 (13 digits with +92)
+  // 923001234567 (12 digits starting with 92)
+  // 03001234567 (11 digits starting with 0)
+  
+  if (cleaned.startsWith('+92')) {
+    // +92 followed by 10 digits
+    return /^\+92\d{10}$/.test(cleaned);
+  } else if (cleaned.startsWith('92')) {
+    // 92 followed by 10 digits
+    return /^92\d{10}$/.test(cleaned);
+  } else if (cleaned.startsWith('0')) {
+    // 0 followed by 10 digits
+    return /^0\d{10}$/.test(cleaned);
+  }
+  
+  return false;
 }

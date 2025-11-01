@@ -44,6 +44,17 @@ export const createPatient = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'User UID is required' });
   }
 
+  // Convert empty strings to null for email and phone
+  const cleanEmail = email?.trim() || null;
+  const cleanPhone = phone?.trim() || null;
+
+  // Validate that at least email or phone is provided
+  if (!cleanEmail && !cleanPhone) {
+    return res.status(400).json({ 
+      error: 'At least one of email or phone is required' 
+    });
+  }
+
   // Variables for cleanup
   let uploadedImagePublicId: string | null = null;
 
@@ -68,8 +79,8 @@ export const createPatient = async (req: Request, res: Response) => {
           uid,
           firstName,
           lastName,
-          email,
-          phone,
+          email: cleanEmail,
+          phone: cleanPhone,
           cnic,
           dateOfBirth: new Date(dateOfBirth),
           gender,
@@ -239,13 +250,24 @@ export const updatePatient = async (req: Request, res: Response) => {
   } = req.body;
 
   try {
+    // Convert empty strings to null for email and phone
+    const cleanEmail = email?.trim() || null;
+    const cleanPhone = phone?.trim() || null;
+
+    // Validate that at least email or phone exists when updating
+    if (email !== undefined && phone !== undefined && !cleanEmail && !cleanPhone) {
+      return res.status(400).json({ 
+        error: 'At least one of email or phone is required' 
+      });
+    }
+
     const patient = await prisma.patient.update({
       where: { uid },
       data: {
         firstName,
         lastName,
-        email,
-        phone,
+        email: cleanEmail,
+        phone: cleanPhone,
         cnic,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
         gender,

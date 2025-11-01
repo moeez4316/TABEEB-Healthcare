@@ -82,10 +82,12 @@ export default function DoctorDashboard() {
                     }
                   </h2>
                   <div className="space-y-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
-                      <Mail className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
-                      <span className="truncate">{profile.email || user.email}</span>
-                    </p>
+                    {profile.email && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                        <Mail className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
+                        <span className="truncate">{profile.email}</span>
+                      </p>
+                    )}
                     {profile.phone && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
                         <Phone className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
