@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { uploadProfileImage, deleteFromCloudinary } from '../services/uploadService';
+import { normalizePhoneForDB, formatPhoneForDisplay } from '../utils/phoneUtils';
 
 export const createDoctor = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
@@ -34,7 +35,7 @@ export const createDoctor = async (req: Request, res: Response) => {
 
   // Convert empty strings to null for email and phone
   const cleanEmail = email?.trim() || null;
-  const cleanPhone = phone?.trim() || null;
+  const cleanPhone = normalizePhoneForDB(phone);
 
   // Variables for cleanup
   let uploadedImagePublicId: string | null = null;
@@ -158,6 +159,7 @@ export const getDoctor = async (req: Request, res: Response) => {
     // Transform the response to include verification data in a more accessible format
     const response = {
       ...doctor,
+      phone: formatPhoneForDisplay(doctor.phone),
       // Map verification fields to the expected format
       pmdcNumber: doctor.verification?.pmdcNumber || null,
       cnicNumber: doctor.verification?.cnicNumber || null,
@@ -166,9 +168,7 @@ export const getDoctor = async (req: Request, res: Response) => {
       pmdcRegistrationDate: doctor.verification?.pmdcRegistrationDate || null,
       verificationStatus: doctor.verification?.status || 'not-submitted',
       isVerified: doctor.verification?.isVerified || false,
-    };
-    
-    res.json(response);
+    };    res.json(response);
   } catch (error) {
     console.error('Error fetching doctor profile:', error);
     res.status(500).json({ error: 'Failed to fetch doctor profile' });
@@ -194,7 +194,7 @@ export const updateDoctor = async (req: Request, res: Response) => {
       updateData.email = updateData.email?.trim() || null;
     }
     if ('phone' in updateData) {
-      updateData.phone = updateData.phone?.trim() || null;
+      updateData.phone = normalizePhoneForDB(updateData.phone);
     }
 
     // Validate address fields if provided

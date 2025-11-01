@@ -15,7 +15,17 @@ export function formatCNIC(value: string): string {
   }
 }
 
-// Format phone number with Pakistani format (+92-300-1234567)
+// Normalize phone number for database storage (remove dashes, keep +92 format)
+// Converts +92-300-1234567 to +923001234567
+export function normalizePhoneForDB(value: string): string {
+  if (!value || value.trim() === '') {
+    return '';
+  }
+  // Remove all non-digits except leading +
+  return value.replace(/[^\d+]/g, '');
+}
+
+// Format phone number with Pakistani format (+92-300-1234567) for display
 export function formatPhoneNumber(value: string): string {
   // Remove all non-digits
   const digits = value.replace(/\D/g, '')

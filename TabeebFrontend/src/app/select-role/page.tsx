@@ -83,20 +83,21 @@ export default function SelectRolePage() {
       // Check if email is a phone-based email (ends with @tabeeb.phone)
       const isPhoneAuth = user.email?.endsWith('@tabeeb.phone');
       const phoneFromEmail = isPhoneAuth ? user.email?.replace('@tabeeb.phone', '') : '';
+      const formattedPhone = phoneFromEmail ? formatPhoneNumber(phoneFromEmail) : '';
       
       setDoctorForm(prev => ({
         ...prev,
         firstName: '', // Let user fill their actual name
         lastName: '', // Let user fill their actual name
         email: isPhoneAuth ? '' : (user.email || ''), // Pre-fill for email auth, empty for phone auth
-        phone: phoneFromEmail || '', // Pre-fill phone if from phone auth
+        phone: formattedPhone, // Pre-fill phone if from phone auth (formatted with dashes)
       }));
       setPatientForm(prev => ({
         ...prev,
         firstName: '', // Let user fill their actual name
         lastName: '', // Let user fill their actual name
         email: isPhoneAuth ? '' : (user.email || ''), // Pre-fill for email auth, empty for phone auth
-        phone: phoneFromEmail || '', // Pre-fill phone if from phone auth
+        phone: formattedPhone, // Pre-fill phone if from phone auth (formatted with dashes)
       }));
     }
   }, [user]);

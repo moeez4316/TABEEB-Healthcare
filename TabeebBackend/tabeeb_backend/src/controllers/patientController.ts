@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { uploadProfileImage, deleteFromCloudinary } from '../services/uploadService';
 import { v2 as cloudinary } from 'cloudinary';
+import { normalizePhoneForDB, formatPhoneForDisplay } from '../utils/phoneUtils';
 
 // Create new patient profile
 export const createPatient = async (req: Request, res: Response) => {
@@ -46,7 +47,8 @@ export const createPatient = async (req: Request, res: Response) => {
 
   // Convert empty strings to null for email and phone
   const cleanEmail = email?.trim() || null;
-  const cleanPhone = phone?.trim() || null;
+  const cleanPhone = normalizePhoneForDB(phone);
+  const cleanEmergencyPhone = normalizePhoneForDB(emergencyContactPhone);
 
   // Validate that at least email or phone is provided
   if (!cleanEmail && !cleanPhone) {
@@ -98,7 +100,7 @@ export const createPatient = async (req: Request, res: Response) => {
           // Emergency Contact
           emergencyContactName,
           emergencyContactRelationship,
-          emergencyContactPhone,
+          emergencyContactPhone: cleanEmergencyPhone,
           
           // Address
           addressStreet,
@@ -172,7 +174,7 @@ export const getPatient = async (req: Request, res: Response) => {
       firstName: patient.firstName,
       lastName: patient.lastName,
       email: patient.email,
-      phone: patient.phone || '',
+      phone: formatPhoneForDisplay(patient.phone),
       cnic: patient.cnic || '',
       dateOfBirth: patient.dateOfBirth.toISOString().split('T')[0],
       gender: patient.gender,
@@ -190,7 +192,7 @@ export const getPatient = async (req: Request, res: Response) => {
       emergencyContact: {
         name: patient.emergencyContactName || '',
         relationship: patient.emergencyContactRelationship || '',
-        phone: patient.emergencyContactPhone || ''
+        phone: formatPhoneForDisplay(patient.emergencyContactPhone)
       },
       
       // Address
@@ -252,7 +254,8 @@ export const updatePatient = async (req: Request, res: Response) => {
   try {
     // Convert empty strings to null for email and phone
     const cleanEmail = email?.trim() || null;
-    const cleanPhone = phone?.trim() || null;
+    const cleanPhone = normalizePhoneForDB(phone);
+    const cleanEmergencyPhone = emergencyContact?.phone ? normalizePhoneForDB(emergencyContact.phone) : undefined;
 
     // Validate that at least email or phone exists when updating
     if (email !== undefined && phone !== undefined && !cleanEmail && !cleanPhone) {
@@ -283,7 +286,7 @@ export const updatePatient = async (req: Request, res: Response) => {
         // Emergency Contact
         emergencyContactName: emergencyContact?.name,
         emergencyContactRelationship: emergencyContact?.relationship,
-        emergencyContactPhone: emergencyContact?.phone,
+        emergencyContactPhone: cleanEmergencyPhone,
         
         // Address
         addressStreet: address?.street,
