@@ -72,7 +72,7 @@ export const initiateVideoCall = async (req: Request, res: Response) => {
     if (isDoctor) {
       // DOCTOR: Generate JWT token with moderator privileges and lobby bypass
       const userName = `Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`;
-      const userEmail = appointment.doctor.email;
+      const userEmail = appointment.doctor.email || `doctor_${appointment.doctor.uid}@tabeeb.internal`;
       const avatarUrl = appointment.doctor.profileImageUrl;
 
       const token = generateDoctorJitsiToken({
@@ -173,7 +173,7 @@ export const getVideoCallToken = async (req: Request, res: Response) => {
     if (isDoctor) {
       // DOCTOR: Generate JWT token with moderator privileges
       const userName = `Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`;
-      const userEmail = appointment.doctor.email;
+      const userEmail = appointment.doctor.email || `doctor_${appointment.doctor.uid}@tabeeb.internal`;
       const avatarUrl = appointment.doctor.profileImageUrl;
 
       const token = generateDoctorJitsiToken({

@@ -10,6 +10,7 @@ import ProfileImageUpload from '../shared/ProfileImageUpload';
 import HeightInput from '../shared/HeightInput';
 import { formatCNIC, formatPhoneNumber, pakistaniProvinces, bloodGroups, pakistaniLanguages } from '@/lib/profile-utils';
 import { ValidationErrors, getFieldError } from '@/lib/profile-validation';
+import { Toast } from '../Toast';
 
 interface PatientProfileEditModalProps {
   isOpen: boolean;
@@ -55,23 +56,64 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
   const [activeTab, setActiveTab] = useState('personal');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
   if (!isOpen) return null;
 
   const handleSave = async () => {
+    if (!token) return;
+    
     console.log('Save button clicked');
     setSaving(true);
     setErrors({});
     try {
-      await handleSaveProfile();
+      const result = await dispatch(savePatientProfile({ profileData: profile, token }));
+      
+      if (savePatientProfile.rejected.match(result)) {
+        // Handle rejection
+        const errorMessage = result.payload as string;
+        setToastMessage(errorMessage || 'Failed to save profile');
+        setToastType('error');
+        setShowToast(true);
+        return;
+      }
+      
+      // Upload profile image if changed
+      const prevImage = profile.profileImage || '';
+      if (prevImage && prevImage.startsWith('data:image')) {
+        try {
+          const response = await fetch(prevImage);
+          const blob = await response.blob();
+          const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
+          await dispatch(uploadProfileImage({ file, token }));
+        } catch (error) {
+          console.error('Error uploading profile image:', error);
+        }
+      }
+      
       dispatch(resetProfile());
-      onClose();
+      setToastMessage('Profile saved successfully!');
+      setToastType('success');
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        onClose();
+      }, 1500);
     } catch (error) {
       console.error('Error saving profile:', error);
-      setErrors({ general: 'Failed to save profile. Please try again.' });
+      setToastMessage('Failed to save profile. Please try again.');
+      setToastType('error');
+      setShowToast(true);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleClose = () => {
+    setShowToast(false);
+    onClose();
   };
 
   const handleInputChange = (field: string, value: unknown) => {
@@ -120,7 +162,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
             )}
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             <X className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -608,7 +650,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
           )}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 ml-auto w-full sm:w-auto">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors text-center"
             >
               Cancel
@@ -630,6 +672,14 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
           </div>
         </div>
       </div>
+      
+      {/* Toast Notification */}
+      <Toast
+        message={toastMessage}
+        type={toastType}
+        show={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </div>
   );
 }

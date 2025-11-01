@@ -255,6 +255,21 @@ export const updateDoctor = async (req: Request, res: Response) => {
     res.json(doctor);
   } catch (error) {
     console.error('Update doctor error:', error);
+    
+    // Handle unique constraint violations (Prisma error code P2002)
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      const prismaError = error as { code: string; meta?: { target?: string | string[] } };
+      const target = prismaError.meta?.target;
+      const targetStr = Array.isArray(target) ? target.join(',') : String(target || '');
+      
+      if (targetStr.includes('email')) {
+        return res.status(409).json({ error: 'This email is already registered with another account' });
+      } else if (targetStr.includes('phone')) {
+        return res.status(409).json({ error: 'This phone number is already registered with another account' });
+      }
+      return res.status(409).json({ error: 'This information is already registered with another account' });
+    }
+    
     res.status(500).json({ error: 'Failed to update doctor profile' });
   }
 };
