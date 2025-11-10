@@ -337,22 +337,9 @@ export const updateAvailability = async (req: Request, res: Response) => {
         const [year, month, day] = date.split('-').map(Number);
         localDate = new Date(year, month - 1, day);
       } catch (err) {
-        console.error('Error parsing date:', date, err);
         return res.status(400).json({ error: 'Invalid date format. Expected YYYY-MM-DD' });
       }
     }
-
-    // Log what we're updating
-    console.log('Updating availability:', {
-      id,
-      doctorUid,
-      date: localDate,
-      startTime: startTime || availability.startTime,
-      endTime: endTime || availability.endTime,
-      slotDuration: slotDuration || availability.slotDuration,
-      isAvailable: isAvailable !== undefined ? isAvailable : availability.isAvailable,
-      breakTimes
-    });
 
     // Update availability (NOTE: We do NOT update the date field because it's part of the unique constraint)
     const updatedAvailability = await prisma.doctorAvailability.update({
@@ -364,8 +351,6 @@ export const updateAvailability = async (req: Request, res: Response) => {
         ...(isAvailable !== undefined && { isAvailable })
       }
     });
-
-    console.log('Updated successfully:', updatedAvailability);
 
     // Update break times if provided
     if (breakTimes !== undefined) {
@@ -413,11 +398,6 @@ export const updateAvailability = async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    console.error('Error updating availability:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
     res.status(500).json({ 
       error: 'Failed to update availability',
       details: error instanceof Error ? error.message : 'Unknown error'

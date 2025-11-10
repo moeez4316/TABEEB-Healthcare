@@ -246,10 +246,7 @@ export default function DoctorAvailabilityPage() {
 
   // Open specific day editor
   const openSpecificDayEditor = async (date: Date) => {
-    console.log('Opening editor for date:', date);
-    
     if (!token) {
-      console.error('No token available');
       setError('Please log in to edit specific days');
       return;
     }
@@ -261,7 +258,6 @@ export default function DoctorAvailabilityPage() {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       const dateString = formatLocalDate(date);
-      console.log('Fetching availability for:', dateString);
       
       // Try to fetch existing availability for this specific date
       const response = await fetch(
@@ -272,12 +268,9 @@ export default function DoctorAvailabilityPage() {
           },
         }
       );
-
-      console.log('Response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Fetched data:', data);
         
         if (data && data.length > 0) {
           const availability = data[0];
@@ -292,7 +285,6 @@ export default function DoctorAvailabilityPage() {
           // No existing data, use template default for this day
           const dayOfWeek = date.getDay();
           const templateDay = weeklySchedule.find(d => d.dayOfWeek === dayOfWeek);
-          console.log('No data, using template for day:', dayOfWeek, templateDay);
           setSpecificDayData({
             startTime: templateDay?.startTime || '09:00',
             endTime: templateDay?.endTime || '17:00',
@@ -303,7 +295,6 @@ export default function DoctorAvailabilityPage() {
         }
       } else {
         // Response not ok, use template default
-        console.log('Response not ok, using template default');
         const dayOfWeek = date.getDay();
         const templateDay = weeklySchedule.find(d => d.dayOfWeek === dayOfWeek);
         setSpecificDayData({
@@ -347,11 +338,6 @@ export default function DoctorAvailabilityPage() {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       const dateString = formatLocalDate(selectedDate);
-      
-      console.log('Saving specific day:', {
-        dateString,
-        data: specificDayData
-      });
 
       // Check if availability exists for this date
       const checkResponse = await fetch(
@@ -373,7 +359,6 @@ export default function DoctorAvailabilityPage() {
 
       if (existingAvailability) {
         // Update existing availability
-        console.log('Updating existing availability:', existingAvailability.id);
         const response = await fetch(
           `${API_URL}/api/availability/${existingAvailability.id}`,
           {
@@ -408,8 +393,6 @@ export default function DoctorAvailabilityPage() {
         }
 
         const updateResult = await response.json();
-        console.log('Updated successfully:', updateResult);
-        console.log('Updated availability details:', updateResult.availability);
         
         // Show warning if there are existing appointments
         if (updateResult.warning) {
@@ -419,7 +402,6 @@ export default function DoctorAvailabilityPage() {
         }
       } else {
         // Create new availability
-        console.log('Creating new availability for date:', dateString, specificDayData);
         const response = await fetch(
           `${API_URL}/api/availability/set`,
           {
@@ -443,12 +425,10 @@ export default function DoctorAvailabilityPage() {
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error('Create failed:', response.status, errorData);
           throw new Error(errorData.error || `Failed to create specific day (${response.status})`);
         }
         
         const result = await response.json();
-        console.log('Created successfully:', result);
         
         // Show warning if there are existing appointments
         if (result.warning) {
@@ -466,7 +446,6 @@ export default function DoctorAvailabilityPage() {
       // Refresh customized dates to update calendar
       fetchCustomizedDates();
     } catch (err) {
-      console.error('Error saving specific day:', err);
       setError(err instanceof Error ? err.message : 'Failed to save specific day');
     } finally {
       setSavingSpecificDay(false);
@@ -808,7 +787,6 @@ export default function DoctorAvailabilityPage() {
                     key={index}
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log('Button clicked for date:', date);
                       openSpecificDayEditor(date);
                     }}
                     type="button"
