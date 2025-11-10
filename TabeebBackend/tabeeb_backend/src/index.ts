@@ -12,6 +12,7 @@ import appointmentRoutes from './routes/appointmentRoutes';
 import availabilityRoutes from './routes/availabilityRoutes';
 import prescriptionRoutes from './routes/prescriptionRoutes';
 import videoCallRoutes from './routes/videoCallRoutes';
+import { scheduleAutoGeneration } from './utils/autoGenerateSlots';
 
 dotenv.config();
 connectDB();
@@ -39,4 +40,9 @@ app.use('/api/video-calls', videoCallRoutes);
 
 
 const PORT = process.env.PORT || 5002;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  
+  // Start auto-generation scheduler
+  scheduleAutoGeneration();
+});

@@ -38,6 +38,36 @@ model DoctorBreakTime {
   @@map("doctor_break_times")
 }
 
+model WeeklyAvailabilityTemplate {
+  id           String                            @id @default(cuid())
+  doctorUid    String                            @db.VarChar(255)
+  dayOfWeek    Int                               // 0 = Sunday, 1 = Monday, etc.
+  isActive     Boolean                           @default(false)
+  startTime    String                            @db.VarChar(8)
+  endTime      String                            @db.VarChar(8)
+  slotDuration Int                               @default(30)
+  createdAt    DateTime                          @default(now())
+  updatedAt    DateTime                          @updatedAt
+  doctor       doctor                            @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+  breakTimes   WeeklyTemplateBreakTime[]
+
+  @@unique([doctorUid, dayOfWeek])
+  @@index([doctorUid])
+  @@map("weekly_availability_template")
+}
+
+model WeeklyTemplateBreakTime {
+  id         String                       @id @default(cuid())
+  templateId String
+  startTime  String                       @db.VarChar(8)
+  endTime    String                       @db.VarChar(8)
+  createdAt  DateTime                     @default(now())
+  template   WeeklyAvailabilityTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("weekly_template_break_times")
+}
+
 model Appointment {
   id               String                      @id @default(cuid())
   doctorUid        String                      @db.VarChar(255)
@@ -176,8 +206,9 @@ model doctor {
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @default(now()) @updatedAt
   appointments         Appointment[]
-  user                 user                 @relation(fields: [uid], references: [uid], map: "Doctor_uid_fkey")
+  user                 user                           @relation(fields: [uid], references: [uid], map: "Doctor_uid_fkey")
   availability         DoctorAvailability[]
+  weeklyTemplate       WeeklyAvailabilityTemplate[]
   prescriptions        Prescription[]
   verification         verification?
 }

@@ -461,3 +461,196 @@ export const getWeeklySchedule = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch weekly schedule' });
   }
 };
+
+// Get weekly availability template
+export const getWeeklyTemplate = async (req: Request, res: Response) => {
+  try {
+    const doctorUid = req.user!.uid;
+
+    const templates = await (prisma as any).weeklyAvailabilityTemplate.findMany({
+      where: {
+        doctorUid
+      },
+      include: {
+        breakTimes: true
+      },
+      orderBy: {
+        dayOfWeek: 'asc'
+      }
+    });
+
+    res.json(templates);
+
+  } catch (error) {
+    console.error('Error fetching weekly template:', error);
+    res.status(500).json({ error: 'Failed to fetch weekly template' });
+  }
+};
+
+// Save weekly availability template and generate slots
+export const saveWeeklyTemplate = async (req: Request, res: Response) => {
+  try {
+    const doctorUid = req.user!.uid;
+    const { schedule } = req.body;
+
+    if (!schedule || !Array.isArray(schedule)) {
+      return res.status(400).json({ error: 'Schedule array is required' });
+    }
+
+    // Delete existing templates and break times for this doctor
+    await (prisma as any).weeklyAvailabilityTemplate.deleteMany({
+      where: { doctorUid }
+    });
+
+    // Create new templates for active days
+    const activeDays = schedule.filter((day: any) => day.isActive);
+    
+    // Save each day's template (including inactive days for future reference)
+    for (const day of activeDays) {
+      const template = await (prisma as any).weeklyAvailabilityTemplate.create({
+        data: {
+          doctorUid,
+          dayOfWeek: day.dayOfWeek,
+          isActive: day.isActive,
+          startTime: day.startTime,
+          endTime: day.endTime,
+          slotDuration: day.slotDuration
+        }
+      });
+
+      // Add break times if provided
+      if (day.breakTimes && Array.isArray(day.breakTimes) && day.breakTimes.length > 0) {
+        await (prisma as any).weeklyTemplateBreakTime.createMany({
+          data: day.breakTimes.map((bt: any) => ({
+            templateId: template.id,
+            startTime: bt.startTime,
+            endTime: bt.endTime
+          }))
+        });
+      }
+    }
+
+    // Get today's date at midnight in local timezone
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    const futureDate = new Date(today);
+    futureDate.setDate(futureDate.getDate() + 30);
+    
+    // Get all dates that have appointments in the next 30 days
+    const appointmentsInRange = await prisma.appointment.findMany({
+      where: {
+        doctorUid,
+        appointmentDate: {
+          gte: today,
+          lte: futureDate
+        },
+        status: {
+          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
+        }
+      },
+      select: {
+        appointmentDate: true
+      }
+    });
+    
+    const datesWithAppointments = new Set(
+      appointmentsInRange.map(apt => apt.appointmentDate.toISOString().split('T')[0])
+    );
+    
+    // Get all availability records for this doctor in the next 30 days
+    const existingAvailability = await prisma.doctorAvailability.findMany({
+      where: {
+        doctorUid,
+        date: {
+          gte: today,
+          lte: futureDate
+        }
+      }
+    });
+    
+    // Delete only slots that don't have appointments
+    for (const availability of existingAvailability) {
+      const dateString = availability.date.toISOString().split('T')[0];
+      if (!datesWithAppointments.has(dateString)) {
+        await prisma.doctorAvailability.delete({
+          where: { id: availability.id }
+        });
+      }
+    }
+
+    // Generate availability slots for next 30 days based on template (only if there are active days)
+    const slotsGenerated = [];
+    
+    if (activeDays.length > 0) {
+      for (let i = 0; i < 30; i++) {
+        // Calculate the target date
+        const targetDate = new Date(today);
+        targetDate.setDate(targetDate.getDate() + i);
+        
+        // Get day of week from the target date
+        const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+
+        // Find template for this day of week
+        const dayTemplate = activeDays.find((d: any) => d.dayOfWeek === dayOfWeek);
+
+        if (dayTemplate) {
+        // Format date as YYYY-MM-DD to avoid timezone issues
+        const year = targetDate.getFullYear();
+        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const day = String(targetDate.getDate()).padStart(2, '0');
+        const dateString = `${year}-${month}-${day}`;
+        
+        // Skip if this date has appointments (already preserved)
+        if (datesWithAppointments.has(dateString)) {
+          continue;
+        }
+        
+        // Create availability record using string date format
+        const availability = await prisma.doctorAvailability.create({
+          data: {
+            doctorUid,
+            date: new Date(dateString), // Parse as local date
+            startTime: dayTemplate.startTime,
+            endTime: dayTemplate.endTime,
+            slotDuration: dayTemplate.slotDuration,
+            isAvailable: true
+          }
+        });
+
+        // Add break times
+        if (dayTemplate.breakTimes && dayTemplate.breakTimes.length > 0) {
+          await (prisma as any).doctorBreakTime.createMany({
+            data: dayTemplate.breakTimes.map((bt: any) => ({
+              availabilityId: availability.id,
+              startTime: bt.startTime,
+              endTime: bt.endTime
+            }))
+          });
+        }
+
+        slotsGenerated.push({
+          date: dateString,
+          dayOfWeek: dayTemplate.dayName,
+          time: `${dayTemplate.startTime} - ${dayTemplate.endTime}`
+        });
+        }
+      }
+    }
+
+    const message = activeDays.length === 0 
+      ? 'All availability disabled. No new slots will be generated.'
+      : 'Weekly template saved and availability slots generated successfully';
+
+    res.json({
+      message,
+      templateDays: activeDays.length,
+      slotsGenerated: slotsGenerated.length,
+      generatedDates: slotsGenerated
+    });
+
+  } catch (error) {
+    console.error('Error saving weekly template:', error);
+    res.status(500).json({ error: 'Failed to save weekly template' });
+  }
+};
