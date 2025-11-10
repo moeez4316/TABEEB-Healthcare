@@ -569,10 +569,28 @@ export const saveWeeklyTemplate = async (req: Request, res: Response) => {
       }
     });
     
-    // Delete only slots that don't have appointments
+    // Handle existing availability based on whether dates have appointments
     for (const availability of existingAvailability) {
       const dateString = availability.date.toISOString().split('T')[0];
-      if (!datesWithAppointments.has(dateString)) {
+      const targetDate = availability.date;
+      const dayOfWeek = targetDate.getDay();
+      
+      // Check if this day is active in the new template
+      const isActiveDayInTemplate = activeDays.some((d: any) => d.dayOfWeek === dayOfWeek);
+      
+      if (datesWithAppointments.has(dateString)) {
+        // If date has appointments but day is now disabled, mark as unavailable
+        // This preserves existing appointments but blocks new bookings
+        if (!isActiveDayInTemplate) {
+          await prisma.doctorAvailability.update({
+            where: { id: availability.id },
+            data: { isAvailable: false }
+          });
+        }
+        // If date has appointments and day is still active, keep it as is
+        // (it will be updated if needed in the generation loop below)
+      } else {
+        // No appointments on this date, safe to delete
         await prisma.doctorAvailability.delete({
           where: { id: availability.id }
         });
