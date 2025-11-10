@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Save, User, Heart, Settings, Phone, AlertCircle } from 'lucide-react';
+import { X, Save, User, Heart, Settings, Phone, AlertCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile, selectHasUnsavedChanges } from '@/store/slices/patientSlice';
@@ -11,6 +11,140 @@ import HeightInput from '../shared/HeightInput';
 import { formatCNIC, formatPhoneNumber, pakistaniProvinces, bloodGroups, pakistaniLanguages } from '@/lib/profile-utils';
 import { ValidationErrors, getFieldError } from '@/lib/profile-validation';
 import { Toast } from '../Toast';
+import { useRouter } from 'next/navigation';
+
+// Delete Account Section Component
+interface DeleteAccountSectionProps {
+    userType: 'doctor' | 'patient';
+    token: string;
+}
+
+function DeleteAccountSection({ userType, token }: DeleteAccountSectionProps) {
+    const [showConfirmation, setShowConfirmation] = useState(false);
+    const [confirmText, setConfirmText] = useState('');
+    const [deleting, setDeleting] = useState(false);
+    const [error, setError] = useState('');
+    const router = useRouter();
+    const { signOut } = useAuth();
+
+    const handleDeleteAccount = async () => {
+        if (confirmText !== 'DELETE') {
+            setError('Please type DELETE to confirm');
+            return;
+        }
+
+        setDeleting(true);
+        setError('');
+
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            const response = await fetch(`${API_URL}/api/${userType}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.details || errorData.error || 'Failed to delete account');
+            }
+
+            // Sign out from Firebase and redirect
+            await signOut();
+            router.push('/auth/login?deleted=true');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete account');
+            setDeleting(false);
+        }
+    };
+
+    const accountTypeMessage = userType === 'doctor' 
+        ? 'Patients will no longer be able to book appointments with you' 
+        : 'You will no longer be able to book appointments';
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Delete Account</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Once you delete your account, there is no going back. Please be certain.
+                </p>
+            </div>
+
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                        <h4 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">
+                            Warning: This action cannot be undone
+                        </h4>
+                        <ul className="text-sm text-red-700 dark:text-red-400 space-y-1 list-disc list-inside">
+                            <li>Your profile will be permanently deactivated</li>
+                            <li>All your appointments history will be preserved but inaccessible</li>
+                            <li>{accountTypeMessage}</li>
+                            <li>You will be logged out immediately</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            {!showConfirmation ? (
+                <button
+                    onClick={() => setShowConfirmation(true)}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+                >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Delete My Account</span>
+                </button>
+            ) : (
+                <div className="space-y-4 border border-red-300 dark:border-red-700 rounded-lg p-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                            Type <span className="font-mono font-bold text-red-600">DELETE</span> to confirm
+                        </label>
+                        <input
+                            type="text"
+                            value={confirmText}
+                            onChange={(e) => {
+                                setConfirmText(e.target.value);
+                                setError('');
+                            }}
+                            placeholder="Type DELETE here"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                        {error && (
+                            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
+                        )}
+                    </div>
+
+                    <div className="flex space-x-3">
+                        <button
+                            onClick={handleDeleteAccount}
+                            disabled={deleting || confirmText !== 'DELETE'}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center space-x-2"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            <span>{deleting ? 'Deleting...' : 'Yes, Delete My Account'}</span>
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowConfirmation(false);
+                                setConfirmText('');
+                                setError('');
+                            }}
+                            disabled={deleting}
+                            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 interface PatientProfileEditModalProps {
   isOpen: boolean;
@@ -219,6 +353,18 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
               >
                 <Settings className="h-4 w-4 flex-shrink-0" />
                 <span className="text-xs sm:text-sm font-medium">Preferences</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('danger')}
+                className={`flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap flex-shrink-0 ${
+                  activeTab === 'danger'
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                }`}
+              >
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium">Delete Account</span>
               </button>
             </nav>
           </div>
@@ -637,6 +783,11 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Delete Account Tab */}
+            {activeTab === 'danger' && (
+              <DeleteAccountSection userType="patient" token={token || ''} />
             )}
           </div>
         </div>

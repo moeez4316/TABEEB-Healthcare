@@ -152,8 +152,8 @@ export const getDoctor = async (req: Request, res: Response) => {
       }
     });
     
-    if (!doctor) {
-      return res.status(404).json({ message: 'Doctor profile not found' });
+    if (!doctor || !doctor.isActive) {
+      return res.status(404).json({ message: 'Doctor profile not found or deactivated' });
     }
     
     // Transform the response to include verification data in a more accessible format
@@ -183,6 +183,12 @@ export const updateDoctor = async (req: Request, res: Response) => {
   }
   
   try {
+    // Check if account is active
+    const existingDoctor = await prisma.doctor.findUnique({ where: { uid } });
+    if (!existingDoctor || !existingDoctor.isActive) {
+      return res.status(403).json({ error: 'Account is deactivated' });
+    }
+
     // Handle date conversion if dateOfBirth is provided
     const updateData = { ...req.body };
     if (updateData.dateOfBirth) {
@@ -276,12 +282,67 @@ export const updateDoctor = async (req: Request, res: Response) => {
 
 export const deleteDoctor = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
+  
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
   try {
-    await prisma.doctor.delete({ where: { uid } });
-    await prisma.user.delete({ where: { uid } });
-    res.json({ message: 'Doctor account deleted successfully' });
+    // Soft delete: Set isActive to false instead of removing from database
+    const doctor = await prisma.doctor.update({
+      where: { uid },
+      data: { 
+        isActive: false,
+        updatedAt: new Date()
+      }
+    });
+
+    res.json({ 
+      message: 'Doctor account deactivated successfully',
+      doctor: {
+        uid: doctor.uid,
+        name: doctor.name,
+        isActive: doctor.isActive
+      }
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete doctor profile' });
+    console.error('Error deactivating doctor profile:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ 
+      error: 'Failed to deactivate doctor profile',
+      details: errorMessage
+    });
+  }
+};
+
+// Restore soft-deleted doctor account
+export const restoreDoctor = async (req: Request, res: Response) => {
+  const uid = req.user?.uid;
+  
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
+  try {
+    const doctor = await prisma.doctor.update({
+      where: { uid },
+      data: { 
+        isActive: true,
+        updatedAt: new Date()
+      }
+    });
+
+    res.json({ 
+      message: 'Doctor account restored successfully',
+      doctor: {
+        uid: doctor.uid,
+        name: doctor.name,
+        isActive: doctor.isActive
+      }
+    });
+  } catch (error) {
+    console.error('Error restoring doctor profile:', error);
+    res.status(500).json({ error: 'Failed to restore doctor profile' });
   }
 };
 
@@ -292,6 +353,7 @@ export const getVerifiedDoctors = async (req: Request, res: Response) => {
     
     // Build where clause for filtering
     const where: any = {
+      isActive: true, // Only show active doctors
       verification: {
         status: 'approved',
         isVerified: true
@@ -371,6 +433,7 @@ export const getVerifiedDoctors = async (req: Request, res: Response) => {
     // Get unique specializations for filter options
     const specializations = await prisma.doctor.findMany({
       where: {
+        isActive: true,
         verification: {
           status: 'approved',
           isVerified: true

@@ -5,7 +5,7 @@ import { FaGoogle } from 'react-icons/fa';
 import Image from 'next/image';
 
 import { useAuth } from '../../lib/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PhoneInput from 'react-phone-number-input';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
@@ -28,6 +28,16 @@ export default function AuthPage() {
   const [success, setSuccess] = useState('');
   const { user, signUp, signIn, signInWithGoogle, resetPassword, signUpWithPhone, signInWithPhonePassword } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Check if user was redirected due to deactivated account
+    if (searchParams.get('deactivated') === 'true') {
+      setError('Your account has been deactivated. Please contact support if you believe this is an error.');
+    } else if (searchParams.get('deleted') === 'true') {
+      setSuccess('Your account has been successfully deleted.');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (user) {

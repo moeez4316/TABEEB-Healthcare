@@ -41,11 +41,20 @@ export const createPrescription = async (req: Request, res: Response) => {
     const validatedData = createPrescriptionSchema.parse(req.body);
 
     const doctor = await prisma.doctor.findUnique({
-      where: { uid: doctorUid }
+      where: { uid: doctorUid },
+      select: {
+        uid: true,
+        name: true,
+        isActive: true
+      }
     });
 
     if (!doctor) {
       return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    if (!doctor.isActive) {
+      return res.status(403).json({ error: 'Doctor account is deactivated' });
     }
 
     const patient = await prisma.patient.findUnique({
@@ -54,6 +63,10 @@ export const createPrescription = async (req: Request, res: Response) => {
 
     if (!patient) {
       return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    if (!patient.isActive) {
+      return res.status(403).json({ error: 'Patient account is deactivated' });
     }
 
     const patientAge = new Date().getFullYear() - new Date(patient.dateOfBirth).getFullYear();
@@ -494,6 +507,20 @@ export const updatePrescription = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized: Doctor ID required' });
     }
 
+    // Check if doctor account is active
+    const doctor = await prisma.doctor.findUnique({
+      where: { uid: doctorUid },
+      select: { isActive: true }
+    });
+
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    if (!doctor.isActive) {
+      return res.status(403).json({ error: 'Doctor account is deactivated' });
+    }
+
     const validatedData = updatePrescriptionSchema.parse(req.body);
 
     const existingPrescription = await prisma.prescription.findUnique({
@@ -602,6 +629,20 @@ export const deletePrescription = async (req: Request, res: Response) => {
 
     if (!doctorUid) {
       return res.status(401).json({ error: 'Unauthorized: Doctor ID required' });
+    }
+
+    // Check if doctor account is active
+    const doctor = await prisma.doctor.findUnique({
+      where: { uid: doctorUid },
+      select: { isActive: true }
+    });
+
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    if (!doctor.isActive) {
+      return res.status(403).json({ error: 'Doctor account is deactivated' });
     }
 
     const existingPrescription = await prisma.prescription.findUnique({

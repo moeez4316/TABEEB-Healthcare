@@ -4,10 +4,9 @@ import { uploadProfileImage, deleteFromCloudinary } from '../services/uploadServ
 import { v2 as cloudinary } from 'cloudinary';
 import { normalizePhoneForDB, formatPhoneForDisplay } from '../utils/phoneUtils';
 
-// Create new patient profile
 export const createPatient = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
-  const file = req.file; // Get uploaded file from multer
+  const file = req.file;
   const { 
     firstName, 
     lastName, 
@@ -16,23 +15,19 @@ export const createPatient = async (req: Request, res: Response) => {
     cnic,
     dateOfBirth, 
     gender,
-    // Medical Information
     bloodType,
     height,
     weight,
     allergies,
     medications,
     medicalConditions,
-    // Emergency Contact
     emergencyContactName,
     emergencyContactRelationship,
     emergencyContactPhone,
-    // Address
     addressStreet,
     addressCity,
     addressProvince,
     addressPostalCode,
-    // Preferences
     language,
     notificationsEmail,
     notificationsSms,
@@ -127,7 +122,6 @@ export const createPatient = async (req: Request, res: Response) => {
         const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
         uploadedImagePublicId = uploadResult.public_id;
 
-        // Step 3: Update patient record with image URLs
         await prisma.patient.update({
           where: { uid },
           data: {
@@ -136,14 +130,12 @@ export const createPatient = async (req: Request, res: Response) => {
           }
         });
 
-        // Update the patient object to return with image URLs
         patient.profileImageUrl = uploadResult.secure_url;
         patient.profileImagePublicId = uploadResult.public_id;
 
       } catch (imageError) {
         console.error('Profile image upload error:', imageError);
-        // Patient is created successfully, just without image
-        // This is acceptable - user can upload image later
+
       }
     }
 
@@ -167,7 +159,7 @@ export const getPatient = async (req: Request, res: Response) => {
   
   try {
     const patient = await prisma.patient.findUnique({ where: { uid } });
-    if (!patient) return res.status(404).json({ error: 'Patient not found' });
+    if (!patient || !patient.isActive) return res.status(404).json({ error: 'Patient not found or deactivated' });
 
     // Format response to match frontend structure
     const formattedPatient = {
@@ -252,6 +244,12 @@ export const updatePatient = async (req: Request, res: Response) => {
   } = req.body;
 
   try {
+    // Check if account is active
+    const existingPatient = await prisma.patient.findUnique({ where: { uid } });
+    if (!existingPatient || !existingPatient.isActive) {
+      return res.status(403).json({ error: 'Account is deactivated' });
+    }
+
     // Convert empty strings to null for email and phone
     const cleanEmail = email?.trim() || null;
     const cleanPhone = normalizePhoneForDB(phone);
@@ -407,7 +405,7 @@ export const deletePatientProfileImage = async (req: Request, res: Response) => 
   }
 };
 
-// Delete patient profile
+// Delete patient profile (soft delete)
 export const deletePatient = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
   
@@ -421,18 +419,62 @@ export const deletePatient = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Patient not found' });
     }
 
-    // Delete profile image from Cloudinary if exists
-    if (patient.profileImagePublicId) {
-      await cloudinary.uploader.destroy(patient.profileImagePublicId);
-    }
-
-    // Delete patient and user records
-    await prisma.patient.delete({ where: { uid } });
-    await prisma.user.delete({ where: { uid } });
+    // Soft delete: Set isActive to false instead of removing from database
+    await prisma.patient.update({
+      where: { uid },
+      data: { 
+        isActive: false,
+        updatedAt: new Date()
+      }
+    });
     
-    res.json({ message: 'Patient account deleted successfully' });
+    res.json({ 
+      message: 'Patient account deactivated successfully',
+      patient: {
+        uid: patient.uid,
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+        isActive: false
+      }
+    });
   } catch (error) {
-    console.error('Delete patient error:', error);
-    res.status(500).json({ error: 'Failed to delete patient profile' });
+    console.error('Error deactivating patient profile:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ 
+      error: 'Failed to deactivate patient profile',
+      details: errorMessage
+    });
+  }
+};
+
+// Restore soft-deleted patient account
+export const restorePatient = async (req: Request, res: Response) => {
+  const uid = req.user?.uid;
+  
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
+  try {
+    const patient = await prisma.patient.update({
+      where: { uid },
+      data: { 
+        isActive: true,
+        updatedAt: new Date()
+      }
+    });
+
+    res.json({ 
+      message: 'Patient account restored successfully',
+      patient: {
+        uid: patient.uid,
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+        isActive: patient.isActive
+      }
+    });
+  } catch (error) {
+    console.error('Error restoring patient profile:', error);
+    res.status(500).json({ error: 'Failed to restore patient profile' });
   }
 };

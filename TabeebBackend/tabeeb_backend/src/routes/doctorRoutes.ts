@@ -5,6 +5,7 @@ import {
   getDoctor,
   updateDoctor,
   deleteDoctor,
+  restoreDoctor,
   getVerifiedDoctors,
 } from '../controllers/doctorController';
 import { verifyToken } from '../middleware/verifyToken';
@@ -33,6 +34,7 @@ router.post('/', verifyToken, upload.single('profileImage'), createDoctor);
 router.get('/', verifyToken, getDoctor);
 router.put('/', jsonParser, verifyToken, updateDoctor);
 router.delete('/', jsonParser, verifyToken, deleteDoctor);
+router.post('/restore', jsonParser, verifyToken, restoreDoctor);
 
 // Public route to get verified doctors for patients
 router.get('/verified', getVerifiedDoctors);

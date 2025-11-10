@@ -15,6 +15,12 @@ export const setDoctorAvailability = async (req: Request, res: Response) => {
       isAvailable = true 
     } = req.body;
 
+    // Check if doctor account is active
+    const doctor = await prisma.doctor.findUnique({ where: { uid: doctorUid } });
+    if (!doctor || !doctor.isActive) {
+      return res.status(403).json({ error: 'Account is deactivated' });
+    }
+
     // Basic validation
     if (!date || !startTime || !endTime) {
       return res.status(400).json({ error: 'Date, start time, and end time are required' });
@@ -292,6 +298,12 @@ export const updateAvailability = async (req: Request, res: Response) => {
     const doctorUid = req.user!.uid;
     const { date, startTime, endTime, slotDuration, breakTimes, isAvailable } = req.body;
 
+    // Check if doctor account is active
+    const doctor = await prisma.doctor.findUnique({ where: { uid: doctorUid } });
+    if (!doctor || !doctor.isActive) {
+      return res.status(403).json({ error: 'Account is deactivated' });
+    }
+
     // Find existing availability
     const availability = await prisma.doctorAvailability.findFirst({
       where: {
@@ -538,6 +550,12 @@ export const saveWeeklyTemplate = async (req: Request, res: Response) => {
   try {
     const doctorUid = req.user!.uid;
     const { schedule } = req.body;
+
+    // Check if doctor account is active
+    const doctor = await prisma.doctor.findUnique({ where: { uid: doctorUid } });
+    if (!doctor || !doctor.isActive) {
+      return res.status(403).json({ error: 'Account is deactivated' });
+    }
 
     if (!schedule || !Array.isArray(schedule)) {
       return res.status(400).json({ error: 'Schedule array is required' });

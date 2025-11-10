@@ -46,6 +46,10 @@ export const submitVerification = async (req: Request, res: Response) => {
       });
     }
 
+    if (!doctor.isActive) {
+      return res.status(403).json({ error: 'Doctor account is deactivated' });
+    }
+
     // Check if verification already exists
     const existing = await prisma.verification.findUnique({ where: { doctorUid } });
     

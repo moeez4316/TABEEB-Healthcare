@@ -5,6 +5,7 @@ import {
   getPatient,
   updatePatient,
   deletePatient,
+  restorePatient,
   uploadPatientProfileImage,
   deletePatientProfileImage,
 } from '../controllers/patientController';
@@ -35,6 +36,7 @@ router.post('/', verifyToken, upload.single('profileImage'), createPatient);
 router.get('/', verifyToken, getPatient);
 router.put('/', jsonParser, verifyToken, updatePatient);
 router.delete('/', jsonParser, verifyToken, deletePatient);
+router.post('/restore', jsonParser, verifyToken, restorePatient);
 
 // Profile image routes
 router.post('/profile-image', verifyToken, upload.single('profileImage'), uploadPatientProfileImage);

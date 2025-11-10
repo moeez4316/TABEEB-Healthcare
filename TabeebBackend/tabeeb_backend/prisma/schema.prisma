@@ -203,6 +203,7 @@ model doctor {
   notificationsPush    Boolean              @default(true)
   privacyShareData     Boolean              @default(false)
   privacyMarketing     Boolean              @default(false)
+  isActive             Boolean              @default(true)
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @default(now()) @updatedAt
   appointments         Appointment[]
@@ -243,6 +244,7 @@ model patient {
   notificationsPush            Boolean        @default(true)
   privacyShareData             Boolean        @default(false)
   privacyMarketing             Boolean        @default(false)
+  isActive                     Boolean        @default(true)
   createdAt                    DateTime       @default(now())
   updatedAt                    DateTime       @default(now()) @updatedAt
   appointments                 Appointment[]

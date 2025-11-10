@@ -123,6 +123,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (status) {
           localStorage.setItem('verificationStatus', status);
         }
+      } else if (verificationRes.status === 403) {
+        // Check if account is deactivated
+        const errorData = await verificationRes.json();
+        if (errorData.code === 'ACCOUNT_DEACTIVATED') {
+          // Sign out user and redirect to login with message
+          await firebaseSignOut(auth);
+          setUser(null);
+          setToken(null);
+          setRole(null);
+          setVerificationStatus(null);
+          localStorage.removeItem('role');
+          localStorage.removeItem('verificationStatus');
+          window.location.href = '/auth?deactivated=true';
+          return;
+        }
+        setVerificationStatus('not-submitted');
+        localStorage.setItem('verificationStatus', 'not-submitted');
       } else if (verificationRes.status === 404) {
         // No verification submitted yet
         setVerificationStatus('not-submitted');
@@ -169,6 +186,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('role', `${userRole}`);
         return;
 
+      } else if (userRes.status === 403) {
+        // Check if account is deactivated
+        const errorData = await userRes.json();
+        if (errorData.code === 'ACCOUNT_DEACTIVATED') {
+          // Sign out user and redirect to login with message
+          await firebaseSignOut(auth);
+          setUser(null);
+          setToken(null);
+          setRole(null);
+          localStorage.removeItem('role');
+          localStorage.removeItem('verificationStatus');
+          window.location.href = '/auth?deactivated=true';
+          return;
+        }
+        setRole('no-role');
+        localStorage.removeItem('role');
+        return;
       } else {
         setRole('no-role');
         localStorage.removeItem('role');

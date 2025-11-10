@@ -77,7 +77,8 @@ export const bookAppointment = async (req: Request, res: Response) => {
         where: { uid: doctorUid },
         select: {
           name: true,
-          specialization: true
+          specialization: true,
+          isActive: true
         }
       }),
       prisma.patient.findUnique({
@@ -85,7 +86,8 @@ export const bookAppointment = async (req: Request, res: Response) => {
         select: {
           firstName: true,
           lastName: true,
-          phone: true
+          phone: true,
+          isActive: true
         }
       })
     ]);
@@ -94,8 +96,16 @@ export const bookAppointment = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Doctor not found' });
     }
 
+    if (!doctor.isActive) {
+      return res.status(403).json({ error: 'Doctor account is deactivated' });
+    }
+
     if (!patient) {
       return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    if (!patient.isActive) {
+      return res.status(403).json({ error: 'Your account is deactivated' });
     }
 
     // Create appointment
@@ -280,6 +290,20 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     const doctorUid = req.user!.uid;
     const { status, doctorNotes, cancelReason } = req.body;
 
+    // Check if doctor account is active
+    const doctor = await prisma.doctor.findUnique({
+      where: { uid: doctorUid },
+      select: { isActive: true }
+    });
+
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    if (!doctor.isActive) {
+      return res.status(403).json({ error: 'Doctor account is deactivated' });
+    }
+
     // Validate status
     const validStatuses = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
     if (!validStatuses.includes(status)) {
@@ -353,6 +377,27 @@ export const cancelAppointment = async (req: Request, res: Response) => {
 
     if (!cancelReason) {
       return res.status(400).json({ error: 'Cancel reason is required' });
+    }
+
+    // Check if user account is active (can be doctor or patient)
+    const [doctor, patient] = await Promise.all([
+      prisma.doctor.findUnique({
+        where: { uid: userUid },
+        select: { isActive: true }
+      }),
+      prisma.patient.findUnique({
+        where: { uid: userUid },
+        select: { isActive: true }
+      })
+    ]);
+
+    const user = doctor || patient;
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Your account is deactivated' });
     }
 
     // Find appointment (can be cancelled by patient or doctor)

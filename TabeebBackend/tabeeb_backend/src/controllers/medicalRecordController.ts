@@ -2,12 +2,27 @@ import { Request, Response } from 'express';
 import MedicalRecord from '../models/MedicalRecord';
 import { uploadToCloudinary } from '../services/uploadService';
 import { v2 as cloudinary } from 'cloudinary';
+import prisma from '../lib/prisma';
 
 export const uploadRecord = async (req: Request, res: Response) => {
   try {
     const file = req.file;
     let { tags, notes } = req.body;
     if (!file) return res.status(400).json({ error: 'No file uploaded' });
+
+    // Check if patient account is active
+    const patient = await prisma.patient.findUnique({
+      where: { uid: req.user!.uid },
+      select: { isActive: true }
+    });
+
+    if (!patient) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    if (!patient.isActive) {
+      return res.status(403).json({ error: 'Your account is deactivated' });
+    }
 
     // Determine resource_type for Cloudinary
     let resourceType: 'image' | 'raw' = 'raw';
@@ -42,6 +57,20 @@ export const uploadRecord = async (req: Request, res: Response) => {
 
 export const deleteRecord = async (req: Request, res: Response) => {
   try {
+    // Check if patient account is active
+    const patient = await prisma.patient.findUnique({
+      where: { uid: req.user!.uid },
+      select: { isActive: true }
+    });
+
+    if (!patient) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    if (!patient.isActive) {
+      return res.status(403).json({ error: 'Your account is deactivated' });
+    }
+
     const record = await MedicalRecord.findOne({ _id: req.params.id, userId: req.user!.uid });
     if (!record) return res.status(404).json({ error: 'Record not found' });
 
@@ -63,6 +92,25 @@ export const deleteRecord = async (req: Request, res: Response) => {
 };
 
 export const getRecords = async (req: Request, res: Response) => {
-  const records = await MedicalRecord.find({ userId: req.user!.uid });
-  res.json(records);
+  try {
+    // Check if patient account is active
+    const patient = await prisma.patient.findUnique({
+      where: { uid: req.user!.uid },
+      select: { isActive: true }
+    });
+
+    if (!patient) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    if (!patient.isActive) {
+      return res.status(403).json({ error: 'Your account is deactivated' });
+    }
+
+    const records = await MedicalRecord.find({ userId: req.user!.uid });
+    res.json(records);
+  } catch (err) {
+    console.error('Get records error:', err);
+    res.status(500).json({ error: 'Failed to fetch records', details: err });
+  }
 };
