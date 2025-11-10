@@ -20,11 +20,15 @@ export const setDoctorAvailability = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Date, start time, and end time are required' });
     }
 
+    // Parse date as local date to avoid timezone issues
+    const [year, month, day] = date.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day);
+
     // Check if availability already exists for this date
     const existingAvailability = await prisma.doctorAvailability.findFirst({
       where: {
         doctorUid,
-        date: new Date(date)
+        date: localDate
       }
     });
 
@@ -36,7 +40,7 @@ export const setDoctorAvailability = async (req: Request, res: Response) => {
     const availability = await prisma.doctorAvailability.create({
       data: {
         doctorUid,
-        date: new Date(date),
+        date: localDate,
         startTime,
         endTime,
         slotDuration,
@@ -300,17 +304,68 @@ export const updateAvailability = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Availability not found' });
     }
 
-    // Update availability
+    // Check for existing appointments on this date
+    const existingAppointments = await prisma.appointment.findMany({
+      where: {
+        doctorUid,
+        appointmentDate: availability.date,
+        status: {
+          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
+        }
+      }
+    });
+
+    const hasAppointments = existingAppointments.length > 0;
+    let warning = null;
+
+    // If disabling a day with appointments, warn but allow
+    if (isAvailable === false && hasAppointments) {
+      warning = `This day has ${existingAppointments.length} existing appointment(s). They will remain active but no new bookings will be allowed.`;
+    }
+
+    // If changing times with appointments, warn
+    if (hasAppointments && (startTime || endTime || slotDuration)) {
+      if (!warning) {
+        warning = `This day has ${existingAppointments.length} existing appointment(s). Existing appointments will be preserved.`;
+      }
+    }
+
+    // Parse date as local date to avoid timezone issues
+    let localDate = availability.date;
+    if (date) {
+      try {
+        const [year, month, day] = date.split('-').map(Number);
+        localDate = new Date(year, month - 1, day);
+      } catch (err) {
+        console.error('Error parsing date:', date, err);
+        return res.status(400).json({ error: 'Invalid date format. Expected YYYY-MM-DD' });
+      }
+    }
+
+    // Log what we're updating
+    console.log('Updating availability:', {
+      id,
+      doctorUid,
+      date: localDate,
+      startTime: startTime || availability.startTime,
+      endTime: endTime || availability.endTime,
+      slotDuration: slotDuration || availability.slotDuration,
+      isAvailable: isAvailable !== undefined ? isAvailable : availability.isAvailable,
+      breakTimes
+    });
+
+    // Update availability (NOTE: We do NOT update the date field because it's part of the unique constraint)
     const updatedAvailability = await prisma.doctorAvailability.update({
       where: { id },
       data: {
-        ...(date && { date: new Date(date) }),
         ...(startTime && { startTime }),
         ...(endTime && { endTime }),
         ...(slotDuration && { slotDuration }),
         ...(isAvailable !== undefined && { isAvailable })
       }
     });
+
+    console.log('Updated successfully:', updatedAvailability);
 
     // Update break times if provided
     if (breakTimes !== undefined) {
@@ -349,13 +404,24 @@ export const updateAvailability = async (req: Request, res: Response) => {
 
     res.json({
       availability: finalAvailability,
-      message: 'Availability updated successfully with break times',
-      note: 'Time slots are generated on-demand when requested'
+      message: 'Availability updated successfully',
+      warning,
+      existingAppointmentsCount: hasAppointments ? existingAppointments.length : 0,
+      note: hasAppointments 
+        ? 'Existing appointments are preserved and accessible to both doctor and patients'
+        : 'Changes will apply to this specific day only'
     });
 
   } catch (error) {
     console.error('Error updating availability:', error);
-    res.status(500).json({ error: 'Failed to update availability' });
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    res.status(500).json({ 
+      error: 'Failed to update availability',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
