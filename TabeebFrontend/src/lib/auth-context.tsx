@@ -300,6 +300,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authInitialized, token, role, verificationStatus, verificationLoading, fetchVerificationStatus]);
 
+  // Periodically check if logged-in user's account is still active
+  useEffect(() => {
+    if (!token || !role || role === 'no-role') return;
+
+    const checkAccountStatus = async () => {
+      try {
+        const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+        const userRes = await fetch(`${API_URL}/api/user`, { headers });
+
+        if (userRes.status === 403) {
+          const errorData = await userRes.json();
+          if (errorData.code === 'ACCOUNT_DEACTIVATED') {
+            // Account was suspended - force logout
+            await firebaseSignOut(auth);
+            setUser(null);
+            setToken(null);
+            setRole(null);
+            localStorage.removeItem('role');
+            localStorage.removeItem('verificationStatus');
+            localStorage.removeItem('persist:tabeeb-root');
+            window.location.href = '/auth?deactivated=true';
+          }
+        }
+      } catch (error) {
+        // Silently fail - don't disrupt user experience for network errors
+        console.error('Account status check failed:', error);
+      }
+    };
+
+    // Check every 5 minutes
+    const interval = setInterval(checkAccountStatus, 5 * 60 * 1000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, [token, role]);
+
   const signUp = async (email: string, password: string, displayName: string) => {
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
