@@ -487,3 +487,88 @@ export const getVerifiedDoctors = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch doctors' });
   }
 };
+
+// Upload profile image separately
+export const uploadDoctorProfileImage = async (req: Request, res: Response) => {
+  const uid = req.user?.uid;
+  const file = req.file;
+
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
+  if (!file) {
+    return res.status(400).json({ error: 'No image file provided' });
+  }
+
+  try {
+    // Check if doctor exists
+    const doctor = await prisma.doctor.findUnique({ where: { uid } });
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    // Delete old profile image from Cloudinary if exists
+    if (doctor.profileImagePublicId) {
+      await deleteFromCloudinary(doctor.profileImagePublicId);
+    }
+
+    // Upload new image to Cloudinary
+    const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
+
+    // Update doctor record with new image data
+    await prisma.doctor.update({
+      where: { uid },
+      data: { 
+        profileImageUrl: uploadResult.secure_url,
+        profileImagePublicId: uploadResult.public_id
+      }
+    });
+
+    res.json({
+      message: 'Profile image uploaded successfully',
+      imageUrl: uploadResult.secure_url
+    });
+
+  } catch (error) {
+    console.error('Upload profile image error:', error);
+    res.status(500).json({ error: 'Failed to upload profile image' });
+  }
+};
+
+// Delete profile image
+export const deleteDoctorProfileImage = async (req: Request, res: Response) => {
+  const uid = req.user?.uid;
+
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
+  try {
+    // Check if doctor exists
+    const doctor = await prisma.doctor.findUnique({ where: { uid } });
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    // Delete image from Cloudinary if exists
+    if (doctor.profileImagePublicId) {
+      await deleteFromCloudinary(doctor.profileImagePublicId);
+    }
+
+    // Update doctor record to remove image data
+    await prisma.doctor.update({
+      where: { uid },
+      data: { 
+        profileImageUrl: null,
+        profileImagePublicId: null
+      }
+    });
+
+    res.json({ message: 'Profile image deleted successfully' });
+
+  } catch (error) {
+    console.error('Delete profile image error:', error);
+    res.status(500).json({ error: 'Failed to delete profile image' });
+  }
+};

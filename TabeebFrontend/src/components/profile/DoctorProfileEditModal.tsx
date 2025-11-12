@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Save, User, Stethoscope, MapPin, Settings, AlertCircle, Trash2, DollarSign } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { updateProfile, saveDoctorProfile, uploadDoctorProfileImage, DoctorProfile, selectHasUnsavedChanges, resetProfile } from '@/store/slices/doctorSlice';
+import { updateProfile, saveDoctorProfile, uploadDoctorProfileImage, DoctorProfile, resetProfile } from '@/store/slices/doctorSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import { formatPhoneNumber, pakistaniProvinces } from '@/lib/profile-utils';
 import { Toast } from '../Toast';
@@ -162,39 +162,18 @@ interface DoctorProfileEditModalProps {
 
 export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: DoctorProfileEditModalProps) {
     const dispatch = useAppDispatch();
-    const { profile } = useAppSelector((state) => state.doctor);
-    const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
+    const { profile } = useAppSelector((state) => state.doctor || { profile: null });
+    const hasUnsavedChanges = useAppSelector((state) => {
+        const doctorState = state.doctor;
+        if (!doctorState) return false;
+        return JSON.stringify(doctorState.profile) !== JSON.stringify(doctorState.originalProfile);
+    });
 
     // Get token from auth context
     const { token } = useAuth();
 
     const handleUpdateProfile = (updates: Partial<DoctorProfile>) => {
         dispatch(updateProfile(updates));
-    };
-
-    const handleSaveProfile = async () => {
-        if (profile && token) {
-            // If there's a new profile image (base64), upload it first
-            if (profile.profileImage && profile.profileImage.startsWith('data:')) {
-                try {
-                    // Convert base64 to File object
-                    const response = await fetch(profile.profileImage);
-                    const blob = await response.blob();
-                    const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
-                    
-                    // Upload the image
-                    const uploadResult = await dispatch(uploadDoctorProfileImage({ file, token }));
-                    if (uploadResult.type.endsWith('/fulfilled')) {
-                        // Image upload successful, the profileImage URL is now updated in the store
-                    }
-                } catch (error) {
-                    console.error('Error uploading profile image:', error);
-                }
-            }
-            
-            // Save the profile
-            await dispatch(saveDoctorProfile({ profileData: profile, token }));
-        }
     };
 
     const [activeTab, setActiveTab] = useState('personal');
@@ -210,7 +189,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
         }
     }, [isOpen, initialTab]);
 
-    if (!isOpen) return null;
+    if (!isOpen || !profile) return null;
 
     const handleSave = async () => {
         if (!token) return;
@@ -219,28 +198,67 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
         setSaving(true);
         
         try {
-            const result = await dispatch(saveDoctorProfile({ profileData: profile, token }));
+            const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            let updatedImageUrl: string | undefined;
+            
+            // Step 1: Upload profile image FIRST if it's a base64 image
+            if (profile.profileImage && profile.profileImage.startsWith('data:image')) {
+                const blob = await fetch(profile.profileImage).then(r => r.blob());
+                
+                // Validate file size (5MB limit to match backend)
+                if (blob.size > 5 * 1024 * 1024) {
+                    setToastMessage('Profile image must be less than 5MB');
+                    setToastType('error');
+                    setShowToast(true);
+                    setSaving(false);
+                    return;
+                }
+                
+                const file = new File([blob], 'profile-image.jpg', { type: blob.type });
+                const formData = new FormData();
+                formData.append('profileImage', file);
+                
+                const uploadRes = await fetch(`${API_URL}/api/doctor/profile-image`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData,
+                });
+                
+                if (!uploadRes.ok) {
+                    setToastMessage('Failed to upload profile image');
+                    setToastType('error');
+                    setShowToast(true);
+                    setSaving(false);
+                    return;
+                }
+                
+                // Get the Cloudinary URL from response
+                const uploadResult = await uploadRes.json();
+                updatedImageUrl = uploadResult.imageUrl;
+                console.log('Image uploaded, new URL:', updatedImageUrl);
+            }
+            
+            // Step 2: Save the profile with the Cloudinary URL (not base64)
+            const profileToSave = { ...profile };
+            
+            // Replace base64 with Cloudinary URL if we just uploaded
+            if (updatedImageUrl) {
+                profileToSave.profileImage = updatedImageUrl;
+            } else if (profileToSave.profileImage && profileToSave.profileImage.startsWith('data:image')) {
+                // If somehow we still have base64, remove it
+                delete profileToSave.profileImage;
+            }
+            
+            const result = await dispatch(saveDoctorProfile({ profileData: profileToSave, token }));
             
             if (saveDoctorProfile.rejected.match(result)) {
-                // Handle rejection
                 const errorMessage = result.payload as string;
                 setToastMessage(errorMessage || 'Failed to save profile');
                 setToastType('error');
                 setShowToast(true);
                 return;
-            }
-            
-            // Upload profile image if it's a base64 string
-            const prevImage = profile.profileImage || '';
-            if (prevImage && prevImage.startsWith('data:image')) {
-                try {
-                    const response = await fetch(prevImage);
-                    const blob = await response.blob();
-                    const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
-                    await dispatch(uploadDoctorProfileImage({ file, token }));
-                } catch (error) {
-                    console.error('Error uploading profile image:', error);
-                }
             }
             
             setToastMessage('Profile saved successfully!');

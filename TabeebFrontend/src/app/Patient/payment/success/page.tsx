@@ -30,7 +30,7 @@ export default function PaymentSuccessPage() {
             Payment Successful!
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-400">
-            Your appointment has been confirmed
+            Waiting for doctor approval
           </p>
         </div>
 
@@ -57,9 +57,9 @@ export default function PaymentSuccessPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Status:</span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400">
                   <FaCheckCircle className="mr-1" />
-                  Confirmed
+                  Payment Received
                 </span>
               </div>
             </div>
@@ -71,20 +71,24 @@ export default function PaymentSuccessPage() {
           <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-3">What&apos;s Next?</h3>
           <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-400">
             <li className="flex items-start">
-              <span className="mr-2">✓</span>
-              <span>You will receive a confirmation email shortly</span>
+              <span className="mr-2">⏳</span>
+              <span><strong>Waiting for doctor approval</strong> - Your payment has been received</span>
             </li>
             <li className="flex items-start">
               <span className="mr-2">✓</span>
-              <span>The doctor will be notified of your appointment</span>
+              <span>The doctor will review and accept/reject your appointment request</span>
             </li>
             <li className="flex items-start">
               <span className="mr-2">✓</span>
-              <span>You can view your appointment details anytime</span>
+              <span>You will be notified once the doctor responds</span>
             </li>
             <li className="flex items-start">
               <span className="mr-2">✓</span>
-              <span>Please arrive 10 minutes early for your appointment</span>
+              <span>You can track your appointment status in the appointments section</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">✓</span>
+              <span>If approved, please arrive 10 minutes early for your appointment</span>
             </li>
           </ul>
         </div>

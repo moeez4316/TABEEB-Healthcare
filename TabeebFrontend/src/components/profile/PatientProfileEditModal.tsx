@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { X, Save, User, Heart, Settings, Phone, AlertCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile, selectHasUnsavedChanges } from '@/store/slices/patientSlice';
+import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile } from '@/store/slices/patientSlice';
 import { resetProfile } from '@/store/slices/patientSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import HeightInput from '../shared/HeightInput';
@@ -153,8 +153,12 @@ interface PatientProfileEditModalProps {
 
 export default function PatientProfileEditModal({ isOpen, onClose }: PatientProfileEditModalProps) {
   const dispatch = useAppDispatch();
-  const { profile, isLoading } = useAppSelector((state) => state.patient);
-  const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
+  const { profile, isLoading } = useAppSelector((state) => state.patient || { profile: null, isLoading: false });
+  const hasUnsavedChanges = useAppSelector((state) => {
+    const patientState = state.patient;
+    if (!patientState) return false;
+    return JSON.stringify(patientState.profile) !== JSON.stringify(patientState.originalProfile);
+  });
   
   // Get token from auth context
   const { token } = useAuth();
@@ -163,30 +167,6 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
     dispatch(updateProfile(updates));
   };
 
-  const handleSaveProfile = async () => {
-    if (profile && token) {
-      // If there's a new profile image (base64), upload it first
-      if (profile.profileImage && profile.profileImage.startsWith('data:')) {
-        try {
-          // Convert base64 to File object
-          const response = await fetch(profile.profileImage);
-          const blob = await response.blob();
-          const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
-          
-          // Upload the image
-          const uploadResult = await dispatch(uploadProfileImage({ file, token }));
-          if (uploadResult.type.endsWith('/fulfilled')) {
-            // Image upload successful, the profileImage URL is now updated in the store
-          }
-        } catch (error) {
-          console.error('Error uploading profile image:', error);
-        }
-      }
-      
-      // Save the profile
-      await dispatch(savePatientProfile({ profileData: profile, token }));
-    }
-  };
   const [activeTab, setActiveTab] = useState('personal');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
@@ -194,7 +174,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
-  if (!isOpen) return null;
+  if (!isOpen || !profile) return null;
 
   const handleSave = async () => {
     if (!token) return;
@@ -202,11 +182,64 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
     console.log('Save button clicked');
     setSaving(true);
     setErrors({});
+    
     try {
-      const result = await dispatch(savePatientProfile({ profileData: profile, token }));
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      let updatedImageUrl: string | undefined;
+      
+      // Step 1: Upload profile image FIRST if it's a base64 image
+      if (profile.profileImage && profile.profileImage.startsWith('data:image')) {
+        const blob = await fetch(profile.profileImage).then(r => r.blob());
+        
+        // Validate file size (5MB limit to match backend)
+        if (blob.size > 5 * 1024 * 1024) {
+          setToastMessage('Profile image must be less than 5MB');
+          setToastType('error');
+          setShowToast(true);
+          setSaving(false);
+          return;
+        }
+        
+        const file = new File([blob], 'profile-image.jpg', { type: blob.type });
+        const formData = new FormData();
+        formData.append('profileImage', file);
+        
+        const uploadRes = await fetch(`${API_URL}/api/patient/profile-image`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+        
+        if (!uploadRes.ok) {
+          setToastMessage('Failed to upload profile image');
+          setToastType('error');
+          setShowToast(true);
+          setSaving(false);
+          return;
+        }
+        
+        // Get the Cloudinary URL from response
+        const uploadResult = await uploadRes.json();
+        updatedImageUrl = uploadResult.imageUrl;
+        console.log('Image uploaded, new URL:', updatedImageUrl);
+      }
+      
+      // Step 2: Save the profile with the Cloudinary URL (not base64)
+      const profileToSave = { ...profile };
+      
+      // Replace base64 with Cloudinary URL if we just uploaded
+      if (updatedImageUrl) {
+        profileToSave.profileImage = updatedImageUrl;
+      } else if (profileToSave.profileImage && profileToSave.profileImage.startsWith('data:image')) {
+        // If somehow we still have base64, remove it
+        delete profileToSave.profileImage;
+      }
+      
+      const result = await dispatch(savePatientProfile({ profileData: profileToSave, token }));
       
       if (savePatientProfile.rejected.match(result)) {
-        // Handle rejection
         const errorMessage = result.payload as string;
         setToastMessage(errorMessage || 'Failed to save profile');
         setToastType('error');
@@ -214,20 +247,6 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
         return;
       }
       
-      // Upload profile image if changed
-      const prevImage = profile.profileImage || '';
-      if (prevImage && prevImage.startsWith('data:image')) {
-        try {
-          const response = await fetch(prevImage);
-          const blob = await response.blob();
-          const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
-          await dispatch(uploadProfileImage({ file, token }));
-        } catch (error) {
-          console.error('Error uploading profile image:', error);
-        }
-      }
-      
-      dispatch(resetProfile());
       setToastMessage('Profile saved successfully!');
       setToastType('success');
       setShowToast(true);
@@ -246,6 +265,10 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
   };
 
   const handleClose = () => {
+    // Reset to original profile if there are unsaved changes
+    if (hasUnsavedChanges) {
+      dispatch(resetProfile());
+    }
     setShowToast(false);
     onClose();
   };
@@ -544,7 +567,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     Known Allergies
                   </label>
                   <textarea
-                    value={profile.allergies.join(', ')}
+                    value={Array.isArray(profile.allergies) ? profile.allergies.join(', ') : ''}
                     onChange={(e) => handleInputChange('allergies', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
                     placeholder="List any allergies separated by commas..."
                     rows={3}
@@ -557,7 +580,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     Current Medications
                   </label>
                   <textarea
-                    value={profile.medications.join(', ')}
+                    value={Array.isArray(profile.medications) ? profile.medications.join(', ') : ''}
                     onChange={(e) => handleInputChange('medications', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
                     placeholder="List current medications separated by commas..."
                     rows={3}
@@ -570,7 +593,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     Medical Conditions
                   </label>
                   <textarea
-                    value={profile.medicalConditions.join(', ')}
+                    value={Array.isArray(profile.medicalConditions) ? profile.medicalConditions.join(', ') : ''}
                     onChange={(e) => handleInputChange('medicalConditions', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
                     placeholder="List any medical conditions separated by commas..."
                     rows={3}
@@ -794,11 +817,10 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
 
         {/* Footer */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 sm:p-6 border-t border-gray-200 dark:border-slate-700 flex-shrink-0 gap-3 sm:gap-0">
-          {errors.general && (
-            <div className="text-red-600 dark:text-red-400 text-sm">
-              {errors.general}
-            </div>
-          )}
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {hasUnsavedChanges && 'You have unsaved changes'}
+          </div>
+          
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 ml-auto w-full sm:w-auto">
             <button
               onClick={handleClose}

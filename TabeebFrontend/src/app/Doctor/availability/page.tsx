@@ -26,7 +26,7 @@ interface DaySchedule {
 export default function DoctorAvailabilityPage() {
   const { token } = useAuth();
   const dispatch = useAppDispatch();
-  const { profile } = useAppSelector((state) => state.doctor);
+  const { profile } = useAppSelector((state) => state.doctor || { profile: null });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -568,7 +568,7 @@ export default function DoctorAvailabilityPage() {
                 </h3>
               </div>
               
-              {profile.hourlyConsultationRate && profile.hourlyConsultationRate > 0 ? (
+              {profile?.hourlyConsultationRate && profile.hourlyConsultationRate > 0 ? (
                 <div>
                   <div className="flex items-baseline space-x-2 mb-2">
                     <span className="text-3xl font-bold text-teal-600 dark:text-teal-400">
@@ -615,7 +615,7 @@ export default function DoctorAvailabilityPage() {
               <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
-              {profile.hourlyConsultationRate && profile.hourlyConsultationRate > 0 ? 'Update Rate' : 'Set Rate'}
+              {profile?.hourlyConsultationRate && profile.hourlyConsultationRate > 0 ? 'Update Rate' : 'Set Rate'}
             </button>
           </div>
         </div>

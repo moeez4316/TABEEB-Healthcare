@@ -765,20 +765,21 @@ export const confirmAppointmentPayment = async (req: Request, res: Response) => 
     }
 
     // TODO: Integrate with actual payment gateway (GoFast Pay, JazzCash, Easypaisa, etc.)
-    // For now, just update appointment status to CONFIRMED
+    // For now, just mark payment as received but keep appointment status as PENDING
+    // The appointment should remain PENDING until doctor accepts it
     
     const updatedAppointment = await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
-        status: 'CONFIRMED'
+        // Keep status as PENDING - doctor needs to accept
         // TODO: Add payment-related fields when schema is updated
-        // paymentMethod, transactionId, paymentStatus, etc.
+        // paymentMethod, transactionId, paymentStatus, paymentDate, etc.
       }
     });
 
     res.json({
       success: true,
-      message: 'Payment confirmed successfully',
+      message: 'Payment received successfully. Appointment pending doctor approval.',
       appointment: updatedAppointment,
       transactionId
     });
