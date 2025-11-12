@@ -356,6 +356,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear role from localStorage on logout
       localStorage.removeItem('role');
       localStorage.removeItem('verificationStatus');
+      // Clear persisted Redux state
+      localStorage.removeItem('persist:tabeeb-root');
     } catch (error) {
       throw error;
     }

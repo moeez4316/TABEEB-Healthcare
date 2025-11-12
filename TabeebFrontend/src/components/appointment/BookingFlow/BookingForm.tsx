@@ -80,7 +80,9 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           {doctor.consultationFees && (
             <div>
               <span className="text-teal-700 dark:text-teal-300">Consultation Fee:</span>
-              <div className="font-medium text-green-600 dark:text-green-400">${doctor.consultationFees}</div>
+              <div className="font-medium text-green-600 dark:text-green-400">
+                PKR {Math.round(doctor.consultationFees * (selectedSlot.duration / 60)).toLocaleString('en-PK')}
+              </div>
             </div>
           )}
         </div>

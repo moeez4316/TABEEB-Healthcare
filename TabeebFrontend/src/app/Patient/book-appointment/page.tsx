@@ -72,13 +72,13 @@ export default function BookAppointmentPage() {
         uid: string;
         name: string;
         specialization: string;
-        consultationFees?: number;
+        hourlyConsultationRate?: number;
         verification?: { isVerified: boolean };
       }) => ({
         uid: doctor.uid,
         name: doctor.name,
         specialization: doctor.specialization,
-        consultationFees: doctor.consultationFees || 100, // Default fee
+        consultationFees: doctor.hourlyConsultationRate || 1500, // Default fee PKR 1500
         rating: 4.5, // Default rating
         isAvailable: doctor.verification?.isVerified || false
       })) || [];
@@ -162,9 +162,18 @@ export default function BookAppointmentPage() {
       }
 
       const result = await response.json();
+      const appointment = result.appointment;
       
-      setBookedAppointment(result.appointment);
-      setCurrentStep('confirmation');
+      // Redirect to payment page with appointment details
+      const paymentParams = new URLSearchParams({
+        appointmentId: appointment.id,
+        amount: appointment.consultationFees?.toString() || '0',
+        doctorName: selectedDoctor?.name || 'Doctor',
+        date: selectedDate ? new Date(selectedDate).toLocaleDateString('en-PK') : '',
+        time: selectedSlot?.startTime || ''
+      });
+      
+      router.push(`/Patient/payment?${paymentParams.toString()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to book appointment');
     } finally {

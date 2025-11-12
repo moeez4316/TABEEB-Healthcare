@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { loadDoctorProfile } from '@/store/slices/doctorSlice';
 import { FaClock, FaPlus, FaTimes, FaSave, FaCopy, FaCheck } from 'react-icons/fa';
+import DoctorProfileEditModal from '@/components/profile/DoctorProfileEditModal';
 
 interface BreakTime {
   startTime: string;
@@ -22,10 +25,13 @@ interface DaySchedule {
 
 export default function DoctorAvailabilityPage() {
   const { token } = useAuth();
+  const dispatch = useAppDispatch();
+  const { profile } = useAppSelector((state) => state.doctor);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
   
   const [weeklySchedule, setWeeklySchedule] = useState<DaySchedule[]>([
     { dayOfWeek: 1, dayName: 'Monday', dayShort: 'Mon', isActive: false, startTime: '09:00', endTime: '17:00', slotDuration: 30, breakTimes: [] },
@@ -84,7 +90,7 @@ export default function DoctorAvailabilityPage() {
       if (response.ok) {
         const data = await response.json();
         // Parse dates as local dates and format as YYYY-MM-DD
-        const dates = new Set<string>(data.map((avail: any) => {
+        const dates = new Set<string>(data.map((avail: { date: string | Date }) => {
           const d = new Date(avail.date);
           return formatLocalDate(d);
         }));
@@ -542,6 +548,77 @@ export default function DoctorAvailabilityPage() {
             <div className="text-red-800 dark:text-red-400">{error}</div>
           </div>
         )}
+
+        {success && (
+          <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <div className="text-green-800 dark:text-green-400">{success}</div>
+          </div>
+        )}
+
+        {/* Hourly Rate Display */}
+        <div className="mb-6 bg-gradient-to-r from-teal-50 to-blue-50 dark:from-teal-900/20 dark:to-blue-900/20 border-2 border-teal-200 dark:border-teal-700 rounded-xl p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-2">
+                <svg className="h-5 w-5 text-teal-600 dark:text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Consultation Fees
+                </h3>
+              </div>
+              
+              {profile.hourlyConsultationRate && profile.hourlyConsultationRate > 0 ? (
+                <div>
+                  <div className="flex items-baseline space-x-2 mb-2">
+                    <span className="text-3xl font-bold text-teal-600 dark:text-teal-400">
+                      PKR {profile.hourlyConsultationRate.toLocaleString('en-PK')}
+                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">per hour</span>
+                  </div>
+                  <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                    <p className="flex items-center space-x-2">
+                      <span className="text-gray-500 dark:text-gray-400">•</span>
+                      <span>30 min appointment: <strong className="text-teal-600 dark:text-teal-400">PKR {(profile.hourlyConsultationRate * 0.5).toLocaleString('en-PK')}</strong></span>
+                    </p>
+                    <p className="flex items-center space-x-2">
+                      <span className="text-gray-500 dark:text-gray-400">•</span>
+                      <span>45 min appointment: <strong className="text-teal-600 dark:text-teal-400">PKR {(profile.hourlyConsultationRate * 0.75).toLocaleString('en-PK')}</strong></span>
+                    </p>
+                    <p className="flex items-center space-x-2">
+                      <span className="text-gray-500 dark:text-gray-400">•</span>
+                      <span>60 min appointment: <strong className="text-teal-600 dark:text-teal-400">PKR {profile.hourlyConsultationRate.toLocaleString('en-PK')}</strong></span>
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <svg className="h-5 w-5 text-amber-500 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span className="text-lg font-medium text-amber-700 dark:text-amber-400">
+                      No hourly rate set
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Set your hourly consultation rate to automatically calculate appointment fees based on duration.
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <button
+              onClick={() => setShowProfileEdit(true)}
+              className="ml-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors whitespace-nowrap"
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              {profile.hourlyConsultationRate && profile.hourlyConsultationRate > 0 ? 'Update Rate' : 'Set Rate'}
+            </button>
+          </div>
+        </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700">
           <div className="p-6 border-b border-gray-200 dark:border-slate-700">
@@ -1022,7 +1099,7 @@ export default function DoctorAvailabilityPage() {
                 <li>Toggle days on/off like setting alarms</li>
                 <li>Set start/end times and slot duration for each active day</li>
                 <li>Add optional break times (lunch, prayers, etc.)</li>
-                <li>Use "Copy to Weekdays" for quick setup</li>
+                <li>Use &quot;Copy to Weekdays&quot; for quick setup</li>
                 <li><strong>Click any specific date below to customize just that day</strong></li>
                 <li>Appointments will be available based on your weekly schedule</li>
               </ul>
@@ -1030,6 +1107,19 @@ export default function DoctorAvailabilityPage() {
           </div>
         </div>
       </main>
+
+      {/* Profile Edit Modal */}
+      <DoctorProfileEditModal
+        isOpen={showProfileEdit}
+        onClose={() => {
+          setShowProfileEdit(false);
+          // Reload profile to ensure we have the latest data from backend
+          if (token) {
+            dispatch(loadDoctorProfile(token));
+          }
+        }}
+        initialTab="billing"
+      />
     </div>
   );
 }

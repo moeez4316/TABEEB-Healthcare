@@ -266,7 +266,7 @@ export default function PatientAppointmentsPage() {
                         {appointment.consultationFees && (
                           <div className="flex items-center space-x-2">
                             <span className="text-green-600 dark:text-green-400 font-medium">
-                              ${appointment.consultationFees}
+                              PKR {appointment.consultationFees.toLocaleString('en-PK')}
                             </span>
                           </div>
                         )}

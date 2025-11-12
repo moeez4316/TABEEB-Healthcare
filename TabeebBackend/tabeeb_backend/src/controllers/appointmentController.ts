@@ -78,7 +78,8 @@ export const bookAppointment = async (req: Request, res: Response) => {
         select: {
           name: true,
           specialization: true,
-          isActive: true
+          isActive: true,
+          hourlyConsultationRate: true
         }
       }),
       prisma.patient.findUnique({
@@ -108,6 +109,14 @@ export const bookAppointment = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Your account is deactivated' });
     }
 
+    // Calculate consultation fees based on doctor's hourly rate and appointment duration
+    let consultationFees = 1500; // Default fee PKR 1500
+    if (doctor.hourlyConsultationRate) {
+      const hourlyRate = parseFloat(doctor.hourlyConsultationRate.toString());
+      const durationMultiplier = availability.slotDuration / 60;
+      consultationFees = hourlyRate * durationMultiplier;
+    }
+
     // Create appointment
     const appointment = await prisma.appointment.create({
       data: {
@@ -119,7 +128,7 @@ export const bookAppointment = async (req: Request, res: Response) => {
         duration: availability.slotDuration,
         status: 'PENDING',
         patientNotes,
-        consultationFees: 1000 // Default consultation fee in cents (PKR 10.00)
+        consultationFees
       },
       include: {
         doctor: {
@@ -737,5 +746,45 @@ export const getAppointmentSharedDocuments = async (req: Request, res: Response)
   } catch (error) {
     console.error('Error fetching shared documents:', error);
     res.status(500).json({ error: 'Failed to fetch shared documents' });
+  }
+};
+
+// Confirm payment for appointment (dummy endpoint for now)
+export const confirmAppointmentPayment = async (req: Request, res: Response) => {
+  try {
+    const { appointmentId } = req.params;
+    const { paymentMethod, phoneNumber, amount, transactionId } = req.body;
+
+    // Validate appointment exists
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId }
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    // TODO: Integrate with actual payment gateway (GoFast Pay, JazzCash, Easypaisa, etc.)
+    // For now, just update appointment status to CONFIRMED
+    
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: 'CONFIRMED'
+        // TODO: Add payment-related fields when schema is updated
+        // paymentMethod, transactionId, paymentStatus, etc.
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Payment confirmed successfully',
+      appointment: updatedAppointment,
+      transactionId
+    });
+
+  } catch (error) {
+    console.error('Error confirming payment:', error);
+    res.status(500).json({ error: 'Failed to confirm payment' });
   }
 };

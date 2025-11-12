@@ -17,6 +17,7 @@ export const createDoctor = async (req: Request, res: Response) => {
     specialization, 
     qualification, 
     experience,
+    hourlyConsultationRate,
     addressStreet,
     addressCity,
     addressProvince,
@@ -60,6 +61,17 @@ export const createDoctor = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Postal code must be exactly 5 digits' });
     }
 
+    // Validate hourly consultation rate if provided
+    if (hourlyConsultationRate !== undefined && hourlyConsultationRate !== null) {
+      const rate = parseFloat(hourlyConsultationRate);
+      if (isNaN(rate) || rate < 0) {
+        return res.status(400).json({ error: 'Hourly consultation rate must be a positive number' });
+      }
+      if (rate > 50000) {
+        return res.status(400).json({ error: 'Hourly consultation rate cannot exceed PKR 50,000' });
+      }
+    }
+
     // Step 1: Create database records in a transaction (atomic operation)
     const doctor = await prisma.$transaction(async (tx) => {
       // Check if user already exists, if not create it
@@ -84,6 +96,7 @@ export const createDoctor = async (req: Request, res: Response) => {
           specialization,
           qualification,
           experience: experience ? String(experience) : null,
+          hourlyConsultationRate: hourlyConsultationRate ? parseFloat(hourlyConsultationRate) : null,
           addressStreet,
           addressCity,
           addressProvince,
@@ -244,6 +257,22 @@ export const updateDoctor = async (req: Request, res: Response) => {
     // Convert experience to string if provided
     if (updateData.experience !== undefined) {
       updateData.experience = updateData.experience ? String(updateData.experience) : null;
+    }
+
+    // Validate and convert hourly consultation rate if provided
+    if ('hourlyConsultationRate' in updateData) {
+      if (updateData.hourlyConsultationRate === null || updateData.hourlyConsultationRate === '') {
+        updateData.hourlyConsultationRate = null;
+      } else {
+        const rate = parseFloat(updateData.hourlyConsultationRate);
+        if (isNaN(rate) || rate < 0) {
+          return res.status(400).json({ error: 'Hourly consultation rate must be a positive number' });
+        }
+        if (rate > 50000) {
+          return res.status(400).json({ error: 'Hourly consultation rate cannot exceed PKR 50,000' });
+        }
+        updateData.hourlyConsultationRate = rate;
+      }
     }
 
     // Ensure name is updated if firstName or lastName changes
@@ -417,6 +446,7 @@ export const getVerifiedDoctors = async (req: Request, res: Response) => {
         specialization: true,
         qualification: true,
         experience: true,
+        hourlyConsultationRate: true,
         profileImageUrl: true,
         addressCity: true,
         addressProvince: true,
