@@ -103,15 +103,19 @@ export const setDoctorAvailability = async (req: Request, res: Response) => {
 export const getDoctorAvailability = async (req: Request, res: Response) => {
   try {
     const { doctorUid } = req.params;
-    const { date, startDate, endDate } = req.query;
+    const { date, startDate, endDate, includeUnavailable } = req.query;
     
     // Use provided doctorUid or authenticated user's UID
     const targetDoctorUid = doctorUid || req.user!.uid;
 
     let whereClause: any = {
-      doctorUid: targetDoctorUid,
-      isAvailable: true
+      doctorUid: targetDoctorUid
     };
+
+    // Only filter by isAvailable if includeUnavailable is not set
+    if (includeUnavailable !== 'true') {
+      whereClause.isAvailable = true;
+    }
 
     // Date filtering
     if (date) {
@@ -561,15 +565,29 @@ export const saveWeeklyTemplate = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Schedule array is required' });
     }
 
+    // Get existing templates to know which days were previously managed
+    const existingTemplates = await (prisma as any).weeklyAvailabilityTemplate.findMany({
+      where: { doctorUid },
+      select: { dayOfWeek: true }
+    });
+    const previouslyManagedDays = new Set(existingTemplates.map((t: any) => t.dayOfWeek));
+    
     // Delete existing templates and break times for this doctor
     await (prisma as any).weeklyAvailabilityTemplate.deleteMany({
       where: { doctorUid }
     });
 
-    // Create new templates for active days
-    const activeDays = schedule.filter((day: any) => day.isActive);
+    // NOTE: Frontend only sends ACTIVE days now
+    // So all days in schedule are active days that should be managed
+    const activeDays = schedule;
+    const currentlyManagedDays = new Set(activeDays.map((d: any) => d.dayOfWeek));
     
-    // Save each day's template (including inactive days for future reference)
+    // Find days that were previously managed but are now removed (toggled off)
+    const removedDays = Array.from(previouslyManagedDays).filter(
+      day => !currentlyManagedDays.has(day)
+    );
+    
+    // Save each active day's template
     for (const day of activeDays) {
       const template = await (prisma as any).weeklyAvailabilityTemplate.create({
         data: {
@@ -633,31 +651,59 @@ export const saveWeeklyTemplate = async (req: Request, res: Response) => {
       }
     });
     
-    // Handle existing availability based on whether dates have appointments
+    // Handle existing availability based on template changes
+    // SIMPLIFIED LOGIC (Frontend only sends ACTIVE days):
+    // 1. For days in schedule (all are active): Delete all existing availability for that day of week (will be recreated)
+    // 2. For days NOT in schedule: Preserve existing availability (not managed by template)
+    // 3. Exception: Never delete dates with appointments, keep them as is
+    
+    // Get day of weeks that are being managed by this template (only active days from frontend)
+    const activeDaysOfWeek = new Set(activeDays.map((d: any) => d.dayOfWeek));
+    
     for (const availability of existingAvailability) {
       const dateString = availability.date.toISOString().split('T')[0];
       const targetDate = availability.date;
       const dayOfWeek = targetDate.getDay();
       
-      // Check if this day is active in the new template
-      const isActiveDayInTemplate = activeDays.some((d: any) => d.dayOfWeek === dayOfWeek);
+      const isActiveDayInTemplate = activeDaysOfWeek.has(dayOfWeek);
       
       if (datesWithAppointments.has(dateString)) {
-        // If date has appointments but day is now disabled, mark as unavailable
-        // This preserves existing appointments but blocks new bookings
-        if (!isActiveDayInTemplate) {
-          await prisma.doctorAvailability.update({
-            where: { id: availability.id },
-            data: { isAvailable: false }
-          });
-        }
-        // If date has appointments and day is still active, keep it as is
-        // (it will be updated if needed in the generation loop below)
-      } else {
-        // No appointments on this date, safe to delete
+        // Date has appointments - never delete, keep as is
+        continue;
+      }
+      
+      // Date has no appointments
+      if (isActiveDayInTemplate) {
+        // This day of week is ACTIVE in template
+        // Delete existing availability - it will be recreated from template with new settings
         await prisma.doctorAvailability.delete({
           where: { id: availability.id }
         });
+      }
+      // If day is NOT in template, preserve it (not managed)
+    }
+    
+    // Delete availability for days that were removed from template (toggled off)
+    // This handles the case: Friday was in template, now it's toggled off
+    if (removedDays.length > 0) {
+      for (const availability of existingAvailability) {
+        const dateString = availability.date.toISOString().split('T')[0];
+        const targetDate = availability.date;
+        const dayOfWeek = targetDate.getDay();
+        
+        // Skip if already deleted above or has appointments
+        if (activeDaysOfWeek.has(dayOfWeek) || datesWithAppointments.has(dateString)) {
+          continue;
+        }
+        
+        // If this day was removed from template, delete its availability
+        if (removedDays.includes(dayOfWeek)) {
+          await prisma.doctorAvailability.delete({
+            where: { id: availability.id }
+          }).catch(() => {
+            // Ignore if already deleted
+          });
+        }
       }
     }
 
@@ -679,20 +725,22 @@ export const saveWeeklyTemplate = async (req: Request, res: Response) => {
         if (dayTemplate) {
         // Format date as YYYY-MM-DD to avoid timezone issues
         const year = targetDate.getFullYear();
-        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-        const day = String(targetDate.getDate()).padStart(2, '0');
-        const dateString = `${year}-${month}-${day}`;
+        const month = targetDate.getMonth(); // 0-indexed (0 = January, 11 = December)
+        const day = targetDate.getDate();
+        const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         
-        // Skip if this date has appointments (already preserved)
+        // Skip if this date has appointments (already preserved/updated above)
         if (datesWithAppointments.has(dateString)) {
           continue;
         }
         
-        // Create availability record using string date format
+        // Create availability record from template
+        // Note: Any existing availability for this day of week was already deleted above
+        // So we can safely create new records from the template
         const availability = await prisma.doctorAvailability.create({
           data: {
             doctorUid,
-            date: new Date(dateString), // Parse as local date
+            date: new Date(year, month, day, 12, 0, 0, 0), // Parse as local date at noon
             startTime: dayTemplate.startTime,
             endTime: dayTemplate.endTime,
             slotDuration: dayTemplate.slotDuration,

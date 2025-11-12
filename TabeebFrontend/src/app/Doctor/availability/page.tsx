@@ -345,9 +345,9 @@ export default function DoctorAvailabilityPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       const dateString = formatLocalDate(selectedDate);
 
-      // Check if availability exists for this date
+      // Check if availability exists for this date (including unavailable records)
       const checkResponse = await fetch(
-        `${API_URL}/api/availability/doctor?date=${dateString}`,
+        `${API_URL}/api/availability/doctor?date=${dateString}&includeUnavailable=true`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -476,13 +476,16 @@ export default function DoctorAvailabilityPage() {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       
+      // Only send ACTIVE days to the backend
+      // This ensures only toggled days are managed by the template
+      // Other days (inactive/untouched) won't be affected
       const response = await fetch(`${API_URL}/api/availability/template`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ schedule: weeklySchedule }),
+        body: JSON.stringify({ schedule: activeDays }),
       });
 
       if (!response.ok) {
@@ -492,6 +495,9 @@ export default function DoctorAvailabilityPage() {
 
       const result = await response.json();
       setSuccess(result.message || 'Weekly schedule saved! Slots generated for next 30 days.');
+      
+      // Refresh customized dates to reflect changes in the calendar
+      await fetchCustomizedDates();
       
     } catch (err) {
       console.error('Error saving schedule:', err);
@@ -868,23 +874,28 @@ export default function DoctorAvailabilityPage() {
                     }}
                     type="button"
                     className={`
-                      relative p-3 rounded-lg border-2 transition-all text-center hover:shadow-md cursor-pointer
-                      ${isToday ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : ''}
+                      relative p-3 rounded-lg transition-all text-center hover:shadow-md cursor-pointer
+                      ${isToday ? 'ring-2 ring-teal-500 ring-offset-2 dark:ring-offset-slate-900 border-2 border-teal-500 bg-gradient-to-br from-teal-50 to-blue-50 dark:from-teal-900/30 dark:to-blue-900/30 shadow-lg' : 'border-2'}
                       ${!isToday && isCustomized ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/10 hover:border-blue-400' : ''}
                       ${!isToday && !isCustomized && isTemplateActive ? 'border-gray-300 bg-white dark:bg-slate-700 hover:border-gray-400' : ''}
                       ${!isToday && !isCustomized && !isTemplateActive ? 'border-gray-200 bg-gray-50 dark:bg-slate-700/50 hover:border-gray-300' : ''}
                     `}
                   >
+                    {isToday && (
+                      <div className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-teal-500 text-white text-[10px] font-bold rounded-full shadow-md">
+                        TODAY
+                      </div>
+                    )}
                     {isCustomized && !isToday && (
                       <div className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                     )}
-                    <div className={`text-xs font-medium ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                    <div className={`text-xs font-medium ${isToday ? 'text-teal-700 dark:text-teal-300' : 'text-gray-500 dark:text-gray-400'}`}>
                       {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek]}
                     </div>
-                    <div className={`text-lg font-bold mt-1 ${isToday ? 'text-blue-600 dark:text-blue-400' : isCustomized ? 'text-blue-600 dark:text-blue-400' : isTemplateActive ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
+                    <div className={`text-lg font-bold mt-1 ${isToday ? 'text-teal-600 dark:text-teal-400' : isCustomized ? 'text-blue-600 dark:text-blue-400' : isTemplateActive ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
                       {date.getDate()}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <div className={`text-xs mt-1 ${isToday ? 'text-teal-600 dark:text-teal-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
                       {date.toLocaleDateString('en-US', { month: 'short' })}
                     </div>
                   </button>
