@@ -26,9 +26,9 @@ export const setDoctorAvailability = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Date, start time, and end time are required' });
     }
 
-    // Parse date as local date to avoid timezone issues
+    // Parse date as local date at noon to avoid timezone issues
     const [year, month, day] = date.split('-').map(Number);
-    const localDate = new Date(year, month - 1, day);
+    const localDate = new Date(year, month - 1, day, 12, 0, 0, 0);
 
     // Check if availability already exists for this date
     const existingAvailability = await prisma.doctorAvailability.findFirst({
