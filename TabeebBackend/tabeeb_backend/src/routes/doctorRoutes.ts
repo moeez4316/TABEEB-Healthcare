@@ -5,7 +5,10 @@ import {
   getDoctor,
   updateDoctor,
   deleteDoctor,
+  restoreDoctor,
   getVerifiedDoctors,
+  uploadDoctorProfileImage,
+  deleteDoctorProfileImage,
 } from '../controllers/doctorController';
 import { verifyToken } from '../middleware/verifyToken';
 
@@ -33,6 +36,11 @@ router.post('/', verifyToken, upload.single('profileImage'), createDoctor);
 router.get('/', verifyToken, getDoctor);
 router.put('/', jsonParser, verifyToken, updateDoctor);
 router.delete('/', jsonParser, verifyToken, deleteDoctor);
+router.post('/restore', jsonParser, verifyToken, restoreDoctor);
+
+// Profile image routes
+router.post('/profile-image', verifyToken, upload.single('profileImage'), uploadDoctorProfileImage);
+router.delete('/profile-image', jsonParser, verifyToken, deleteDoctorProfileImage);
 
 // Public route to get verified doctors for patients
 router.get('/verified', getVerifiedDoctors);

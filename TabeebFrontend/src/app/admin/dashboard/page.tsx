@@ -190,9 +190,8 @@ export default function AdminDashboard() {
       title: 'User Management',
       description: 'Manage users and permissions',
       icon: Users,
-      action: () => alert('User management coming soon!'),
+      action: () => router.push('/admin/users'),
       color: 'purple',
-      disabled: true
     }
   ];
 

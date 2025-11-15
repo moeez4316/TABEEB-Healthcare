@@ -16,6 +16,7 @@ export interface DoctorProfile {
   qualification: string
   pmdcNumber: string
   experience: string // in years
+  hourlyConsultationRate: number | null // PKR per hour
   
   // Address Information
   address: {
@@ -89,6 +90,7 @@ const defaultProfile: DoctorProfile = {
   qualification: '',
   pmdcNumber: '',
   experience: '',
+  hourlyConsultationRate: null,
   
   // Address Information
   address: {
@@ -158,6 +160,7 @@ export const createDoctorProfile = createAsyncThunk(
         specialization: profileData.specialization,
         qualification: profileData.qualification,
         experience: profileData.experience,
+        hourlyConsultationRate: profileData.hourlyConsultationRate,
         addressStreet: profileData.address.street,
         addressCity: profileData.address.city,
         addressProvince: profileData.address.province,
@@ -213,6 +216,7 @@ export const saveDoctorProfile = createAsyncThunk(
         specialization: profileData.specialization,
         qualification: profileData.qualification,
         experience: profileData.experience,
+        hourlyConsultationRate: profileData.hourlyConsultationRate,
         addressStreet: profileData.address.street,
         addressCity: profileData.address.city,
         addressProvince: profileData.address.province,
@@ -290,6 +294,9 @@ export const loadDoctorProfile = createAsyncThunk(
         qualification: backendData.qualification || '',
         pmdcNumber: backendData.pmdcNumber || '',
         experience: backendData.experience || '',
+        hourlyConsultationRate: backendData.hourlyConsultationRate !== undefined && backendData.hourlyConsultationRate !== null 
+          ? Number(backendData.hourlyConsultationRate) 
+          : null,
         address: {
           street: backendData.addressStreet || '',
           city: backendData.addressCity || '',

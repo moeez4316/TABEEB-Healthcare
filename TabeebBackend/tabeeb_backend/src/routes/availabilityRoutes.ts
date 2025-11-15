@@ -11,7 +11,9 @@ import {
   getAvailableSlots,
   updateAvailability,
   deleteAvailability,
-  getWeeklySchedule
+  getWeeklySchedule,
+  getWeeklyTemplate,
+  saveWeeklyTemplate
 } from '../controllers/availabilityController';
 
 const router = express.Router();
@@ -35,5 +37,9 @@ router.delete('/:id', validateCUID('id'), deleteAvailability);
 // Get weekly schedule view
 router.get('/schedule/:doctorUid', getWeeklySchedule);
 router.get('/schedule', getWeeklySchedule);
+
+// Weekly template routes (authenticated)
+router.get('/template', getWeeklyTemplate);
+router.post('/template', saveWeeklyTemplate);
 
 export default router;

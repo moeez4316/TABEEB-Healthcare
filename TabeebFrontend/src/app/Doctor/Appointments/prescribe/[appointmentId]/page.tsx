@@ -618,14 +618,14 @@ export default function PrescribePage() {
               {/* Notes */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Notes
+                  Recommended Tests:
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => handleInputChange('notes', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-slate-700 dark:text-white"
                   rows={3}
-                  placeholder="Additional notes about the patient condition..."
+                  placeholder="Recommended tests for the patient..."
                 />
               </div>
 

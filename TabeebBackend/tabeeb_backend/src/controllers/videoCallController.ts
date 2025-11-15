@@ -40,6 +40,15 @@ export const initiateVideoCall = async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'Unauthorized to access this appointment' });
     }
 
+    // Check if both doctor and patient accounts are active
+    if (!appointment.doctor.isActive) {
+      return res.status(403).json({ message: 'Doctor account is deactivated' });
+    }
+
+    if (!appointment.patient.isActive) {
+      return res.status(403).json({ message: 'Patient account is deactivated' });
+    }
+
     // Check if appointment is confirmed or in progress
     if (appointment.status !== 'CONFIRMED' && appointment.status !== 'IN_PROGRESS') {
       return res.status(400).json({ 
@@ -159,6 +168,15 @@ export const getVideoCallToken = async (req: Request, res: Response) => {
 
     if (appointment.doctorUid !== userUid && appointment.patientUid !== userUid) {
       return res.status(403).json({ message: 'Unauthorized to access this appointment' });
+    }
+
+    // Check if both doctor and patient accounts are active
+    if (!appointment.doctor.isActive) {
+      return res.status(403).json({ message: 'Doctor account is deactivated' });
+    }
+
+    if (!appointment.patient.isActive) {
+      return res.status(403).json({ message: 'Patient account is deactivated' });
     }
 
     if (!appointment.videoCall) {

@@ -3,7 +3,7 @@
 import React from 'react';
 import { Appointment } from '@/types/appointment';
 import { formatTime, formatDate } from '@/lib/dateUtils';
-import { FaCheckCircle, FaClock, FaUserMd, FaDollarSign } from 'react-icons/fa';
+import { FaCheckCircle, FaClock, FaUserMd } from 'react-icons/fa';
 
 interface BookingConfirmationProps {
   appointment: Appointment;
@@ -72,10 +72,12 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           {/* Consultation Fee */}
           {appointment.consultationFees && (
             <div className="flex items-center space-x-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-800">
-              <FaDollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <div className="text-green-600 dark:text-green-400 font-semibold text-lg">PKR</div>
               <div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">Consultation Fee</div>
-                <div className="font-semibold text-green-600 dark:text-green-400">${appointment.consultationFees}</div>
+                <div className="font-semibold text-green-600 dark:text-green-400">
+                  {appointment.consultationFees.toLocaleString('en-PK')}
+                </div>
               </div>
             </div>
           )}

@@ -1,13 +1,143 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Save, User, Stethoscope, MapPin, Settings, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Save, User, Stethoscope, MapPin, Settings, AlertCircle, Trash2, DollarSign } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { updateProfile, saveDoctorProfile, uploadDoctorProfileImage, DoctorProfile, selectHasUnsavedChanges } from '@/store/slices/doctorSlice';
+import { updateProfile, saveDoctorProfile, uploadDoctorProfileImage, DoctorProfile, resetProfile } from '@/store/slices/doctorSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import { formatPhoneNumber, pakistaniProvinces } from '@/lib/profile-utils';
 import { Toast } from '../Toast';
+import { useRouter } from 'next/navigation';
+
+// Delete Account Section Component
+interface DeleteAccountSectionProps {
+    userType: 'doctor' | 'patient';
+    token: string;
+}
+
+function DeleteAccountSection({ userType, token }: DeleteAccountSectionProps) {
+    const [showConfirmation, setShowConfirmation] = useState(false);
+    const [confirmText, setConfirmText] = useState('');
+    const [deleting, setDeleting] = useState(false);
+    const [error, setError] = useState('');
+    const router = useRouter();
+    const { signOut } = useAuth();
+
+    const handleDeleteAccount = async () => {
+        if (confirmText !== 'DELETE') {
+            setError('Please type DELETE to confirm');
+            return;
+        }
+
+        setDeleting(true);
+        setError('');
+
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            const response = await fetch(`${API_URL}/api/${userType}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.details || errorData.error || 'Failed to delete account');
+            }
+
+            // Sign out from Firebase and redirect
+            await signOut();
+            router.push('/auth/login?deleted=true');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete account');
+            setDeleting(false);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Delete Account</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Once you delete your account, there is no going back. Please be certain.
+                </p>
+            </div>
+
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                        <h4 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">
+                            Warning: This action cannot be undone
+                        </h4>
+                        <ul className="text-sm text-red-700 dark:text-red-400 space-y-1 list-disc list-inside">
+                            <li>Your profile will be permanently deactivated</li>
+                            <li>All your appointments history will be preserved but inaccessible</li>
+                            <li>Patients will no longer be able to book appointments with you</li>
+                            <li>You will be logged out immediately</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            {!showConfirmation ? (
+                <button
+                    onClick={() => setShowConfirmation(true)}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+                >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Delete My Account</span>
+                </button>
+            ) : (
+                <div className="space-y-4 border border-red-300 dark:border-red-700 rounded-lg p-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                            Type <span className="font-mono font-bold text-red-600">DELETE</span> to confirm
+                        </label>
+                        <input
+                            type="text"
+                            value={confirmText}
+                            onChange={(e) => {
+                                setConfirmText(e.target.value);
+                                setError('');
+                            }}
+                            placeholder="Type DELETE here"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                        {error && (
+                            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
+                        )}
+                    </div>
+
+                    <div className="flex space-x-3">
+                        <button
+                            onClick={handleDeleteAccount}
+                            disabled={deleting || confirmText !== 'DELETE'}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center space-x-2"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            <span>{deleting ? 'Deleting...' : 'Yes, Delete My Account'}</span>
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowConfirmation(false);
+                                setConfirmText('');
+                                setError('');
+                            }}
+                            disabled={deleting}
+                            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 // Pakistani medical specializations
 const medicalSpecializations = [
@@ -27,12 +157,17 @@ const medicalQualifications = [
 interface DoctorProfileEditModalProps {
     isOpen: boolean;
     onClose: () => void;
+    initialTab?: string; // Optional prop to set initial tab
 }
 
-export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfileEditModalProps) {
+export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: DoctorProfileEditModalProps) {
     const dispatch = useAppDispatch();
-    const { profile } = useAppSelector((state) => state.doctor);
-    const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
+    const { profile } = useAppSelector((state) => state.doctor || { profile: null });
+    const hasUnsavedChanges = useAppSelector((state) => {
+        const doctorState = state.doctor;
+        if (!doctorState) return false;
+        return JSON.stringify(doctorState.profile) !== JSON.stringify(doctorState.originalProfile);
+    });
 
     // Get token from auth context
     const { token } = useAuth();
@@ -41,38 +176,20 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
         dispatch(updateProfile(updates));
     };
 
-    const handleSaveProfile = async () => {
-        if (profile && token) {
-            // If there's a new profile image (base64), upload it first
-            if (profile.profileImage && profile.profileImage.startsWith('data:')) {
-                try {
-                    // Convert base64 to File object
-                    const response = await fetch(profile.profileImage);
-                    const blob = await response.blob();
-                    const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
-                    
-                    // Upload the image
-                    const uploadResult = await dispatch(uploadDoctorProfileImage({ file, token }));
-                    if (uploadResult.type.endsWith('/fulfilled')) {
-                        // Image upload successful, the profileImage URL is now updated in the store
-                    }
-                } catch (error) {
-                    console.error('Error uploading profile image:', error);
-                }
-            }
-            
-            // Save the profile
-            await dispatch(saveDoctorProfile({ profileData: profile, token }));
-        }
-    };
-
     const [activeTab, setActiveTab] = useState('personal');
     const [saving, setSaving] = useState(false);
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
-    if (!isOpen) return null;
+    // Update activeTab ONLY when modal opens AND initialTab is explicitly provided
+    useEffect(() => {
+        if (isOpen && initialTab) {
+            setActiveTab(initialTab);
+        }
+    }, [isOpen, initialTab]);
+
+    if (!isOpen || !profile) return null;
 
     const handleSave = async () => {
         if (!token) return;
@@ -81,28 +198,67 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
         setSaving(true);
         
         try {
-            const result = await dispatch(saveDoctorProfile({ profileData: profile, token }));
+            const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            let updatedImageUrl: string | undefined;
+            
+            // Step 1: Upload profile image FIRST if it's a base64 image
+            if (profile.profileImage && profile.profileImage.startsWith('data:image')) {
+                const blob = await fetch(profile.profileImage).then(r => r.blob());
+                
+                // Validate file size (5MB limit to match backend)
+                if (blob.size > 5 * 1024 * 1024) {
+                    setToastMessage('Profile image must be less than 5MB');
+                    setToastType('error');
+                    setShowToast(true);
+                    setSaving(false);
+                    return;
+                }
+                
+                const file = new File([blob], 'profile-image.jpg', { type: blob.type });
+                const formData = new FormData();
+                formData.append('profileImage', file);
+                
+                const uploadRes = await fetch(`${API_URL}/api/doctor/profile-image`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData,
+                });
+                
+                if (!uploadRes.ok) {
+                    setToastMessage('Failed to upload profile image');
+                    setToastType('error');
+                    setShowToast(true);
+                    setSaving(false);
+                    return;
+                }
+                
+                // Get the Cloudinary URL from response
+                const uploadResult = await uploadRes.json();
+                updatedImageUrl = uploadResult.imageUrl;
+                console.log('Image uploaded, new URL:', updatedImageUrl);
+            }
+            
+            // Step 2: Save the profile with the Cloudinary URL (not base64)
+            const profileToSave = { ...profile };
+            
+            // Replace base64 with Cloudinary URL if we just uploaded
+            if (updatedImageUrl) {
+                profileToSave.profileImage = updatedImageUrl;
+            } else if (profileToSave.profileImage && profileToSave.profileImage.startsWith('data:image')) {
+                // If somehow we still have base64, remove it
+                delete profileToSave.profileImage;
+            }
+            
+            const result = await dispatch(saveDoctorProfile({ profileData: profileToSave, token }));
             
             if (saveDoctorProfile.rejected.match(result)) {
-                // Handle rejection
                 const errorMessage = result.payload as string;
                 setToastMessage(errorMessage || 'Failed to save profile');
                 setToastType('error');
                 setShowToast(true);
                 return;
-            }
-            
-            // Upload profile image if it's a base64 string
-            const prevImage = profile.profileImage || '';
-            if (prevImage && prevImage.startsWith('data:image')) {
-                try {
-                    const response = await fetch(prevImage);
-                    const blob = await response.blob();
-                    const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
-                    await dispatch(uploadDoctorProfileImage({ file, token }));
-                } catch (error) {
-                    console.error('Error uploading profile image:', error);
-                }
             }
             
             setToastMessage('Profile saved successfully!');
@@ -123,6 +279,10 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
     };
 
     const handleClose = () => {
+        // Reset to original profile if there are unsaved changes
+        if (hasUnsavedChanges) {
+            dispatch(resetProfile());
+        }
         setShowToast(false);
         onClose();
     };
@@ -200,6 +360,18 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                             </button>
 
                             <button
+                                onClick={() => setActiveTab('billing')}
+                                className={`flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap flex-shrink-0 ${
+                                    activeTab === 'billing'
+                                        ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                                }`}
+                            >
+                                <DollarSign className="h-4 w-4 flex-shrink-0" />
+                                <span className="text-xs sm:text-sm font-medium">Billing & Fees</span>
+                            </button>
+
+                            <button
                                 onClick={() => setActiveTab('address')}
                                 className={`flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap flex-shrink-0 ${
                                     activeTab === 'address'
@@ -221,6 +393,18 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                             >
                                 <Settings className="h-4 w-4 flex-shrink-0" />
                                 <span className="text-xs sm:text-sm font-medium">Preferences</span>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveTab('danger')}
+                                className={`flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap flex-shrink-0 ${
+                                    activeTab === 'danger'
+                                        ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                                }`}
+                            >
+                                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                                <span className="text-xs sm:text-sm font-medium">Delete Account</span>
                             </button>
                         </nav>
                     </div>
@@ -401,6 +585,116 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                             </div>
                         )}
 
+                        {/* Billing & Fees Tab */}
+                        {activeTab === 'billing' && (
+                            <div className="space-y-6">
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Consultation Fees</h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        Set your hourly consultation rate. Appointment fees will be automatically calculated based on appointment duration.
+                                    </p>
+                                </div>
+
+                                <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg p-4">
+                                    <div className="flex items-start space-x-3">
+                                        <DollarSign className="h-5 w-5 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-medium text-teal-900 dark:text-teal-100 mb-2">
+                                                Hourly Consultation Rate (PKR)
+                                            </h4>
+                                            <input
+                                                type="number"
+                                                value={profile.hourlyConsultationRate ?? ''}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    if (value === '') {
+                                                        handleInputChange('hourlyConsultationRate', null);
+                                                    } else {
+                                                        const numValue = parseFloat(value);
+                                                        // Realistic maximum for Pakistani doctors: PKR 50,000/hour
+                                                        if (numValue > 50000) {
+                                                            return; // Don't update if exceeds realistic max
+                                                        }
+                                                        handleInputChange('hourlyConsultationRate', numValue);
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    // Prevent minus sign, plus sign, and 'e' (scientific notation)
+                                                    if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+                                                        e.preventDefault();
+                                                    }
+                                                }}
+                                                min="0"
+                                                max="50000"
+                                                step="100"
+                                                placeholder="e.g., 3000"
+                                                className="w-full md:w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white text-lg font-semibold"
+                                            />
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                                                Enter your rate per hour in Pakistani Rupees (PKR). Maximum: PKR 50,000
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Fee Calculation Preview */}
+                                {profile.hourlyConsultationRate && profile.hourlyConsultationRate > 0 && (
+                                    <div className="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                                        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                                            📊 Appointment Fee Calculator
+                                        </h4>
+                                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                            Fees will be automatically calculated based on appointment duration:
+                                        </p>
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-slate-600">
+                                                <span className="text-sm text-gray-700 dark:text-gray-300">15 minutes</span>
+                                                <span className="text-sm font-semibold text-teal-600 dark:text-teal-400">
+                                                    PKR {(profile.hourlyConsultationRate * 0.25).toLocaleString('en-PK')}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-slate-600">
+                                                <span className="text-sm text-gray-700 dark:text-gray-300">30 minutes</span>
+                                                <span className="text-sm font-semibold text-teal-600 dark:text-teal-400">
+                                                    PKR {(profile.hourlyConsultationRate * 0.5).toLocaleString('en-PK')}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-slate-600">
+                                                <span className="text-sm text-gray-700 dark:text-gray-300">45 minutes</span>
+                                                <span className="text-sm font-semibold text-teal-600 dark:text-teal-400">
+                                                    PKR {(profile.hourlyConsultationRate * 0.75).toLocaleString('en-PK')}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between items-center py-2">
+                                                <span className="text-sm text-gray-700 dark:text-gray-300">60 minutes (1 hour)</span>
+                                                <span className="text-sm font-semibold text-teal-600 dark:text-teal-400">
+                                                    PKR {profile.hourlyConsultationRate.toLocaleString('en-PK')}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Help Text */}
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                    <div className="flex items-start space-x-3">
+                                        <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
+                                                Important Information
+                                            </h4>
+                                            <ul className="text-xs text-blue-800 dark:text-blue-300 space-y-1 list-disc list-inside">
+                                                <li>Your rate is visible to patients when they book appointments</li>
+                                                <li>Fees are automatically calculated based on appointment slot duration</li>
+                                                <li>You can update your rate anytime from this settings page</li>
+                                                <li>Leave blank if you don&apos;t want to display consultation fees</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Address Tab */}
                         {activeTab === 'address' && (
                             <div className="space-y-6">
@@ -539,6 +833,11 @@ export default function DoctorProfileEditModal({ isOpen, onClose }: DoctorProfil
                                     </div>
                                 </div>
                             </div>
+                        )}
+
+                        {/* Delete Account Tab */}
+                        {activeTab === 'danger' && (
+                            <DeleteAccountSection userType="doctor" token={token || ''} />
                         )}
                     </div>
                 </div>

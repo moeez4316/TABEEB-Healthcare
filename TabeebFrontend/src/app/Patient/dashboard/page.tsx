@@ -5,7 +5,7 @@ import { User, Mail, Edit3, Heart, Activity, Phone, MapPin, Settings, ChevronRig
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { loadPatientProfile, selectHasUnsavedChanges } from '@/store/slices/patientSlice';
+import { loadPatientProfile } from '@/store/slices/patientSlice';
 import PatientProfileEditModal from '@/components/profile/PatientProfileEditModal';
 import { calculateBMI, getBMIStatus } from '@/lib/profile-utils';
 import { formatHeightDisplay } from '@/lib/height-utils';
@@ -14,8 +14,7 @@ import { calculateProfileCompletion } from '@/lib/profile-completion';
 export default function DashboardPage() {
   const { user, token } = useAuth();
   const dispatch = useAppDispatch();
-  const { profile } = useAppSelector((state) => state.patient);
-  const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
+  const { profile } = useAppSelector((state) => state.patient || { profile: null });
   const [showProfileEdit, setShowProfileEdit] = useState(false);
 
   // Load profile data on component mount
@@ -25,7 +24,7 @@ export default function DashboardPage() {
     }
   }, [dispatch, token]);
 
-  if (!user) return null;
+  if (!user || !profile) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
@@ -108,15 +107,6 @@ export default function DashboardPage() {
                 <span>Edit Profile</span>
               </button>
             </div>
-            
-            {hasUnsavedChanges && (
-              <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
-                <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
-                  <AlertCircle className="w-4 h-4" />
-                  <span className="text-sm font-medium">You have unsaved profile changes</span>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Profile Completion - Hidden when 100% complete */}
@@ -231,14 +221,18 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">Allergies</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {profile.allergies.length > 0 ? profile.allergies.join(', ') : 'None reported'}
+                    {Array.isArray(profile.allergies) && profile.allergies.length > 0 
+                      ? profile.allergies.join(', ') 
+                      : 'None reported'}
                   </p>
                 </div>
                 
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">Current Medications</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {profile.medications.length > 0 ? profile.medications.join(', ') : 'None reported'}
+                    {Array.isArray(profile.medications) && profile.medications.length > 0 
+                      ? profile.medications.join(', ') 
+                      : 'None reported'}
                   </p>
                 </div>
               </div>

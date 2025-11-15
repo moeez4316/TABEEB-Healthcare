@@ -17,6 +17,7 @@ export const createDoctor = async (req: Request, res: Response) => {
     specialization, 
     qualification, 
     experience,
+    hourlyConsultationRate,
     addressStreet,
     addressCity,
     addressProvince,
@@ -60,6 +61,17 @@ export const createDoctor = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Postal code must be exactly 5 digits' });
     }
 
+    // Validate hourly consultation rate if provided
+    if (hourlyConsultationRate !== undefined && hourlyConsultationRate !== null) {
+      const rate = parseFloat(hourlyConsultationRate);
+      if (isNaN(rate) || rate < 0) {
+        return res.status(400).json({ error: 'Hourly consultation rate must be a positive number' });
+      }
+      if (rate > 50000) {
+        return res.status(400).json({ error: 'Hourly consultation rate cannot exceed PKR 50,000' });
+      }
+    }
+
     // Step 1: Create database records in a transaction (atomic operation)
     const doctor = await prisma.$transaction(async (tx) => {
       // Check if user already exists, if not create it
@@ -84,6 +96,7 @@ export const createDoctor = async (req: Request, res: Response) => {
           specialization,
           qualification,
           experience: experience ? String(experience) : null,
+          hourlyConsultationRate: hourlyConsultationRate ? parseFloat(hourlyConsultationRate) : null,
           addressStreet,
           addressCity,
           addressProvince,
@@ -152,8 +165,8 @@ export const getDoctor = async (req: Request, res: Response) => {
       }
     });
     
-    if (!doctor) {
-      return res.status(404).json({ message: 'Doctor profile not found' });
+    if (!doctor || !doctor.isActive) {
+      return res.status(404).json({ message: 'Doctor profile not found or deactivated' });
     }
     
     // Transform the response to include verification data in a more accessible format
@@ -183,6 +196,12 @@ export const updateDoctor = async (req: Request, res: Response) => {
   }
   
   try {
+    // Check if account is active
+    const existingDoctor = await prisma.doctor.findUnique({ where: { uid } });
+    if (!existingDoctor || !existingDoctor.isActive) {
+      return res.status(403).json({ error: 'Account is deactivated' });
+    }
+
     // Handle date conversion if dateOfBirth is provided
     const updateData = { ...req.body };
     if (updateData.dateOfBirth) {
@@ -240,6 +259,22 @@ export const updateDoctor = async (req: Request, res: Response) => {
       updateData.experience = updateData.experience ? String(updateData.experience) : null;
     }
 
+    // Validate and convert hourly consultation rate if provided
+    if ('hourlyConsultationRate' in updateData) {
+      if (updateData.hourlyConsultationRate === null || updateData.hourlyConsultationRate === '') {
+        updateData.hourlyConsultationRate = null;
+      } else {
+        const rate = parseFloat(updateData.hourlyConsultationRate);
+        if (isNaN(rate) || rate < 0) {
+          return res.status(400).json({ error: 'Hourly consultation rate must be a positive number' });
+        }
+        if (rate > 50000) {
+          return res.status(400).json({ error: 'Hourly consultation rate cannot exceed PKR 50,000' });
+        }
+        updateData.hourlyConsultationRate = rate;
+      }
+    }
+
     // Ensure name is updated if firstName or lastName changes
     if (updateData.firstName || updateData.lastName) {
       const currentDoctor = await prisma.doctor.findUnique({ where: { uid } });
@@ -276,12 +311,67 @@ export const updateDoctor = async (req: Request, res: Response) => {
 
 export const deleteDoctor = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
+  
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
   try {
-    await prisma.doctor.delete({ where: { uid } });
-    await prisma.user.delete({ where: { uid } });
-    res.json({ message: 'Doctor account deleted successfully' });
+    // Soft delete: Set isActive to false instead of removing from database
+    const doctor = await prisma.doctor.update({
+      where: { uid },
+      data: { 
+        isActive: false,
+        updatedAt: new Date()
+      }
+    });
+
+    res.json({ 
+      message: 'Doctor account deactivated successfully',
+      doctor: {
+        uid: doctor.uid,
+        name: doctor.name,
+        isActive: doctor.isActive
+      }
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete doctor profile' });
+    console.error('Error deactivating doctor profile:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ 
+      error: 'Failed to deactivate doctor profile',
+      details: errorMessage
+    });
+  }
+};
+
+// Restore soft-deleted doctor account
+export const restoreDoctor = async (req: Request, res: Response) => {
+  const uid = req.user?.uid;
+  
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
+  try {
+    const doctor = await prisma.doctor.update({
+      where: { uid },
+      data: { 
+        isActive: true,
+        updatedAt: new Date()
+      }
+    });
+
+    res.json({ 
+      message: 'Doctor account restored successfully',
+      doctor: {
+        uid: doctor.uid,
+        name: doctor.name,
+        isActive: doctor.isActive
+      }
+    });
+  } catch (error) {
+    console.error('Error restoring doctor profile:', error);
+    res.status(500).json({ error: 'Failed to restore doctor profile' });
   }
 };
 
@@ -292,6 +382,7 @@ export const getVerifiedDoctors = async (req: Request, res: Response) => {
     
     // Build where clause for filtering
     const where: any = {
+      isActive: true, // Only show active doctors
       verification: {
         status: 'approved',
         isVerified: true
@@ -355,6 +446,7 @@ export const getVerifiedDoctors = async (req: Request, res: Response) => {
         specialization: true,
         qualification: true,
         experience: true,
+        hourlyConsultationRate: true,
         profileImageUrl: true,
         addressCity: true,
         addressProvince: true,
@@ -371,6 +463,7 @@ export const getVerifiedDoctors = async (req: Request, res: Response) => {
     // Get unique specializations for filter options
     const specializations = await prisma.doctor.findMany({
       where: {
+        isActive: true,
         verification: {
           status: 'approved',
           isVerified: true
@@ -392,5 +485,90 @@ export const getVerifiedDoctors = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching verified doctors:', error);
     res.status(500).json({ error: 'Failed to fetch doctors' });
+  }
+};
+
+// Upload profile image separately
+export const uploadDoctorProfileImage = async (req: Request, res: Response) => {
+  const uid = req.user?.uid;
+  const file = req.file;
+
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
+  if (!file) {
+    return res.status(400).json({ error: 'No image file provided' });
+  }
+
+  try {
+    // Check if doctor exists
+    const doctor = await prisma.doctor.findUnique({ where: { uid } });
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    // Delete old profile image from Cloudinary if exists
+    if (doctor.profileImagePublicId) {
+      await deleteFromCloudinary(doctor.profileImagePublicId);
+    }
+
+    // Upload new image to Cloudinary
+    const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
+
+    // Update doctor record with new image data
+    await prisma.doctor.update({
+      where: { uid },
+      data: { 
+        profileImageUrl: uploadResult.secure_url,
+        profileImagePublicId: uploadResult.public_id
+      }
+    });
+
+    res.json({
+      message: 'Profile image uploaded successfully',
+      imageUrl: uploadResult.secure_url
+    });
+
+  } catch (error) {
+    console.error('Upload profile image error:', error);
+    res.status(500).json({ error: 'Failed to upload profile image' });
+  }
+};
+
+// Delete profile image
+export const deleteDoctorProfileImage = async (req: Request, res: Response) => {
+  const uid = req.user?.uid;
+
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
+  try {
+    // Check if doctor exists
+    const doctor = await prisma.doctor.findUnique({ where: { uid } });
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    // Delete image from Cloudinary if exists
+    if (doctor.profileImagePublicId) {
+      await deleteFromCloudinary(doctor.profileImagePublicId);
+    }
+
+    // Update doctor record to remove image data
+    await prisma.doctor.update({
+      where: { uid },
+      data: { 
+        profileImageUrl: null,
+        profileImagePublicId: null
+      }
+    });
+
+    res.json({ message: 'Profile image deleted successfully' });
+
+  } catch (error) {
+    console.error('Delete profile image error:', error);
+    res.status(500).json({ error: 'Failed to delete profile image' });
   }
 };

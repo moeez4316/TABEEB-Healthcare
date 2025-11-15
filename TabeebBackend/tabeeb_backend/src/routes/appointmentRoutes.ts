@@ -16,7 +16,8 @@ import {
   getAppointmentStats,
   shareDocumentsWithAppointment,
   unshareDocumentFromAppointment,
-  getAppointmentSharedDocuments
+  getAppointmentSharedDocuments,
+  confirmAppointmentPayment
 } from '../controllers/appointmentController';
 
 const router = express.Router();
@@ -41,5 +42,8 @@ router.patch('/:id/cancel', validateCUID('id'), cancelAppointment);
 router.post('/:id/share-documents', validateCUID('id'), shareDocumentsWithAppointment);
 router.delete('/:id/shared-documents/:documentId', validateCUID('id'), unshareDocumentFromAppointment);
 router.get('/:id/shared-documents', validateCUID('id'), getAppointmentSharedDocuments);
+
+// Payment confirmation route (dummy for now)
+router.post('/:appointmentId/confirm-payment', confirmAppointmentPayment);
 
 export default router;

@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Doctor } from '@/types/appointment';
-import { FaStar, FaUserMd, FaDollarSign } from 'react-icons/fa';
+import { FaStar, FaUserMd } from 'react-icons/fa';
 
 interface DoctorSelectorProps {
   doctors: Doctor[];
@@ -105,9 +105,8 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
                   )}
                   
                   {doctor.consultationFees && (
-                    <div className="flex items-center space-x-1">
-                      <FaDollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
-                      <span className="font-medium">${doctor.consultationFees}</span>
+                    <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
+                      <span className="font-medium">PKR {doctor.consultationFees.toLocaleString('en-PK')}/hr</span>
                     </div>
                   )}
                   

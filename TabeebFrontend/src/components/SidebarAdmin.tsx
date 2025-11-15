@@ -62,6 +62,12 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       description: 'Review Applications'
     },
     {
+      name: 'User Management',
+      href: '/admin/users',
+      icon: Users,
+      description: 'Manage Accounts'
+    },
+    {
       name: 'Analytics',
       href: '/admin/analytics',
       icon: BarChart3,

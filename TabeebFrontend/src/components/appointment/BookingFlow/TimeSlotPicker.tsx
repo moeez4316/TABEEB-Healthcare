@@ -156,7 +156,7 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
                 <>
                   <span>•</span>
                   <span className="font-medium text-green-600 dark:text-green-400">
-                    ${slotData.doctor.consultationFees}
+                    PKR {slotData.doctor.consultationFees.toLocaleString('en-PK')}/hr
                   </span>
                 </>
               )}

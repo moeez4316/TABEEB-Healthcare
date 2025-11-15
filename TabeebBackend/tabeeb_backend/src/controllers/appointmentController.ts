@@ -77,7 +77,9 @@ export const bookAppointment = async (req: Request, res: Response) => {
         where: { uid: doctorUid },
         select: {
           name: true,
-          specialization: true
+          specialization: true,
+          isActive: true,
+          hourlyConsultationRate: true
         }
       }),
       prisma.patient.findUnique({
@@ -85,7 +87,8 @@ export const bookAppointment = async (req: Request, res: Response) => {
         select: {
           firstName: true,
           lastName: true,
-          phone: true
+          phone: true,
+          isActive: true
         }
       })
     ]);
@@ -94,8 +97,24 @@ export const bookAppointment = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Doctor not found' });
     }
 
+    if (!doctor.isActive) {
+      return res.status(403).json({ error: 'Doctor account is deactivated' });
+    }
+
     if (!patient) {
       return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    if (!patient.isActive) {
+      return res.status(403).json({ error: 'Your account is deactivated' });
+    }
+
+    // Calculate consultation fees based on doctor's hourly rate and appointment duration
+    let consultationFees = 1500; // Default fee PKR 1500
+    if (doctor.hourlyConsultationRate) {
+      const hourlyRate = parseFloat(doctor.hourlyConsultationRate.toString());
+      const durationMultiplier = availability.slotDuration / 60;
+      consultationFees = hourlyRate * durationMultiplier;
     }
 
     // Create appointment
@@ -109,7 +128,7 @@ export const bookAppointment = async (req: Request, res: Response) => {
         duration: availability.slotDuration,
         status: 'PENDING',
         patientNotes,
-        consultationFees: 1000 // Default consultation fee in cents (PKR 10.00)
+        consultationFees
       },
       include: {
         doctor: {
@@ -280,6 +299,20 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     const doctorUid = req.user!.uid;
     const { status, doctorNotes, cancelReason } = req.body;
 
+    // Check if doctor account is active
+    const doctor = await prisma.doctor.findUnique({
+      where: { uid: doctorUid },
+      select: { isActive: true }
+    });
+
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    if (!doctor.isActive) {
+      return res.status(403).json({ error: 'Doctor account is deactivated' });
+    }
+
     // Validate status
     const validStatuses = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
     if (!validStatuses.includes(status)) {
@@ -353,6 +386,27 @@ export const cancelAppointment = async (req: Request, res: Response) => {
 
     if (!cancelReason) {
       return res.status(400).json({ error: 'Cancel reason is required' });
+    }
+
+    // Check if user account is active (can be doctor or patient)
+    const [doctor, patient] = await Promise.all([
+      prisma.doctor.findUnique({
+        where: { uid: userUid },
+        select: { isActive: true }
+      }),
+      prisma.patient.findUnique({
+        where: { uid: userUid },
+        select: { isActive: true }
+      })
+    ]);
+
+    const user = doctor || patient;
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Your account is deactivated' });
     }
 
     // Find appointment (can be cancelled by patient or doctor)
@@ -692,5 +746,46 @@ export const getAppointmentSharedDocuments = async (req: Request, res: Response)
   } catch (error) {
     console.error('Error fetching shared documents:', error);
     res.status(500).json({ error: 'Failed to fetch shared documents' });
+  }
+};
+
+// Confirm payment for appointment (dummy endpoint for now)
+export const confirmAppointmentPayment = async (req: Request, res: Response) => {
+  try {
+    const { appointmentId } = req.params;
+    const { paymentMethod, phoneNumber, amount, transactionId } = req.body;
+
+    // Validate appointment exists
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId }
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    // TODO: Integrate with actual payment gateway (GoFast Pay, JazzCash, Easypaisa, etc.)
+    // For now, just mark payment as received but keep appointment status as PENDING
+    // The appointment should remain PENDING until doctor accepts it
+    
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        // Keep status as PENDING - doctor needs to accept
+        // TODO: Add payment-related fields when schema is updated
+        // paymentMethod, transactionId, paymentStatus, paymentDate, etc.
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Payment received successfully. Appointment pending doctor approval.',
+      appointment: updatedAppointment,
+      transactionId
+    });
+
+  } catch (error) {
+    console.error('Error confirming payment:', error);
+    res.status(500).json({ error: 'Failed to confirm payment' });
   }
 };

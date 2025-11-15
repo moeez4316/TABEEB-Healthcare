@@ -13,7 +13,7 @@ import Link from 'next/link';
 export default function DoctorDashboard() {
   const { user, token, verificationStatus } = useAuth();
   const dispatch = useAppDispatch();
-  const { profile } = useAppSelector((state) => state.doctor);
+  const { profile } = useAppSelector((state) => state.doctor || { profile: null });
   const [showProfileEdit, setShowProfileEdit] = useState(false);
 
   // Load profile data on component mount
@@ -23,7 +23,7 @@ export default function DoctorDashboard() {
     }
   }, [dispatch, token]);
 
-  if (!user) return null;
+  if (!user || !profile) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">

@@ -38,6 +38,36 @@ model DoctorBreakTime {
   @@map("doctor_break_times")
 }
 
+model WeeklyAvailabilityTemplate {
+  id           String                            @id @default(cuid())
+  doctorUid    String                            @db.VarChar(255)
+  dayOfWeek    Int                               // 0 = Sunday, 1 = Monday, etc.
+  isActive     Boolean                           @default(false)
+  startTime    String                            @db.VarChar(8)
+  endTime      String                            @db.VarChar(8)
+  slotDuration Int                               @default(30)
+  createdAt    DateTime                          @default(now())
+  updatedAt    DateTime                          @updatedAt
+  doctor       doctor                            @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+  breakTimes   WeeklyTemplateBreakTime[]
+
+  @@unique([doctorUid, dayOfWeek])
+  @@index([doctorUid])
+  @@map("weekly_availability_template")
+}
+
+model WeeklyTemplateBreakTime {
+  id         String                       @id @default(cuid())
+  templateId String
+  startTime  String                       @db.VarChar(8)
+  endTime    String                       @db.VarChar(8)
+  createdAt  DateTime                     @default(now())
+  template   WeeklyAvailabilityTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("weekly_template_break_times")
+}
+
 model Appointment {
   id               String                      @id @default(cuid())
   doctorUid        String                      @db.VarChar(255)
@@ -150,36 +180,39 @@ model VideoCall {
 }
 
 model doctor {
-  uid                  String               @id @db.VarChar(255)
-  firstName            String               @db.VarChar(100)
-  lastName             String               @db.VarChar(100)
-  name                 String               @db.VarChar(255)
-  email                String?              @unique(map: "Doctor_email_key") @db.VarChar(255)
-  phone                String?              @unique(map: "Doctor_phone_key") @db.VarChar(20)
-  dateOfBirth          DateTime?
-  gender               String?              @db.VarChar(10)
-  profileImageUrl      String?              @db.VarChar(500)
-  profileImagePublicId String?              @db.VarChar(255)
-  specialization       String               @db.VarChar(100)
-  qualification        String               @db.Text
-  experience           String?              @db.VarChar(50)
-  addressStreet        String?              @db.VarChar(255)
-  addressCity          String?              @db.VarChar(100)
-  addressProvince      String?              @db.VarChar(100)
-  addressPostalCode    String?              @db.VarChar(10)
-  language             String               @default("English") @db.VarChar(50)
-  notificationsEmail   Boolean              @default(true)
-  notificationsSms     Boolean              @default(true)
-  notificationsPush    Boolean              @default(true)
-  privacyShareData     Boolean              @default(false)
-  privacyMarketing     Boolean              @default(false)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @default(now()) @updatedAt
-  appointments         Appointment[]
-  user                 user                 @relation(fields: [uid], references: [uid], map: "Doctor_uid_fkey")
-  availability         DoctorAvailability[]
-  prescriptions        Prescription[]
-  verification         verification?
+  uid                     String               @id @db.VarChar(255)
+  firstName               String               @db.VarChar(100)
+  lastName                String               @db.VarChar(100)
+  name                    String               @db.VarChar(255)
+  email                   String?              @unique(map: "Doctor_email_key") @db.VarChar(255)
+  phone                   String?              @unique(map: "Doctor_phone_key") @db.VarChar(20)
+  dateOfBirth             DateTime?
+  gender                  String?              @db.VarChar(10)
+  profileImageUrl         String?              @db.VarChar(500)
+  profileImagePublicId    String?              @db.VarChar(255)
+  specialization          String               @db.VarChar(100)
+  qualification           String               @db.Text
+  experience              String?              @db.VarChar(50)
+  hourlyConsultationRate  Decimal?             @db.Decimal(10, 2)
+  addressStreet           String?              @db.VarChar(255)
+  addressCity             String?              @db.VarChar(100)
+  addressProvince         String?              @db.VarChar(100)
+  addressPostalCode       String?              @db.VarChar(10)
+  language                String               @default("English") @db.VarChar(50)
+  notificationsEmail      Boolean              @default(true)
+  notificationsSms        Boolean              @default(true)
+  notificationsPush       Boolean              @default(true)
+  privacyShareData        Boolean              @default(false)
+  privacyMarketing        Boolean              @default(false)
+  isActive                Boolean              @default(true)
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @default(now()) @updatedAt
+  appointments            Appointment[]
+  user                    user                           @relation(fields: [uid], references: [uid], map: "Doctor_uid_fkey")
+  availability            DoctorAvailability[]
+  weeklyTemplate          WeeklyAvailabilityTemplate[]
+  prescriptions           Prescription[]
+  verification            verification?
 }
 
 model patient {
@@ -212,6 +245,7 @@ model patient {
   notificationsPush            Boolean        @default(true)
   privacyShareData             Boolean        @default(false)
   privacyMarketing             Boolean        @default(false)
+  isActive                     Boolean        @default(true)
   createdAt                    DateTime       @default(now())
   updatedAt                    DateTime       @default(now()) @updatedAt
   appointments                 Appointment[]

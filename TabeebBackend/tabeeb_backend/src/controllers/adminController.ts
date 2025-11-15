@@ -193,3 +193,205 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
   }
 };
+
+// Get all users (doctors and patients) for admin management
+export const getAllUsers = async (req: Request, res: Response) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const { role, status, page = 1, limit = 20 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    let doctors = [];
+    let patients = [];
+
+    // Fetch doctors
+    if (!role || role === 'doctor') {
+      doctors = await prisma.doctor.findMany({
+        where: status === 'active' ? { isActive: true } : status === 'suspended' ? { isActive: false } : {},
+        select: {
+          uid: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          specialization: true,
+          isActive: true,
+          createdAt: true,
+        },
+        skip: !role ? skip : 0,
+        take: !role ? Number(limit) : undefined,
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+
+    // Fetch patients
+    if (!role || role === 'patient') {
+      patients = await prisma.patient.findMany({
+        where: status === 'active' ? { isActive: true } : status === 'suspended' ? { isActive: false } : {},
+        select: {
+          uid: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          isActive: true,
+          createdAt: true,
+        },
+        skip: !role ? skip : 0,
+        take: !role ? Number(limit) : undefined,
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+
+    // Get total counts
+    const totalDoctors = await prisma.doctor.count({
+      where: status === 'active' ? { isActive: true } : status === 'suspended' ? { isActive: false } : {}
+    });
+    const totalPatients = await prisma.patient.count({
+      where: status === 'active' ? { isActive: true } : status === 'suspended' ? { isActive: false } : {}
+    });
+
+    // Combine and format results
+    const users = [
+      ...doctors.map((d: any) => ({ ...d, role: 'doctor' })),
+      ...patients.map((p: any) => ({ ...p, role: 'patient' }))
+    ];
+
+    await prisma.$disconnect();
+
+    res.json({
+      users,
+      pagination: {
+        total: totalDoctors + totalPatients,
+        totalDoctors,
+        totalPatients,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil((totalDoctors + totalPatients) / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+};
+
+// Suspend a user account (doctor or patient)
+export const suspendUser = async (req: Request, res: Response) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const { uid, role, reason } = req.body;
+
+    if (!uid || !role) {
+      return res.status(400).json({ error: 'User ID and role are required' });
+    }
+
+    if (role === 'doctor') {
+      const doctor = await prisma.doctor.update({
+        where: { uid },
+        data: { isActive: false },
+        select: {
+          uid: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          isActive: true
+        }
+      });
+      
+      await prisma.$disconnect();
+      return res.json({ 
+        message: 'Doctor account suspended successfully',
+        user: { ...doctor, role: 'doctor' },
+        reason
+      });
+    } else if (role === 'patient') {
+      const patient = await prisma.patient.update({
+        where: { uid },
+        data: { isActive: false },
+        select: {
+          uid: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          isActive: true
+        }
+      });
+      
+      await prisma.$disconnect();
+      return res.json({ 
+        message: 'Patient account suspended successfully',
+        user: { ...patient, role: 'patient' },
+        reason
+      });
+    }
+
+    await prisma.$disconnect();
+    return res.status(400).json({ error: 'Invalid role specified' });
+  } catch (error) {
+    console.error('Error suspending user:', error);
+    res.status(500).json({ error: 'Failed to suspend user account' });
+  }
+};
+
+// Activate a user account (doctor or patient)
+export const activateUser = async (req: Request, res: Response) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const { uid, role } = req.body;
+
+    if (!uid || !role) {
+      return res.status(400).json({ error: 'User ID and role are required' });
+    }
+
+    if (role === 'doctor') {
+      const doctor = await prisma.doctor.update({
+        where: { uid },
+        data: { isActive: true },
+        select: {
+          uid: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          isActive: true
+        }
+      });
+      
+      await prisma.$disconnect();
+      return res.json({ 
+        message: 'Doctor account activated successfully',
+        user: { ...doctor, role: 'doctor' }
+      });
+    } else if (role === 'patient') {
+      const patient = await prisma.patient.update({
+        where: { uid },
+        data: { isActive: true },
+        select: {
+          uid: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          isActive: true
+        }
+      });
+      
+      await prisma.$disconnect();
+      return res.json({ 
+        message: 'Patient account activated successfully',
+        user: { ...patient, role: 'patient' }
+      });
+    }
+
+    await prisma.$disconnect();
+    return res.status(400).json({ error: 'Invalid role specified' });
+  } catch (error) {
+    console.error('Error activating user:', error);
+    res.status(500).json({ error: 'Failed to activate user account' });
+  }
+};

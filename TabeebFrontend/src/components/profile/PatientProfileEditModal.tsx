@@ -1,16 +1,150 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Save, User, Heart, Settings, Phone, AlertCircle } from 'lucide-react';
+import { X, Save, User, Heart, Settings, Phone, AlertCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile, selectHasUnsavedChanges } from '@/store/slices/patientSlice';
+import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile } from '@/store/slices/patientSlice';
 import { resetProfile } from '@/store/slices/patientSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import HeightInput from '../shared/HeightInput';
 import { formatCNIC, formatPhoneNumber, pakistaniProvinces, bloodGroups, pakistaniLanguages } from '@/lib/profile-utils';
 import { ValidationErrors, getFieldError } from '@/lib/profile-validation';
 import { Toast } from '../Toast';
+import { useRouter } from 'next/navigation';
+
+// Delete Account Section Component
+interface DeleteAccountSectionProps {
+    userType: 'doctor' | 'patient';
+    token: string;
+}
+
+function DeleteAccountSection({ userType, token }: DeleteAccountSectionProps) {
+    const [showConfirmation, setShowConfirmation] = useState(false);
+    const [confirmText, setConfirmText] = useState('');
+    const [deleting, setDeleting] = useState(false);
+    const [error, setError] = useState('');
+    const router = useRouter();
+    const { signOut } = useAuth();
+
+    const handleDeleteAccount = async () => {
+        if (confirmText !== 'DELETE') {
+            setError('Please type DELETE to confirm');
+            return;
+        }
+
+        setDeleting(true);
+        setError('');
+
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            const response = await fetch(`${API_URL}/api/${userType}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.details || errorData.error || 'Failed to delete account');
+            }
+
+            // Sign out from Firebase and redirect
+            await signOut();
+            router.push('/auth/login?deleted=true');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete account');
+            setDeleting(false);
+        }
+    };
+
+    const accountTypeMessage = userType === 'doctor' 
+        ? 'Patients will no longer be able to book appointments with you' 
+        : 'You will no longer be able to book appointments';
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Delete Account</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Once you delete your account, there is no going back. Please be certain.
+                </p>
+            </div>
+
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                        <h4 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">
+                            Warning: This action cannot be undone
+                        </h4>
+                        <ul className="text-sm text-red-700 dark:text-red-400 space-y-1 list-disc list-inside">
+                            <li>Your profile will be permanently deactivated</li>
+                            <li>All your appointments history will be preserved but inaccessible</li>
+                            <li>{accountTypeMessage}</li>
+                            <li>You will be logged out immediately</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            {!showConfirmation ? (
+                <button
+                    onClick={() => setShowConfirmation(true)}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+                >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Delete My Account</span>
+                </button>
+            ) : (
+                <div className="space-y-4 border border-red-300 dark:border-red-700 rounded-lg p-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                            Type <span className="font-mono font-bold text-red-600">DELETE</span> to confirm
+                        </label>
+                        <input
+                            type="text"
+                            value={confirmText}
+                            onChange={(e) => {
+                                setConfirmText(e.target.value);
+                                setError('');
+                            }}
+                            placeholder="Type DELETE here"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                        {error && (
+                            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
+                        )}
+                    </div>
+
+                    <div className="flex space-x-3">
+                        <button
+                            onClick={handleDeleteAccount}
+                            disabled={deleting || confirmText !== 'DELETE'}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center space-x-2"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            <span>{deleting ? 'Deleting...' : 'Yes, Delete My Account'}</span>
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowConfirmation(false);
+                                setConfirmText('');
+                                setError('');
+                            }}
+                            disabled={deleting}
+                            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 interface PatientProfileEditModalProps {
   isOpen: boolean;
@@ -19,8 +153,12 @@ interface PatientProfileEditModalProps {
 
 export default function PatientProfileEditModal({ isOpen, onClose }: PatientProfileEditModalProps) {
   const dispatch = useAppDispatch();
-  const { profile, isLoading } = useAppSelector((state) => state.patient);
-  const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
+  const { profile, isLoading } = useAppSelector((state) => state.patient || { profile: null, isLoading: false });
+  const hasUnsavedChanges = useAppSelector((state) => {
+    const patientState = state.patient;
+    if (!patientState) return false;
+    return JSON.stringify(patientState.profile) !== JSON.stringify(patientState.originalProfile);
+  });
   
   // Get token from auth context
   const { token } = useAuth();
@@ -29,30 +167,6 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
     dispatch(updateProfile(updates));
   };
 
-  const handleSaveProfile = async () => {
-    if (profile && token) {
-      // If there's a new profile image (base64), upload it first
-      if (profile.profileImage && profile.profileImage.startsWith('data:')) {
-        try {
-          // Convert base64 to File object
-          const response = await fetch(profile.profileImage);
-          const blob = await response.blob();
-          const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
-          
-          // Upload the image
-          const uploadResult = await dispatch(uploadProfileImage({ file, token }));
-          if (uploadResult.type.endsWith('/fulfilled')) {
-            // Image upload successful, the profileImage URL is now updated in the store
-          }
-        } catch (error) {
-          console.error('Error uploading profile image:', error);
-        }
-      }
-      
-      // Save the profile
-      await dispatch(savePatientProfile({ profileData: profile, token }));
-    }
-  };
   const [activeTab, setActiveTab] = useState('personal');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
@@ -60,7 +174,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
-  if (!isOpen) return null;
+  if (!isOpen || !profile) return null;
 
   const handleSave = async () => {
     if (!token) return;
@@ -68,11 +182,64 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
     console.log('Save button clicked');
     setSaving(true);
     setErrors({});
+    
     try {
-      const result = await dispatch(savePatientProfile({ profileData: profile, token }));
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      let updatedImageUrl: string | undefined;
+      
+      // Step 1: Upload profile image FIRST if it's a base64 image
+      if (profile.profileImage && profile.profileImage.startsWith('data:image')) {
+        const blob = await fetch(profile.profileImage).then(r => r.blob());
+        
+        // Validate file size (5MB limit to match backend)
+        if (blob.size > 5 * 1024 * 1024) {
+          setToastMessage('Profile image must be less than 5MB');
+          setToastType('error');
+          setShowToast(true);
+          setSaving(false);
+          return;
+        }
+        
+        const file = new File([blob], 'profile-image.jpg', { type: blob.type });
+        const formData = new FormData();
+        formData.append('profileImage', file);
+        
+        const uploadRes = await fetch(`${API_URL}/api/patient/profile-image`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+        
+        if (!uploadRes.ok) {
+          setToastMessage('Failed to upload profile image');
+          setToastType('error');
+          setShowToast(true);
+          setSaving(false);
+          return;
+        }
+        
+        // Get the Cloudinary URL from response
+        const uploadResult = await uploadRes.json();
+        updatedImageUrl = uploadResult.imageUrl;
+        console.log('Image uploaded, new URL:', updatedImageUrl);
+      }
+      
+      // Step 2: Save the profile with the Cloudinary URL (not base64)
+      const profileToSave = { ...profile };
+      
+      // Replace base64 with Cloudinary URL if we just uploaded
+      if (updatedImageUrl) {
+        profileToSave.profileImage = updatedImageUrl;
+      } else if (profileToSave.profileImage && profileToSave.profileImage.startsWith('data:image')) {
+        // If somehow we still have base64, remove it
+        delete profileToSave.profileImage;
+      }
+      
+      const result = await dispatch(savePatientProfile({ profileData: profileToSave, token }));
       
       if (savePatientProfile.rejected.match(result)) {
-        // Handle rejection
         const errorMessage = result.payload as string;
         setToastMessage(errorMessage || 'Failed to save profile');
         setToastType('error');
@@ -80,20 +247,6 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
         return;
       }
       
-      // Upload profile image if changed
-      const prevImage = profile.profileImage || '';
-      if (prevImage && prevImage.startsWith('data:image')) {
-        try {
-          const response = await fetch(prevImage);
-          const blob = await response.blob();
-          const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
-          await dispatch(uploadProfileImage({ file, token }));
-        } catch (error) {
-          console.error('Error uploading profile image:', error);
-        }
-      }
-      
-      dispatch(resetProfile());
       setToastMessage('Profile saved successfully!');
       setToastType('success');
       setShowToast(true);
@@ -112,6 +265,10 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
   };
 
   const handleClose = () => {
+    // Reset to original profile if there are unsaved changes
+    if (hasUnsavedChanges) {
+      dispatch(resetProfile());
+    }
     setShowToast(false);
     onClose();
   };
@@ -219,6 +376,18 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
               >
                 <Settings className="h-4 w-4 flex-shrink-0" />
                 <span className="text-xs sm:text-sm font-medium">Preferences</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('danger')}
+                className={`flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap flex-shrink-0 ${
+                  activeTab === 'danger'
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                }`}
+              >
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium">Delete Account</span>
               </button>
             </nav>
           </div>
@@ -398,7 +567,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     Known Allergies
                   </label>
                   <textarea
-                    value={profile.allergies.join(', ')}
+                    value={Array.isArray(profile.allergies) ? profile.allergies.join(', ') : ''}
                     onChange={(e) => handleInputChange('allergies', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
                     placeholder="List any allergies separated by commas..."
                     rows={3}
@@ -411,7 +580,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     Current Medications
                   </label>
                   <textarea
-                    value={profile.medications.join(', ')}
+                    value={Array.isArray(profile.medications) ? profile.medications.join(', ') : ''}
                     onChange={(e) => handleInputChange('medications', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
                     placeholder="List current medications separated by commas..."
                     rows={3}
@@ -424,7 +593,7 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                     Medical Conditions
                   </label>
                   <textarea
-                    value={profile.medicalConditions.join(', ')}
+                    value={Array.isArray(profile.medicalConditions) ? profile.medicalConditions.join(', ') : ''}
                     onChange={(e) => handleInputChange('medicalConditions', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
                     placeholder="List any medical conditions separated by commas..."
                     rows={3}
@@ -638,16 +807,20 @@ export default function PatientProfileEditModal({ isOpen, onClose }: PatientProf
                 </div>
               </div>
             )}
+
+            {/* Delete Account Tab */}
+            {activeTab === 'danger' && (
+              <DeleteAccountSection userType="patient" token={token || ''} />
+            )}
           </div>
         </div>
 
         {/* Footer */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 sm:p-6 border-t border-gray-200 dark:border-slate-700 flex-shrink-0 gap-3 sm:gap-0">
-          {errors.general && (
-            <div className="text-red-600 dark:text-red-400 text-sm">
-              {errors.general}
-            </div>
-          )}
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {hasUnsavedChanges && 'You have unsaved changes'}
+          </div>
+          
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 ml-auto w-full sm:w-auto">
             <button
               onClick={handleClose}

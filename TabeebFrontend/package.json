@@ -25,7 +25,8 @@
     "react-intersection-observer": "^9.16.0",
     "react-markdown": "^10.1.0",
     "react-phone-number-input": "^3.4.12",
-    "react-redux": "^9.2.0"
+    "react-redux": "^9.2.0",
+    "redux-persist": "^6.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
