@@ -181,55 +181,8 @@ export default function DoctorDashboard() {
           </div>
 
           {/* Dashboard Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <Calendar className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Today&apos;s Appointments</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {profile.stats.totalAppointments > 0 ? '8' : '0'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                  <Users className="w-6 h-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Patients</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {profile.stats.totalPatients}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                  <Activity className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Rating</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {profile.stats.rating > 0 ? profile.stats.rating.toFixed(1) : 'N/A'}
-                  </p>
-                  {profile.stats.reviewCount > 0 && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {profile.stats.reviewCount} reviews
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700 opacity-90 cursor-default">
               <div className="flex items-center">
                 <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
                   <Clock className="w-6 h-6 text-orange-600 dark:text-orange-400" />
@@ -247,37 +200,43 @@ export default function DoctorDashboard() {
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <Link href="/Doctor/Appointments">
-              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700 hover:shadow-xl transition-shadow duration-200 cursor-pointer">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                    <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/10 dark:to-slate-800 rounded-lg shadow-md p-6 border border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-blue-500 dark:bg-blue-600 p-2.5 rounded-lg group-hover:bg-blue-600 dark:group-hover:bg-blue-500 transition-colors">
+                      <Calendar className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                        Manage Appointments
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        View and manage patient appointments
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Manage Appointments
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      View, schedule, and manage patient appointments
-                    </p>
-                  </div>
+                  <ChevronRight className="w-5 h-5 text-blue-400 dark:text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </div>
               </div>
             </Link>
 
             <Link href="/Doctor/Calendar">
-              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700 hover:shadow-xl transition-shadow duration-200 cursor-pointer">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-                    <Clock className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <div className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/10 dark:to-slate-800 rounded-lg shadow-md p-6 border border-green-200 dark:border-green-800 hover:border-green-400 dark:hover:border-green-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-green-500 dark:bg-green-600 p-2.5 rounded-lg group-hover:bg-green-600 dark:group-hover:bg-green-500 transition-colors">
+                      <Clock className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                        Calendar View
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Check your schedule and availability
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Calendar View
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Check your schedule and availability
-                    </p>
-                  </div>
+                  <ChevronRight className="w-5 h-5 text-green-400 dark:text-green-500 group-hover:text-green-600 dark:group-hover:text-green-400 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </div>
               </div>
             </Link>
@@ -352,21 +311,27 @@ export default function DoctorDashboard() {
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">Account Settings</h3>
             </div>
             <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
+              <button 
+                onClick={() => setShowProfileEdit(true)}
+                className="flex items-center justify-between w-full text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 px-3 py-2 -mx-3 rounded-lg transition-colors group"
+              >
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">Profile Settings</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Manage your profile information and preferences</p>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </div>
+                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors flex-shrink-0" />
+              </button>
               
-              <div className="flex items-center justify-between">
+              <button 
+                onClick={() => setShowProfileEdit(true)}
+                className="flex items-center justify-between w-full text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 px-3 py-2 -mx-3 rounded-lg transition-colors group"
+              >
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">Notification Settings</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Configure appointment and message notifications</p>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </div>
+                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors flex-shrink-0" />
+              </button>
               
               <div className="flex items-center justify-between">
                 <div>

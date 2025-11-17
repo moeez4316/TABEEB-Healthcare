@@ -139,8 +139,9 @@ export default function DoctorsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 py-10 px-2 sm:px-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-extrabold tracking-tight text-[#1e293b] dark:text-[#ededed] drop-shadow-sm mb-2">Find Doctors</h1>
@@ -322,7 +323,8 @@ export default function DoctorsPage() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

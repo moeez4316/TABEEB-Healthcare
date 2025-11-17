@@ -258,15 +258,18 @@ export default function DashboardPage() {
                   </button>
                 </div>
                 
-                <div className="flex items-center justify-between">
+                <button 
+                  onClick={() => setShowProfileEdit(true)}
+                  className="flex items-center justify-between w-full text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 px-3 py-2 -mx-3 rounded-lg transition-colors group"
+                >
                   <div>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">Language</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {profile.language}
                     </p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+                </button>
                 
                 <div className="flex items-center justify-between">
                   <div>
