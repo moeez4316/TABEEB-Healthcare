@@ -16,7 +16,7 @@ export default function PatientAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'pending' | 'completed'>('upcoming');
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
@@ -97,11 +97,12 @@ export default function PatientAppointmentsPage() {
       
       switch (filter) {
         case 'upcoming':
-          // Include today's appointments and future appointments, exclude cancelled/completed
-          return appointmentDate >= today && appointment.status !== 'CANCELLED' && appointment.status !== 'COMPLETED';
-        case 'past':
-          // Include past dates OR completed/cancelled appointments
-          return appointmentDate < today || appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED';
+          // Only CONFIRMED appointments that are today or in the future
+          return appointmentDate >= today && appointment.status === 'CONFIRMED';
+        case 'pending':
+          return appointment.status === 'PENDING';
+        case 'completed':
+          return appointment.status === 'COMPLETED';
         default:
           return true;
       }
@@ -112,8 +113,9 @@ export default function PatientAppointmentsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
-        <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
           <div className="animate-pulse space-y-4">
             {[1, 2, 3].map(i => (
               <div key={i} className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-lg border border-gray-200 dark:border-slate-700">
@@ -127,16 +129,18 @@ export default function PatientAppointmentsPage() {
               </div>
             ))}
           </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8" style={{paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)'}}>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">My Appointments</h1>
@@ -154,21 +158,74 @@ export default function PatientAppointmentsPage() {
             </button>
           </div>
 
+          {/* Stats Cards */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { 
+                label: 'Upcoming', 
+                value: appointments.filter(a => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const aptDate = new Date(a.appointmentDate);
+                  aptDate.setHours(0, 0, 0, 0);
+                  return aptDate.getTime() >= today.getTime() && a.status === 'CONFIRMED';
+                }).length,
+                color: 'text-teal-600 dark:text-teal-400',
+                bgColor: 'bg-teal-50 dark:bg-teal-900/20',
+                borderColor: 'border-teal-200 dark:border-teal-800'
+              },
+              { 
+                label: 'Pending', 
+                value: appointments.filter(a => a.status === 'PENDING').length,
+                color: 'text-yellow-600 dark:text-yellow-400',
+                bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+                borderColor: 'border-yellow-200 dark:border-yellow-800'
+              },
+              { 
+                label: 'Completed', 
+                value: appointments.filter(a => a.status === 'COMPLETED').length,
+                color: 'text-purple-600 dark:text-purple-400',
+                bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+                borderColor: 'border-purple-200 dark:border-purple-800'
+              },
+              { 
+                label: 'Confirmed', 
+                value: appointments.filter(a => a.status === 'CONFIRMED').length,
+                color: 'text-green-600 dark:text-green-400',
+                bgColor: 'bg-green-50 dark:bg-green-900/20',
+                borderColor: 'border-green-200 dark:border-green-800'
+              }
+            ].map((stat, index) => (
+              <div key={index} className={`bg-white dark:bg-slate-800 rounded-lg p-4 shadow-lg border ${stat.borderColor}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">{stat.label}</div>
+                  </div>
+                  <div className={`p-3 rounded-full ${stat.bgColor}`}>
+                    <div className={`w-3 h-3 rounded-full ${stat.color.replace('text-', 'bg-')}`}></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {/* Filter Tabs */}
-          <div className="mt-6 flex space-x-1 bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
+          <div className="mt-6 flex justify-center space-x-1 bg-white dark:bg-slate-800 rounded-lg p-1 shadow-lg border border-gray-200 dark:border-slate-700">
             {[
               { key: 'upcoming', label: 'Upcoming' },
-              { key: 'past', label: 'Past' },
+              { key: 'pending', label: 'Pending' },
+              { key: 'completed', label: 'Completed' },
               { key: 'all', label: 'All' }
             ].map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setFilter(tab.key as typeof filter)}
                 className={`
-                  px-4 py-2 rounded-md font-medium transition-colors
+                  flex-1 px-4 py-2 rounded-md font-medium transition-all duration-200
                   ${filter === tab.key 
-                    ? 'bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 shadow' 
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    ? 'bg-teal-600 dark:bg-teal-500 text-white shadow-md' 
+                    : 'text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20'
                   }
                 `}
               >
@@ -197,13 +254,17 @@ export default function PatientAppointmentsPage() {
             <FaCalendarPlus className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               {filter === 'upcoming' ? 'No Upcoming Appointments' : 
-               filter === 'past' ? 'No Past Appointments' : 'No Appointments Found'}
+               filter === 'pending' ? 'No Pending Appointments' :
+               filter === 'completed' ? 'No Completed Appointments' : 'No Appointments Found'}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               {filter === 'upcoming' 
-                ? 'You don\'t have any upcoming appointments scheduled.'
-                : 'No appointments found for the selected filter.'
-              }
+                ? 'You don\'t have any confirmed appointments scheduled.'
+                : filter === 'pending'
+                ? 'No appointments awaiting doctor confirmation.'
+                : filter === 'completed'
+                ? 'No completed appointments to display.'
+                : 'No appointments found for the selected filter.'}
             </p>
             <button
               onClick={() => router.push('/Patient/book-appointment')}
@@ -450,7 +511,8 @@ export default function PatientAppointmentsPage() {
             ))}
           </div>
         )}
-      </div>
+        </div>
+      </main>
       
       {/* Video Call Modal */}
       {showVideoCall && selectedAppointmentId && token && (

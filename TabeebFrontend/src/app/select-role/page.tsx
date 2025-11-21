@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { User, UserCheck, Stethoscope, Heart, Mail, Phone, GraduationCap, Award, Calendar, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { User, UserCheck, Stethoscope, Heart, Mail, Phone, GraduationCap, Award, Calendar, AlertTriangle, CheckCircle, Loader2, LogOut } from "lucide-react";
 import Image from "next/image";
 import { getDoctorRedirectPath } from "@/lib/doctorRedirect";
 import ProfileImageUpload from "@/components/shared/ProfileImageUpload";
@@ -38,9 +38,10 @@ type FormErrors = {
 };
 
 export default function SelectRolePage() {
-  const { token, role: userRole, setUserRole, loading, roleLoading, user, verificationStatus, verificationLoading } = useAuth();
+  const { token, role: userRole, setUserRole, loading, roleLoading, user, verificationStatus, verificationLoading, signOut } = useAuth();
   const [role, setRole] = useState<"doctor" | "patient" | "">("");
   const [submitting, setSubmitting] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -397,6 +398,20 @@ export default function SelectRolePage() {
 
 
 
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+      localStorage.clear();
+      router.push('/landing-page');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      setError('Failed to sign out. Please try again.');
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
       <div className="max-w-2xl w-full space-y-8">
@@ -604,7 +619,7 @@ export default function SelectRolePage() {
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
                         formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
                       } ${isPhoneAuth ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      placeholder={isEmailAuth ? "+923001234567 or 03001234567 (optional)" : "+923001234567 or 03001234567"}
+                      placeholder="+92-123-4567890"
                     />
                   </div>
                   {formErrors.phone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.phone}</p>}
@@ -614,22 +629,17 @@ export default function SelectRolePage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Date of Birth *
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                    </div>
-                    <input
-                      type="date"
-                      name="dateOfBirth"
-                      required
-                      value={doctorForm.dateOfBirth}
-                      onChange={handleDoctorChange}
-                      max={new Date().toISOString().split('T')[0]}
-                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
-                      }`}
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    name="dateOfBirth"
+                    required
+                    value={doctorForm.dateOfBirth}
+                    onChange={handleDoctorChange}
+                    max={new Date().toISOString().split('T')[0]}
+                    className={`block w-full px-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                    }`}
+                  />
                   {formErrors.dateOfBirth && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.dateOfBirth}</p>}
                 </div>
 
@@ -637,25 +647,20 @@ export default function SelectRolePage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Gender *
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                    </div>
-                    <select
-                      name="gender"
-                      required
-                      value={doctorForm.gender}
-                      onChange={handleDoctorChange}
-                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        formErrors.gender ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
-                      }`}
-                    >
-                      <option value="">Select gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
+                  <select
+                    name="gender"
+                    required
+                    value={doctorForm.gender}
+                    onChange={handleDoctorChange}
+                    className={`block w-full px-3 py-3 border rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      formErrors.gender ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                    }`}
+                  >
+                    <option value="">Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
                   {formErrors.gender && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.gender}</p>}
                 </div>
 
@@ -899,7 +904,7 @@ export default function SelectRolePage() {
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
                         formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
                       } ${isPhoneAuth ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      placeholder={isEmailAuth ? "+923001234567 or 03001234567 (optional)" : "+923001234567 or 03001234567"}
+                      placeholder="+92-123-4567890"
                     />
                   </div>
                   {formErrors.phone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.phone}</p>}
@@ -909,22 +914,17 @@ export default function SelectRolePage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Date of Birth *
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                    </div>
-                    <input
-                      type="date"
-                      name="dateOfBirth"
-                      required
-                      value={patientForm.dateOfBirth}
-                      onChange={handlePatientChange}
-                      max={new Date().toISOString().split('T')[0]}
-                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
-                      }`}
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    name="dateOfBirth"
+                    required
+                    value={patientForm.dateOfBirth}
+                    onChange={handlePatientChange}
+                    max={new Date().toISOString().split('T')[0]}
+                    className={`block w-full px-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                      formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
+                    }`}
+                  />
                   {formErrors.dateOfBirth && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.dateOfBirth}</p>}
                 </div>
               </div>
@@ -975,6 +975,21 @@ export default function SelectRolePage() {
               </p>
             </div>
           )}
+
+          {/* Sign Out Button */}
+          <button
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-lg shadow-sm hover:shadow-md hover:bg-red-100 dark:hover:bg-red-900/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-red-200 dark:border-red-800/30"
+            title="Sign out and switch accounts"
+          >
+            <span className="text-sm font-medium">Sign Out</span>
+            {signingOut ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4" />
+            )}
+          </button>
         </div>
 
         {/* Footer Branding */}

@@ -18,7 +18,7 @@ export default function DoctorAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'today' | 'upcoming' | 'pending' | 'confirmed'>('upcoming');
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'pending' | 'completed'>('upcoming');
   const [updating, setUpdating] = useState<string | null>(null);
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -154,22 +154,19 @@ export default function DoctorAppointmentsPage() {
   const filterAppointments = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
     
     const filtered = appointments.filter(appointment => {
       const appointmentDate = new Date(appointment.appointmentDate);
       appointmentDate.setHours(0, 0, 0, 0);
       
       switch (filter) {
-        case 'today':
-          return appointmentDate.getTime() === today.getTime();
         case 'upcoming':
-          return appointmentDate.getTime() >= tomorrow.getTime();
+          // Only CONFIRMED appointments that are today or in the future
+          return appointmentDate.getTime() >= today.getTime() && appointment.status === 'CONFIRMED';
         case 'pending':
           return appointment.status === 'PENDING';
-        case 'confirmed':
-          return appointment.status === 'CONFIRMED';
+        case 'completed':
+          return appointment.status === 'COMPLETED';
         default:
           return true;
       }
@@ -218,7 +215,7 @@ export default function DoctorAppointmentsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
-      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
+      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700" style={{paddingTop: 'max(env(safe-area-inset-top, 0px), 0.5rem)'}}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
@@ -249,29 +246,16 @@ export default function DoctorAppointmentsPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {/* Stats Cards */}
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
             {[
-              { 
-                label: 'Today\'s Appointments', 
-                value: appointments.filter(a => {
-                  const today = new Date();
-                  const aptDate = new Date(a.appointmentDate);
-                  return aptDate.toDateString() === today.toDateString();
-                }).length,
-                color: 'text-blue-600 dark:text-blue-400',
-                bgColor: 'bg-blue-50 dark:bg-blue-900/20',
-                borderColor: 'border-blue-200 dark:border-blue-800'
-              },
               { 
                 label: 'Upcoming', 
                 value: appointments.filter(a => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-                  const tomorrow = new Date(today);
-                  tomorrow.setDate(tomorrow.getDate() + 1);
                   const aptDate = new Date(a.appointmentDate);
                   aptDate.setHours(0, 0, 0, 0);
-                  return aptDate.getTime() >= tomorrow.getTime();
+                  return aptDate.getTime() >= today.getTime() && a.status === 'CONFIRMED';
                 }).length,
                 color: 'text-teal-600 dark:text-teal-400',
                 bgColor: 'bg-teal-50 dark:bg-teal-900/20',
@@ -285,18 +269,18 @@ export default function DoctorAppointmentsPage() {
                 borderColor: 'border-yellow-200 dark:border-yellow-800'
               },
               { 
-                label: 'Confirmed', 
-                value: appointments.filter(a => a.status === 'CONFIRMED').length,
-                color: 'text-green-600 dark:text-green-400',
-                bgColor: 'bg-green-50 dark:bg-green-900/20',
-                borderColor: 'border-green-200 dark:border-green-800'
-              },
-              { 
                 label: 'Completed', 
                 value: appointments.filter(a => a.status === 'COMPLETED').length,
                 color: 'text-purple-600 dark:text-purple-400',
                 bgColor: 'bg-purple-50 dark:bg-purple-900/20',
                 borderColor: 'border-purple-200 dark:border-purple-800'
+              },
+              { 
+                label: 'Confirmed', 
+                value: appointments.filter(a => a.status === 'CONFIRMED').length,
+                color: 'text-green-600 dark:text-green-400',
+                bgColor: 'bg-green-50 dark:bg-green-900/20',
+                borderColor: 'border-green-200 dark:border-green-800'
               }
             ].map((stat, index) => (
               <div key={index} className={`bg-white dark:bg-slate-800 rounded-lg p-4 shadow-lg border ${stat.borderColor}`}>
@@ -314,25 +298,23 @@ export default function DoctorAppointmentsPage() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="mb-6 flex flex-wrap justify-center space-x-1 bg-white dark:bg-slate-800 rounded-lg p-1 shadow-lg border border-gray-200 dark:border-slate-700">
+          <div className="mb-6 flex justify-center space-x-1 bg-white dark:bg-slate-800 rounded-lg p-1 shadow-lg border border-gray-200 dark:border-slate-700">
             {[
               { key: 'upcoming', label: 'Upcoming' },
-              { key: 'today', label: 'Today' },
               { key: 'pending', label: 'Pending' },
-              { key: 'confirmed', label: 'Confirmed' },
+              { key: 'completed', label: 'Completed' },
               { key: 'all', label: 'All' }
             ].map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setFilter(tab.key as typeof filter)}
                 className={`
-                  px-4 py-2 rounded-md font-medium transition-all duration-200 flex-1 min-w-[90px] text-center
+                  flex-1 px-4 py-2 rounded-md font-medium transition-all duration-200
                   ${filter === tab.key 
                     ? 'bg-teal-600 dark:bg-teal-500 text-white shadow-md' 
                     : 'text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20'
                   }
                 `}
-                style={{maxWidth: '100%'}}
               >
                 {tab.label}
               </button>
@@ -345,7 +327,7 @@ export default function DoctorAppointmentsPage() {
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 rounded-full bg-teal-500"></div>
               <p className="text-teal-700 dark:text-teal-300 text-sm font-medium">
-                Showing appointments scheduled for tomorrow and beyond. These are future appointment requests from patients.
+                Showing confirmed appointments scheduled for today and future dates.
               </p>
             </div>
           </div>
@@ -369,19 +351,19 @@ export default function DoctorAppointmentsPage() {
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-12 text-center border border-gray-200 dark:border-slate-700">
             <FaCalendarCheck className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              {filter === 'today' ? 'No Appointments Today' :
-               filter === 'upcoming' ? 'No Upcoming Appointments' :
+              {filter === 'upcoming' ? 'No Upcoming Appointments' :
                filter === 'pending' ? 'No Pending Appointments' :
-               filter === 'confirmed' ? 'No Confirmed Appointments' :
+               filter === 'completed' ? 'No Completed Appointments' :
                'No Appointments Found'}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
               {filter === 'upcoming' 
-                ? 'No appointments are scheduled for tomorrow or later. New appointment requests will appear here.'
-                : filter === 'today'
-                ? 'You don\'t have any appointments scheduled for today.'
-                : `No appointments match the ${filter} filter criteria.`
-              }
+                ? 'No confirmed appointments scheduled for today or future dates.'
+                : filter === 'pending'
+                ? 'No appointment requests awaiting your response.'
+                : filter === 'completed'
+                ? 'No completed appointments to display.'
+                : 'No appointments found matching the selected filter.'}
             </p>
           </div>
         ) : (
@@ -477,21 +459,20 @@ export default function DoctorAppointmentsPage() {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex flex-col space-y-2 mt-4 sm:mt-0 sm:ml-4 flex-shrink-0 w-full sm:w-auto items-stretch sm:items-end">
+                  <div className="flex flex-col space-y-2 mt-4 sm:mt-0 sm:ml-4 flex-shrink-0 w-full sm:w-64 items-stretch">
                     <button
                       onClick={() => setExpandedAppointment(expandedAppointment === appointment.id ? null : appointment.id)}
-                      className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-2 py-1 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors text-xs sm:text-sm max-w-full"
-                      style={{wordBreak: 'break-word'}}
+                      className="flex items-center justify-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-4 py-2 rounded-lg border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors w-full"
                     >
                       {expandedAppointment === appointment.id ? (
                         <>
-                          <FaChevronUp className="w-3 h-3" />
-                          <span className="">Hide Details</span>
+                          <FaChevronUp className="w-4 h-4" />
+                          <span>Hide Details</span>
                         </>
                       ) : (
                         <>
-                          <FaChevronDown className="w-3 h-3" />
-                          <span className="">View Details</span>
+                          <FaChevronDown className="w-4 h-4" />
+                          <span>View Details</span>
                         </>
                       )}
                     </button>
@@ -502,22 +483,20 @@ export default function DoctorAppointmentsPage() {
                           <button
                             onClick={() => updateAppointmentStatus(appointment.id, 'CONFIRMED')}
                             disabled={updating === appointment.id}
-                            className="flex items-center space-x-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 px-2 py-1 rounded border border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50 text-xs sm:text-sm max-w-full"
-                            style={{wordBreak: 'break-word'}}
+                            className="flex items-center justify-center space-x-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 px-4 py-2 rounded-lg border border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50 w-full"
                           >
-                            <FaCheckCircle className="w-3 h-3" />
-                            <span className="">
+                            <FaCheckCircle className="w-4 h-4" />
+                            <span>
                               {updating === appointment.id ? 'Confirming...' : 'Confirm'}
                             </span>
                           </button>
                           <button
                             onClick={() => handleCancelClick(appointment.id)}
                             disabled={updating === appointment.id}
-                            className="flex items-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-2 py-1 rounded border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 text-xs sm:text-sm max-w-full"
-                            style={{wordBreak: 'break-word'}}
+                            className="flex items-center justify-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-4 py-2 rounded-lg border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 w-full"
                           >
-                            <FaTimesCircle className="w-3 h-3" />
-                            <span className="">
+                            <FaTimesCircle className="w-4 h-4" />
+                            <span>
                               {updating === appointment.id ? 'Cancelling...' : 'Cancel'}
                             </span>
                           </button>
@@ -567,21 +546,19 @@ export default function DoctorAppointmentsPage() {
                           {showPrescriptionButton && (
                             <button
                               onClick={() => router.push(`/Doctor/Appointments/prescribe/${appointment.id}`)}
-                              className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-2 py-1 rounded border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors text-xs sm:text-sm max-w-full"
-                              style={{wordBreak: 'break-word'}}
+                              className="flex items-center justify-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-4 py-2 rounded-lg border border-teal-600 dark:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors w-full"
                             >
-                              <FaPrescriptionBottleAlt className="w-3 h-3" />
-                              <span className="">Assign Prescription</span>
+                              <FaPrescriptionBottleAlt className="w-4 h-4" />
+                              <span>Assign Prescription</span>
                             </button>
                           )}
                           {appointment.status === 'CONFIRMED' && (
                             <button
                               onClick={() => handleVideoCallClick(appointment, canStartVideoCall)}
-                              className="flex items-center space-x-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-2 py-1 rounded border border-blue-600 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-xs sm:text-sm max-w-full"
-                              style={{wordBreak: 'break-word'}}
+                              className="flex items-center justify-center space-x-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-4 py-2 rounded-lg border border-blue-600 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors w-full"
                             >
-                              <FaVideo className="w-3 h-3" />
-                              <span className="">Start Video Call</span>
+                              <FaVideo className="w-4 h-4" />
+                              <span>Start Video Call</span>
                             </button>
                           )}
                           
@@ -589,12 +566,11 @@ export default function DoctorAppointmentsPage() {
                           {appointment.status === 'CONFIRMED' && (
                             <button
                               onClick={handleMedicationClick}
-                              className="flex items-center space-x-2 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 px-2 py-1 rounded border border-purple-600 dark:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors text-xs sm:text-sm max-w-full"
-                              style={{wordBreak: 'break-word'}}
+                              className="flex items-center justify-center space-x-2 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 px-4 py-2 rounded-lg border border-purple-600 dark:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors w-full"
                               title="Coming Soon - Feature under development"
                             >
-                              <FaPills className="w-3 h-3" />
-                              <span className="">Patient Medications</span>
+                              <FaPills className="w-4 h-4" />
+                              <span>Patient Medications</span>
                             </button>
                           )}
                           
@@ -602,11 +578,10 @@ export default function DoctorAppointmentsPage() {
                             <button
                               onClick={() => handleCancelClick(appointment.id)}
                               disabled={updating === appointment.id}
-                              className="flex items-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-2 py-1 rounded border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 text-xs sm:text-sm max-w-full"
-                              style={{wordBreak: 'break-word'}}
+                              className="flex items-center justify-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-4 py-2 rounded-lg border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 w-full"
                             >
-                              <FaTimesCircle className="w-3 h-3" />
-                              <span className="">
+                              <FaTimesCircle className="w-4 h-4" />
+                              <span>
                                 {updating === appointment.id ? 'Cancelling...' : 'Cancel'}
                               </span>
                             </button>

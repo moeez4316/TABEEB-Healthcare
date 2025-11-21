@@ -183,11 +183,45 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
     const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
     // Update activeTab ONLY when modal opens AND initialTab is explicitly provided
+    // Set initial tab when opening (explicit initialTab overrides saved state)
     useEffect(() => {
-        if (isOpen && initialTab) {
-            setActiveTab(initialTab);
+        if (isOpen) {
+            if (initialTab) {
+                setActiveTab(initialTab);
+            } else {
+                const saved = typeof window !== 'undefined' ? sessionStorage.getItem('doctorProfileLastTab') : null;
+                if (saved) setActiveTab(saved);
+            }
         }
     }, [isOpen, initialTab]);
+
+    // Persist active tab while modal open
+    useEffect(() => {
+        if (isOpen && activeTab) {
+            try {
+                sessionStorage.setItem('doctorProfileLastTab', activeTab);
+            } catch {}
+        }
+    }, [isOpen, activeTab]);
+
+    // Lock body scroll when modal is open
+    useEffect(() => {
+        if (isOpen) {
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.width = '100%';
+            document.body.style.overflow = 'hidden';
+
+            return () => {
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.width = '';
+                document.body.style.overflow = '';
+                window.scrollTo(0, scrollY);
+            };
+        }
+    }, [isOpen]);
 
     if (!isOpen || !profile) return null;
 
@@ -310,8 +344,35 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-4xl w-full my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-hidden flex flex-col">
+        <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+            style={{
+                height: '100dvh', // Dynamic viewport height for mobile
+                overflow: 'hidden',
+                paddingTop: 'max(env(safe-area-inset-top, 0px), 0.5rem)',
+                paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.5rem)',
+                paddingLeft: 'max(env(safe-area-inset-left, 0px), 0.5rem)',
+                paddingRight: 'max(env(safe-area-inset-right, 0px), 0.5rem)'
+            }}
+            onClick={(e) => {
+                if (e.target === e.currentTarget) handleClose();
+            }}
+            onTouchMove={(e) => {
+                // Prevent scrolling on the overlay background
+                if (e.target === e.currentTarget) {
+                    e.preventDefault();
+                }
+            }}
+        >
+            <div
+                className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full overflow-hidden flex flex-col"
+                style={{
+                    maxWidth: '56rem', // max-w-4xl
+                    maxHeight: '100%',
+                    margin: '0.5rem'
+                }}
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-slate-700 flex-shrink-0">
                     <div className="flex items-center space-x-2 sm:space-x-3">
@@ -325,7 +386,8 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                     </div>
                     <button
                         onClick={handleClose}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                        aria-label="Close edit profile"
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-2 -m-2 rounded-md"
                     >
                         <X className="h-5 w-5 sm:h-6 sm:w-6" />
                     </button>
@@ -843,7 +905,10 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                 </div>
 
                 {/* Footer */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 sm:p-6 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 gap-3 sm:gap-0">
+                <div
+                    className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 sm:p-6 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 gap-3 sm:gap-0"
+                    style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+                >
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                         {hasUnsavedChanges && 'You have unsaved changes'}
                     </div>

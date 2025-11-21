@@ -1,6 +1,6 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit'
 import { persistStore, persistReducer, createTransform } from 'redux-persist'
-import storage from 'redux-persist/lib/storage' // localStorage
+import storage from './storage' // Custom storage that handles SSR
 import patientReducer from './slices/patientSlice'
 import doctorReducer from './slices/doctorSlice'
 import prescriptionReducer from './slices/prescriptionSlice'

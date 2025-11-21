@@ -81,7 +81,7 @@ export default function Sidebar() {
 
   const SidebarContent = () => (
     <aside
-      className={`h-screen flex flex-col py-8 relative ${!isMobile && isCollapsed ? 'w-20' : 'w-60'}`}
+      className={`h-full flex flex-col relative ${!isMobile && isCollapsed ? 'w-20' : 'w-60'}`}
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
       {/* Hide scrollbar with custom CSS */}
@@ -108,7 +108,7 @@ export default function Sidebar() {
       )}
 
       {/* Header/logo fixed at top */}
-      <div className={`flex flex-col items-center transition-all duration-300 ${!isMobile && isCollapsed ? 'scale-75' : 'scale-100'}`} style={{ flexShrink: 0 }}>
+      <div className={`flex flex-col items-center py-8 transition-all duration-300 ${!isMobile && isCollapsed ? 'scale-75' : 'scale-100'}`} style={{ flexShrink: 0 }}>
         <Image 
           src="/tabeeb_logo.png" 
           alt="Tabeeb Logo" 
@@ -123,10 +123,17 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* Scrollable nav items: flex-1, overflow-y-auto, no extra scroll, starts lower */}
-      <div className="flex-1 w-full overflow-y-auto custom-scrollbar-hide min-h-0">
-        <nav className="w-full mt-6">{/* margin-top so first item starts lower */}
-          <ul className="space-y-2 w-full">
+      {/* Scrollable nav items: flex-1, overflow-y-auto */}
+      <div
+        className="flex-1 w-full overflow-y-auto custom-scrollbar-hide min-h-0"
+        style={{
+          paddingBottom: isMobile
+            ? 'calc(120px + env(safe-area-inset-bottom, 0px))'
+            : 'calc(96px + env(safe-area-inset-bottom, 0px))'
+        }}
+      >
+        <nav className="w-full">
+          <ul className="space-y-2 w-full px-2">
             {navItems.map((item) => (
               <li key={item.href}>
                 <Link
@@ -137,7 +144,7 @@ export default function Sidebar() {
                     }
                   }}
                   className={`flex items-center gap-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-200 w-full group ${
-                    !isMobile && isCollapsed ? 'px-3 py-3 justify-center' : 'px-6 py-3'
+                    !isMobile && isCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-3'
                   }`}
                   title={!isMobile && isCollapsed ? item.label : ''}
                 >
@@ -157,8 +164,14 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Sign Out Section - sticky bottom, safe area */}
-      <div className={`w-full transition-all duration-300 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'} sticky bottom-0 bg-white dark:bg-slate-900 z-10 pt-2 pb-4`} style={{paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'}}>
+      {/* Sign Out Section - absolutely positioned at bottom */}
+      <div 
+        className={`w-full transition-all duration-300 ${!isMobile && isCollapsed ? 'px-2' : 'px-4'} bg-white dark:bg-slate-900 pt-3 pb-4 border-t border-gray-200 dark:border-gray-700`}
+        style={{
+          flexShrink: 0,
+          paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'
+        }}
+      >
         {user && (isMobile || !isCollapsed) && (
           <div className="mb-4 p-3 bg-white/10 rounded-lg transition-opacity duration-300">
             <p className="text-sm text-gray-600 dark:text-gray-400">Signed in as:</p>
@@ -234,10 +247,13 @@ export default function Sidebar() {
 
       {/* Mobile Sidebar - Only show on mobile */}
       {isMobile && (
-        <div className={`lg:hidden fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}>
-          <div className="bg-white dark:bg-slate-900 w-60">
+        <div
+          className={`lg:hidden fixed top-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${
+            isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+          style={{ height: '100dvh' }}
+        >
+          <div className="bg-white dark:bg-slate-900 w-60 h-full">
             <SidebarContent />
           </div>
         </div>

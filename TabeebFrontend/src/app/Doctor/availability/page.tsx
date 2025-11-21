@@ -510,7 +510,8 @@ export default function DoctorAvailabilityPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
           <div className="animate-pulse space-y-4">
             {[1, 2, 3, 4, 5].map(i => (
               <div key={i} className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-lg border border-gray-200 dark:border-slate-700">
@@ -521,6 +522,7 @@ export default function DoctorAvailabilityPage() {
               </div>
             ))}
           </div>
+          </div>
         </div>
       </div>
     );
@@ -529,7 +531,7 @@ export default function DoctorAvailabilityPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               <div className="h-8 w-8 rounded-full bg-teal-100 dark:bg-teal-800 flex items-center justify-center">
@@ -548,7 +550,8 @@ export default function DoctorAvailabilityPage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
         {error && (
           <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
             <div className="text-red-800 dark:text-red-400">{error}</div>
@@ -562,52 +565,56 @@ export default function DoctorAvailabilityPage() {
         )}
 
         {/* Hourly Rate Display */}
-        <div className="mb-6 bg-gradient-to-r from-teal-50 to-blue-50 dark:from-teal-900/20 dark:to-blue-900/20 border-2 border-teal-200 dark:border-teal-700 rounded-xl p-6 shadow-sm">
-          <div className="flex items-start justify-between">
+        <div className="mb-6 bg-gradient-to-r from-teal-50 to-blue-50 dark:from-teal-900/20 dark:to-blue-900/20 border-2 border-teal-200 dark:border-teal-700 rounded-xl p-4 sm:p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex-1">
-              <div className="flex items-center space-x-2 mb-2">
-                <svg className="h-5 w-5 text-teal-600 dark:text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex items-center space-x-2 mb-3">
+                <svg className="h-5 w-5 text-teal-600 dark:text-teal-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                   Consultation Fees
                 </h3>
               </div>
               
               {profile?.hourlyConsultationRate && profile.hourlyConsultationRate > 0 ? (
                 <div>
-                  <div className="flex items-baseline space-x-2 mb-2">
-                    <span className="text-3xl font-bold text-teal-600 dark:text-teal-400">
+                  <div className="flex items-baseline space-x-2 mb-3">
+                    <span className="text-2xl sm:text-3xl font-bold text-teal-600 dark:text-teal-400">
                       PKR {profile.hourlyConsultationRate.toLocaleString('en-PK')}
                     </span>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">per hour</span>
+                    <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">per hour</span>
                   </div>
-                  <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
-                    <p className="flex items-center space-x-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                    <div className="flex items-center space-x-2 bg-white dark:bg-slate-700 p-2 rounded">
                       <span className="text-gray-500 dark:text-gray-400">•</span>
-                      <span>30 min appointment: <strong className="text-teal-600 dark:text-teal-400">PKR {(profile.hourlyConsultationRate * 0.5).toLocaleString('en-PK')}</strong></span>
-                    </p>
-                    <p className="flex items-center space-x-2">
+                      <span>15 min: <strong className="text-teal-600 dark:text-teal-400">PKR {(profile.hourlyConsultationRate * 0.25).toLocaleString('en-PK')}</strong></span>
+                    </div>
+                    <div className="flex items-center space-x-2 bg-white dark:bg-slate-700 p-2 rounded">
                       <span className="text-gray-500 dark:text-gray-400">•</span>
-                      <span>45 min appointment: <strong className="text-teal-600 dark:text-teal-400">PKR {(profile.hourlyConsultationRate * 0.75).toLocaleString('en-PK')}</strong></span>
-                    </p>
-                    <p className="flex items-center space-x-2">
+                      <span>30 min: <strong className="text-teal-600 dark:text-teal-400">PKR {(profile.hourlyConsultationRate * 0.5).toLocaleString('en-PK')}</strong></span>
+                    </div>
+                    <div className="flex items-center space-x-2 bg-white dark:bg-slate-700 p-2 rounded">
                       <span className="text-gray-500 dark:text-gray-400">•</span>
-                      <span>60 min appointment: <strong className="text-teal-600 dark:text-teal-400">PKR {profile.hourlyConsultationRate.toLocaleString('en-PK')}</strong></span>
-                    </p>
+                      <span>45 min: <strong className="text-teal-600 dark:text-teal-400">PKR {(profile.hourlyConsultationRate * 0.75).toLocaleString('en-PK')}</strong></span>
+                    </div>
+                    <div className="flex items-center space-x-2 bg-white dark:bg-slate-700 p-2 rounded">
+                      <span className="text-gray-500 dark:text-gray-400">•</span>
+                      <span>60 min: <strong className="text-teal-600 dark:text-teal-400">PKR {profile.hourlyConsultationRate.toLocaleString('en-PK')}</strong></span>
+                    </div>
                   </div>
                 </div>
               ) : (
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
-                    <svg className="h-5 w-5 text-amber-500 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-5 w-5 text-amber-500 dark:text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    <span className="text-lg font-medium text-amber-700 dark:text-amber-400">
+                    <span className="text-base sm:text-lg font-medium text-amber-700 dark:text-amber-400">
                       No hourly rate set
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     Set your hourly consultation rate to automatically calculate appointment fees based on duration.
                   </p>
                 </div>
@@ -616,7 +623,7 @@ export default function DoctorAvailabilityPage() {
             
             <button
               onClick={() => setShowProfileEdit(true)}
-              className="ml-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors whitespace-nowrap"
+              className="w-full sm:w-auto sm:ml-4 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors whitespace-nowrap"
             >
               <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -680,49 +687,50 @@ export default function DoctorAvailabilityPage() {
                   {day.isActive && day.dayOfWeek >= 1 && day.dayOfWeek <= 5 && (
                     <button
                       onClick={() => copyToWeekdays(index)}
-                      className="flex items-center space-x-1 text-sm text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-3 py-1 rounded-lg border border-teal-300 dark:border-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/30"
+                      className="flex items-center space-x-1 text-xs sm:text-sm text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-2 sm:px-3 py-1 rounded-lg border border-teal-300 dark:border-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors"
                     >
-                      <FaCopy className="w-3 h-3" />
-                      <span>Copy to Weekdays</span>
+                      <FaCopy className="w-3 h-3 flex-shrink-0" />
+                      <span className="hidden xs:inline sm:inline">Copy to Weekdays</span>
+                      <span className="xs:hidden sm:hidden">Copy</span>
                     </button>
                   )}
                 </div>
 
                 {day.isActive && (
-                  <div className="space-y-4 pl-17">
-                    <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-3 sm:space-y-4 pl-0 sm:pl-17">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                           Start Time
                         </label>
                         <input
                           type="time"
                           value={day.startTime}
                           onChange={(e) => updateDayTime(index, 'startTime', e.target.value)}
-                          className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2.5 sm:py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                           End Time
                         </label>
                         <input
                           type="time"
                           value={day.endTime}
                           onChange={(e) => updateDayTime(index, 'endTime', e.target.value)}
-                          className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2.5 sm:py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                           Slot Duration
                         </label>
                         <select
                           value={day.slotDuration}
                           onChange={(e) => updateSlotDuration(index, parseInt(e.target.value))}
-                          className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2.5 sm:py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                         >
                           <option value={15}>15 min</option>
                           <option value={30}>30 min</option>
@@ -856,8 +864,8 @@ export default function DoctorAvailabilityPage() {
             </div>
           </div>
 
-          <div className="p-6">
-            <div className="grid grid-cols-7 gap-2">
+          <div className="p-3 sm:p-6">
+            <div className="grid grid-cols-5 sm:grid-cols-7 gap-1.5 sm:gap-2">
               {getNext30Days().map((date, index) => {
                 const dayOfWeek = date.getDay();
                 const isTemplateActive = weeklySchedule.find(d => d.dayOfWeek === dayOfWeek)?.isActive;
@@ -874,28 +882,28 @@ export default function DoctorAvailabilityPage() {
                     }}
                     type="button"
                     className={`
-                      relative p-3 rounded-lg transition-all text-center hover:shadow-md cursor-pointer
-                      ${isToday ? 'ring-2 ring-teal-500 ring-offset-2 dark:ring-offset-slate-900 border-2 border-teal-500 bg-gradient-to-br from-teal-50 to-blue-50 dark:from-teal-900/30 dark:to-blue-900/30 shadow-lg' : 'border-2'}
+                      relative p-2 sm:p-3 rounded-lg transition-all text-center hover:shadow-md cursor-pointer
+                      ${isToday ? 'ring-2 ring-teal-500 ring-offset-1 sm:ring-offset-2 dark:ring-offset-slate-900 border-2 border-teal-500 bg-gradient-to-br from-teal-50 to-blue-50 dark:from-teal-900/30 dark:to-blue-900/30 shadow-lg' : 'border-2'}
                       ${!isToday && isCustomized ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/10 hover:border-blue-400' : ''}
                       ${!isToday && !isCustomized && isTemplateActive ? 'border-gray-300 bg-white dark:bg-slate-700 hover:border-gray-400' : ''}
                       ${!isToday && !isCustomized && !isTemplateActive ? 'border-gray-200 bg-gray-50 dark:bg-slate-700/50 hover:border-gray-300' : ''}
                     `}
                   >
                     {isToday && (
-                      <div className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-teal-500 text-white text-[10px] font-bold rounded-full shadow-md">
+                      <div className="absolute -top-1 -right-1 px-1 sm:px-1.5 py-0.5 bg-teal-500 text-white text-[8px] sm:text-[10px] font-bold rounded-full shadow-md">
                         TODAY
                       </div>
                     )}
                     {isCustomized && !isToday && (
-                      <div className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <div className="absolute top-0.5 sm:top-1 right-0.5 sm:right-1 w-1.5 sm:w-2 h-1.5 sm:h-2 bg-blue-500 rounded-full"></div>
                     )}
-                    <div className={`text-xs font-medium ${isToday ? 'text-teal-700 dark:text-teal-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                    <div className={`text-[10px] sm:text-xs font-medium ${isToday ? 'text-teal-700 dark:text-teal-300' : 'text-gray-500 dark:text-gray-400'}`}>
                       {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek]}
                     </div>
-                    <div className={`text-lg font-bold mt-1 ${isToday ? 'text-teal-600 dark:text-teal-400' : isCustomized ? 'text-blue-600 dark:text-blue-400' : isTemplateActive ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
+                    <div className={`text-base sm:text-lg font-bold mt-0.5 sm:mt-1 ${isToday ? 'text-teal-600 dark:text-teal-400' : isCustomized ? 'text-blue-600 dark:text-blue-400' : isTemplateActive ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
                       {date.getDate()}
                     </div>
-                    <div className={`text-xs mt-1 ${isToday ? 'text-teal-600 dark:text-teal-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                    <div className={`text-[10px] sm:text-xs mt-0.5 sm:mt-1 ${isToday ? 'text-teal-600 dark:text-teal-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
                       {date.toLocaleDateString('en-US', { month: 'short' })}
                     </div>
                   </button>
@@ -930,13 +938,13 @@ export default function DoctorAvailabilityPage() {
         {showSpecificDayModal && selectedDate && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-slate-700">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                       Edit Specific Day
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 break-words">
                       {selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                   </div>
@@ -946,14 +954,14 @@ export default function DoctorAvailabilityPage() {
                       setSelectedDate(null);
                       setSpecificDayData(null);
                     }}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="flex-shrink-0 p-2 -m-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                   >
-                    <FaTimes className="w-5 h-5" />
+                    <FaTimes className="w-6 h-6 sm:w-5 sm:h-5" />
                   </button>
                 </div>
               </div>
 
-              <div className="p-6 space-y-4">
+              <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
                 {loadingSpecificDay || !specificDayData ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
@@ -962,13 +970,13 @@ export default function DoctorAvailabilityPage() {
                 ) : (
                   <>
                     {/* Availability Toggle */}
-                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    <div className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                         Available on this day
                       </span>
                       <button
                         onClick={() => setSpecificDayData(prev => prev ? { ...prev, isAvailable: !prev.isAvailable } : null)}
-                        className={`relative w-14 h-8 rounded-full transition-colors ${
+                        className={`relative w-14 h-8 rounded-full transition-colors flex-shrink-0 ${
                           specificDayData.isAvailable ? 'bg-teal-600' : 'bg-gray-300 dark:bg-gray-600'
                         }`}
                       >
@@ -983,40 +991,40 @@ export default function DoctorAvailabilityPage() {
                     {specificDayData.isAvailable && (
                       <>
                         {/* Time Range */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                               Start Time
                             </label>
                             <input
                               type="time"
                               value={specificDayData.startTime}
                               onChange={(e) => setSpecificDayData(prev => prev ? { ...prev, startTime: e.target.value } : null)}
-                              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                               End Time
                             </label>
                             <input
                               type="time"
                               value={specificDayData.endTime}
                               onChange={(e) => setSpecificDayData(prev => prev ? { ...prev, endTime: e.target.value } : null)}
-                              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                             />
                           </div>
                         </div>
 
                         {/* Slot Duration */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2">
                             Slot Duration
                           </label>
                           <select
                             value={specificDayData.slotDuration}
                             onChange={(e) => setSpecificDayData(prev => prev ? { ...prev, slotDuration: parseInt(e.target.value) } : null)}
-                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                           >
                             <option value={15}>15 minutes</option>
                             <option value={30}>30 minutes</option>
@@ -1077,21 +1085,21 @@ export default function DoctorAvailabilityPage() {
                 )}
               </div>
 
-              <div className="p-6 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 flex justify-end space-x-3">
+              <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                 <button
                   onClick={() => {
                     setShowSpecificDayModal(false);
                     setSelectedDate(null);
                     setSpecificDayData(null);
                   }}
-                  className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveSpecificDay}
                   disabled={savingSpecificDay}
-                  className="flex items-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-2.5 sm:py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <FaSave className="w-4 h-4" />
                   <span>{savingSpecificDay ? 'Saving...' : 'Save Changes'}</span>
@@ -1116,6 +1124,7 @@ export default function DoctorAvailabilityPage() {
               </ul>
             </div>
           </div>
+        </div>
         </div>
       </main>
 

@@ -15,7 +15,16 @@ export default function DashboardPage() {
   const { user, token } = useAuth();
   const dispatch = useAppDispatch();
   const { profile } = useAppSelector((state) => state.patient || { profile: null });
+  // Controls visibility of profile edit modal
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  // Tracks which tab to open inside the profile edit modal
+  const [profileEditInitialTab, setProfileEditInitialTab] = useState<string>('personal');
+
+  // Helper to open profile edit modal at a specific tab
+  const openProfileEdit = (tab: string) => {
+    setProfileEditInitialTab(tab);
+    setShowProfileEdit(true);
+  };
 
   // Load profile data on component mount
   useEffect(() => {
@@ -100,7 +109,7 @@ export default function DashboardPage() {
               </div>
               
               <button
-                onClick={() => setShowProfileEdit(true)}
+                onClick={() => openProfileEdit('personal')}
                 className="flex items-center justify-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors w-full sm:w-auto flex-shrink-0"
               >
                 <Edit3 className="w-4 h-4" />
@@ -129,7 +138,11 @@ export default function DashboardPage() {
 
           {/* Health Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
+            <button
+              onClick={() => openProfileEdit('medical')}
+              className={`bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700 text-left transition cursor-pointer hover:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500`}
+              type="button"
+            >
               <div className="flex items-center">
                 <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
                   <Heart className="w-6 h-6 text-red-600 dark:text-red-400" />
@@ -141,9 +154,13 @@ export default function DashboardPage() {
                   </p>
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
+            <button
+              onClick={() => openProfileEdit('medical')}
+              className={`bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700 text-left transition cursor-pointer hover:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500`}
+              type="button"
+            >
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
                   <Activity className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -163,9 +180,13 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
+            <button
+              onClick={() => openProfileEdit('medical')}
+              className={`bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700 text-left transition cursor-pointer hover:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500`}
+              type="button"
+            >
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
                   <Phone className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -182,9 +203,13 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
+            <button
+              onClick={() => openProfileEdit('contact')}
+              className={`bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700 text-left transition cursor-pointer hover:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500`}
+              type="button"
+            >
               <div className="flex items-center">
                 <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
                   <MapPin className="w-6 h-6 text-purple-600 dark:text-purple-400" />
@@ -201,7 +226,7 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Medical Information */}
@@ -251,22 +276,25 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <button 
-                    onClick={() => setShowProfileEdit(true)}
+                    onClick={() => openProfileEdit('preferences')}
                     className="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
                   >
                     <Settings className="w-4 h-4" />
                   </button>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <div>
+                <button 
+                  onClick={() => openProfileEdit('preferences')}
+                  className="flex items-center justify-between w-full text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 py-2 rounded-lg transition-colors group"
+                >
+                  <div className="flex-1 min-w-0 pr-3">
                     <p className="text-sm font-medium text-gray-900 dark:text-white">Language</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {profile.language}
                     </p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors flex-shrink-0" />
+                </button>
                 
                 <div className="flex items-center justify-between">
                   <div>
@@ -287,6 +315,7 @@ export default function DashboardPage() {
           <PatientProfileEditModal 
             isOpen={showProfileEdit}
             onClose={() => setShowProfileEdit(false)}
+            initialTab={profileEditInitialTab}
           />
         </div>
       </main>

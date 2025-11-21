@@ -5,6 +5,8 @@ import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaUser, FaClock } from 'react-icons/fa';
+import Link from 'next/link';
+import { Clock, ChevronRight } from 'lucide-react';
 
 interface Availability {
   id: string;
@@ -233,18 +235,18 @@ export default function DoctorCalendarPage() {
               </div>
 
               {/* Calendar Grid */}
-              <div className="p-6">
+              <div className="p-2 sm:p-6">
                 {/* Days of Week Header */}
-                <div className="grid grid-cols-7 gap-1 mb-2">
+                <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2">
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="p-3 text-center text-sm font-medium text-gray-600 dark:text-gray-400">
+                    <div key={day} className="p-1.5 sm:p-3 text-center text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
                       {day}
                     </div>
                   ))}
                 </div>
 
                 {/* Calendar Days */}
-                <div className="grid grid-cols-7 gap-1">
+                <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
                   {calendarDays.map((date, index) => {
                     const dayAppointments = getAppointmentsForDate(date);
                     const hasAvailabilityToday = hasAvailability(date);
@@ -255,36 +257,37 @@ export default function DoctorCalendarPage() {
                         key={index}
                         onClick={() => setSelectedDate(date)}
                         className={`
-                          p-2 h-24 border border-gray-200 dark:border-slate-600 cursor-pointer transition-all duration-200 relative
+                          p-1 sm:p-2 h-16 sm:h-24 border border-gray-200 dark:border-slate-600 cursor-pointer transition-all duration-200 relative overflow-hidden
                           ${isToday(date) ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-700' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}
-                          ${isSelected ? 'ring-2 ring-teal-500 dark:ring-teal-400 bg-teal-50 dark:bg-teal-900/20' : ''}
+                          ${isSelected ? 'ring-1 sm:ring-2 ring-teal-500 dark:ring-teal-400 bg-teal-50 dark:bg-teal-900/20' : ''}
                           ${!isCurrentMonth(date) ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}
                         `}
                       >
-                        <div className={`text-sm font-medium mb-1 ${isToday(date) ? 'text-teal-600 dark:text-teal-400' : ''}`}>
+                        <div className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${isToday(date) ? 'text-teal-600 dark:text-teal-400' : ''}`}>
                           {date.getDate()}
                         </div>
                         
                         {/* Availability indicator */}
                         {hasAvailabilityToday && (
-                          <div className="absolute top-1 right-1">
-                            <div className="w-2 h-2 bg-green-500 rounded-full" title="Available"></div>
+                          <div className="absolute top-0.5 sm:top-1 right-0.5 sm:right-1">
+                            <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 bg-green-500 rounded-full" title="Available"></div>
                           </div>
                         )}
                         
                         {/* Appointment indicators */}
-                        <div className="space-y-1">
-                          {dayAppointments.slice(0, 2).map((appointment, idx) => (
+                        <div className="space-y-0.5 sm:space-y-1">
+                          {dayAppointments.slice(0, 1).map((appointment, idx) => (
                             <div
                               key={idx}
-                              className={`text-xs px-1 py-0.5 rounded text-white truncate ${getStatusColor(appointment.status)}`}
+                              className={`text-[10px] sm:text-xs px-0.5 sm:px-1 py-0.5 rounded text-white truncate ${getStatusColor(appointment.status)}`}
                             >
-                              {formatTime(appointment.startTime)} - {appointment.patient?.name?.split(' ')[0] || 'Patient'}
+                              <span className="hidden sm:inline">{formatTime(appointment.startTime)} - </span>
+                              {appointment.patient?.name?.split(' ')[0] || 'Patient'}
                             </div>
                           ))}
-                          {dayAppointments.length > 2 && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              +{dayAppointments.length - 2} more
+                          {dayAppointments.length > 1 && (
+                            <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+                              +{dayAppointments.length - 1}
                             </div>
                           )}
                         </div>
@@ -333,11 +336,24 @@ export default function DoctorCalendarPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-4">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">No availability set</span>
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                              <span className="text-amber-800 dark:text-amber-300 font-medium">No availability set</span>
+                            </div>
                           </div>
+                          <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">
+                            Set your availability to allow patients to book appointments on this date.
+                          </p>
+                          <Link 
+                            href="/Doctor/availability"
+                            className="inline-flex items-center space-x-2 bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                          >
+                            <Clock className="w-4 h-4" />
+                            <span>Set Availability</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </Link>
                         </div>
                       );
                     })()}
