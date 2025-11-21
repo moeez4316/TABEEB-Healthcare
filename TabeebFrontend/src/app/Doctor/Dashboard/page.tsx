@@ -14,7 +14,7 @@ export default function DoctorDashboard() {
   const { user, token, verificationStatus } = useAuth();
   const dispatch = useAppDispatch();
   const { profile } = useAppSelector((state) => state.doctor || { profile: null });
-  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState<string | boolean>(false);
 
   // Load profile data on component mount
   useEffect(() => {
@@ -105,7 +105,7 @@ export default function DoctorDashboard() {
               </div>
               
               <button
-                onClick={() => setShowProfileEdit(true)}
+                onClick={() => setShowProfileEdit('personal')}
                 className="bg-teal-600 dark:bg-teal-500 text-white px-4 py-2 rounded-lg hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors duration-200 flex items-center justify-center space-x-2 w-full sm:w-auto flex-shrink-0"
               >
                 <Edit3 className="w-4 h-4" />
@@ -312,23 +312,52 @@ export default function DoctorDashboard() {
             </div>
             <div className="p-6 space-y-4">
               <button 
-                onClick={() => setShowProfileEdit(true)}
+                onClick={() => setShowProfileEdit('personal')}
                 className="flex items-center justify-between w-full text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 px-3 py-2 -mx-3 rounded-lg transition-colors group"
               >
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Profile Settings</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Manage your profile information and preferences</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Personal & Contact</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Name, phone, gender, avatar</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors flex-shrink-0" />
               </button>
-              
               <button 
-                onClick={() => setShowProfileEdit(true)}
+                onClick={() => setShowProfileEdit('medical')}
                 className="flex items-center justify-between w-full text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 px-3 py-2 -mx-3 rounded-lg transition-colors group"
               >
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Notification Settings</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Configure appointment and message notifications</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Medical Credentials</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Specialization, qualification, experience</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors flex-shrink-0" />
+              </button>
+              <button 
+                onClick={() => setShowProfileEdit('billing')}
+                className="flex items-center justify-between w-full text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 px-3 py-2 -mx-3 rounded-lg transition-colors group"
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Consultation Fees</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Set or update hourly rate</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors flex-shrink-0" />
+              </button>
+              <button 
+                onClick={() => setShowProfileEdit('preferences')}
+                className="flex items-center justify-between w-full text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 px-3 py-2 -mx-3 rounded-lg transition-colors group"
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Notification Preferences</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Email, SMS & push settings</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors flex-shrink-0" />
+              </button>
+              <button 
+                onClick={() => setShowProfileEdit('address')}
+                className="flex items-center justify-between w-full text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 px-3 py-2 -mx-3 rounded-lg transition-colors group"
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Address Details</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Practice location & postal code</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors flex-shrink-0" />
               </button>
@@ -349,8 +378,9 @@ export default function DoctorDashboard() {
 
           {/* Profile Edit Modal */}
           <DoctorProfileEditModal 
-            isOpen={showProfileEdit}
+            isOpen={Boolean(showProfileEdit)}
             onClose={() => setShowProfileEdit(false)}
+            initialTab={typeof showProfileEdit === 'string' ? showProfileEdit : undefined}
           />
         </div>
       </main>

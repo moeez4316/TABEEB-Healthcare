@@ -140,7 +140,7 @@ export default function PatientAppointmentsPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8" style={{paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)'}}>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">My Appointments</h1>
