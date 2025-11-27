@@ -10,12 +10,12 @@ const PORT = 5005;
 app.use(cors());
 app.use(bodyParser.json());
 
-// ✅ Root route for GET /
+// Root route for GET /
 app.get('/', (req, res) => {
   res.send('🧠 MedLLaMA Backend is running!');
 });
 
-// ✅ POST route for AI chat
+// POST route for AI chat
 app.post('/generate', async (req, res) => {
   const { prompt } = req.body;
 
@@ -38,12 +38,12 @@ app.post('/generate', async (req, res) => {
 
     res.json({ response: data.response });
   } catch (error) {
-    console.error('❌ Error talking to MedLLaMA:', error);
+    console.error('Error talking to MedLLaMA:', error);
     res.status(500).json({ error: 'Failed to connect to MedLLaMA' });
   }
 });
 
-// ✅ Start the server
+// Start the server
 app.listen(PORT, () => {
-  console.log(`✅ MedLLaMA backend running at http://localhost:${PORT}`);
+  console.log(`MedLLaMA backend running at http://localhost:${PORT}`);
 });

@@ -121,15 +121,15 @@ export default function AIChat() {
             <div key={idx} className="flex flex-col gap-1 group">
               {/* User bubble */}
               <div className="flex items-end gap-2 self-start max-w-full">
-                <FaUserCircle className="text-2xl text-[#0f766e] dark:text-[#38bdf8]" />
+                <FaUserCircle className="text-2xl text-[#0f766e] dark:text-[#38bdf8] flex-shrink-0" />
                 <div className="bg-gradient-to-r from-[#e0f2fe] to-[#f1f5f9] dark:from-[#0f766e]/30 dark:to-[#334155]/60 text-[#1e293b] dark:text-[#ededed] rounded-2xl px-4 py-2 max-w-[80vw] sm:max-w-[70%] shadow break-words">
                   {item.prompt}
                 </div>
               </div>
               <span className="ml-10 text-xs text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200">{formatTime(item.timestamp)}</span>
               {/* AI bubble */}
-              <div className="flex items-end gap-2 self-end max-w-full">
-                <div className="bg-gradient-to-r from-[#bbf7d0] to-[#e8f5e9] dark:from-[#38bdf8]/20 dark:to-[#0f766e]/40 text-[#1b5e20] dark:text-[#ededed] rounded-2xl px-4 py-2 max-w-[80vw] sm:max-w-[70%] shadow text-right break-words markdown-body">
+              <div className="flex items-end gap-2 self-end max-w-full justify-end">
+                <div className="bg-gradient-to-r from-[#bbf7d0] to-[#e8f5e9] dark:from-[#38bdf8]/20 dark:to-[#0f766e]/40 text-[#1b5e20] dark:text-[#ededed] rounded-2xl px-4 py-2 max-w-[80vw] sm:max-w-[70%] shadow break-words markdown-body text-left">
                   <ReactMarkdown
                     components={{
                       strong: ({children, ...props}) => <strong className="font-semibold" {...props}>{children}</strong>,
@@ -141,22 +141,22 @@ export default function AIChat() {
                     {item.response}
                   </ReactMarkdown>
                 </div>
-                <FaRobot className="text-2xl text-[#1b5e20] dark:text-[#38bdf8]" />
+                <FaRobot className="text-2xl text-[#1b5e20] dark:text-[#38bdf8] flex-shrink-0" />
               </div>
               <span className="mr-10 text-xs text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-right self-end">{formatTime(item.timestamp)}</span>
             </div>
           ))}
           {/* Streaming AI response */}
           {streaming && (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 group">
               <div className="flex items-end gap-2 self-start max-w-full">
-                <FaUserCircle className="text-2xl text-[#0f766e] dark:text-[#38bdf8]" />
+                <FaUserCircle className="text-2xl text-[#0f766e] dark:text-[#38bdf8] flex-shrink-0" />
                 <div className="bg-gradient-to-r from-[#e0f2fe] to-[#f1f5f9] dark:from-[#0f766e]/30 dark:to-[#334155]/60 text-[#1e293b] dark:text-[#ededed] rounded-2xl px-4 py-2 max-w-[80vw] sm:max-w-[70%] shadow break-words">
                   {prompt}
                 </div>
               </div>
-              <div className="flex items-end gap-2 self-end max-w-full">
-                <div className="bg-gradient-to-r from-[#bbf7d0] to-[#e8f5e9] dark:from-[#38bdf8]/20 dark:to-[#0f766e]/40 text-[#1b5e20] dark:text-[#ededed] rounded-2xl px-4 py-2 max-w-[80vw] sm:max-w-[70%] shadow text-right break-words">
+              <div className="flex items-end gap-2 self-end max-w-full justify-end">
+                <div className="bg-gradient-to-r from-[#bbf7d0] to-[#e8f5e9] dark:from-[#38bdf8]/20 dark:to-[#0f766e]/40 text-[#1b5e20] dark:text-[#ededed] rounded-2xl px-4 py-2 max-w-[80vw] sm:max-w-[70%] shadow break-words markdown-body text-left">
                   <ReactMarkdown
                     components={{
                       strong: ({children, ...props}) => <strong className="font-semibold" {...props}>{children}</strong>,
@@ -175,7 +175,7 @@ export default function AIChat() {
                     </span>
                   )}
                 </div>
-                <FaRobot className="text-2xl text-[#1b5e20] dark:text-[#38bdf8]" />
+                <FaRobot className="text-2xl text-[#1b5e20] dark:text-[#38bdf8] flex-shrink-0" />
               </div>
             </div>
           )}
