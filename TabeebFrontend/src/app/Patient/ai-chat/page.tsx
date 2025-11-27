@@ -65,7 +65,7 @@ export default function AIChat() {
     setError("");
     const now = Date.now();
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/generate`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_ML_API_URL}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
@@ -93,20 +93,23 @@ export default function AIChat() {
   };
 
   return (
-    <div className="h-[100dvh] min-h-[500px] flex flex-col justify-center items-center w-full bg-transparent">
-      <div className="flex flex-col w-full max-w-2xl h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden relative">
+    <div className="h-[100dvh] min-h-[500px] flex flex-col justify-center items-center w-full bg-transparent px-2 sm:px-4 lg:px-6">
+      <div className="flex flex-col w-full max-w-2xl lg:max-w-full h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl lg:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden relative">
         {/* Header */}
-        <div className="flex items-center gap-3 px-8 py-6 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#101827] relative">
-          <FaRobot className="text-2xl text-[#0f766e] dark:text-[#38bdf8]" />
-          <h2 className="text-xl font-bold tracking-wide text-[#1e293b] dark:text-[#ededed]">AI Chat with MedLLaMA</h2>
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#101827]">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <FaRobot className="text-xl sm:text-2xl text-[#0f766e] dark:text-[#38bdf8] flex-shrink-0" />
+            <h2 className="text-base sm:text-xl font-bold tracking-wide text-[#1e293b] dark:text-[#ededed] truncate">AI Chat with MedLLaMA</h2>
+          </div>
           <button
             onClick={handleDownload}
-            className="absolute right-8 flex items-center gap-2 px-3 py-2 rounded-md bg-[#0f766e] hover:bg-[#115e59] dark:bg-[#38bdf8] dark:hover:bg-[#0ea5e9] text-white text-sm font-medium shadow transition disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-md bg-[#0f766e] hover:bg-[#115e59] dark:bg-[#38bdf8] dark:hover:bg-[#0ea5e9] text-white text-xs sm:text-sm font-medium shadow transition disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
             disabled={history.length === 0}
             title="Download chat as .txt"
           >
-            <FaDownload className="text-base" />
-            Download Chat
+            <FaDownload className="text-sm sm:text-base" />
+            <span className="hidden sm:inline">Download Chat</span>
+            <span className="sm:hidden">Download</span>
           </button>
         </div>
         {/* Chat History */}

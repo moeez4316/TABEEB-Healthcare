@@ -7,6 +7,7 @@ import Image from "next/image";
 import { getDoctorRedirectPath } from "@/lib/doctorRedirect";
 import ProfileImageUpload from "@/components/shared/ProfileImageUpload";
 import { formatPhoneNumber, isValidEmail, isValidPhoneNumber, pakistaniMedicalSpecializations, pakistaniMedicalQualifications } from "@/lib/profile-utils";
+import { APP_CONFIG } from "@/lib/config/appConfig";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -427,7 +428,7 @@ export default function SelectRolePage() {
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 space-y-8 border border-gray-200 dark:border-slate-700">
           {/* TABEEB Logo */}
           <div className="flex flex-col items-center space-y-1">
-            <Image src="/tabeeb_logo.png" alt="TABEEB Logo" width={64} height={64} className="object-contain" />
+            <Image src={APP_CONFIG.ASSETS.LOGO} alt="TABEEB Logo" width={64} height={64} className="object-contain" />
             <div className="text-center">
               <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400 tracking-wide">
                 TABEEB

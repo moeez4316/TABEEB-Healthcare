@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useAppSelector } from "@/store/hooks";
+import { APP_CONFIG } from "@/lib/config/appConfig";
 
 const navItems = [
   { label: "Dashboard", href: "/Doctor/Dashboard", icon: <FaTachometerAlt /> },
@@ -95,7 +96,7 @@ export default function SidebarDoctor() {
       <div className={`mb-10 flex flex-col items-center transition-all duration-300 ${!isMobile && isCollapsed ? 'scale-75' : 'scale-100'}`}
         style={{ flexShrink: 0 }}>
         <Image 
-          src="/tabeeb_logo.png" 
+          src={APP_CONFIG.ASSETS.LOGO} 
           alt="Tabeeb Logo" 
           width={!isMobile && isCollapsed ? 48 : 64} 
           height={!isMobile && isCollapsed ? 48 : 64} 

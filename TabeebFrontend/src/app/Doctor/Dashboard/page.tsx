@@ -9,6 +9,7 @@ import { loadDoctorProfile } from '@/store/slices/doctorSlice';
 import { calculateDoctorProfileCompletion } from '@/lib/doctor-profile-completion';
 import DoctorProfileEditModal from '@/components/profile/DoctorProfileEditModal';
 import Link from 'next/link';
+import { APP_CONFIG } from '@/lib/config/appConfig';
 
 export default function DoctorDashboard() {
   const { user, token, verificationStatus } = useAuth();
@@ -33,7 +34,7 @@ export default function DoctorDashboard() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
-                <Image src="/tabeeb_logo.png" alt="TABEEB Logo" width={40} height={40} className="object-contain" />
+                <Image src={APP_CONFIG.ASSETS.LOGO} alt="TABEEB Logo" width={40} height={40} className="object-contain" />
                 <div>
                   <h1 className="text-lg font-bold text-teal-600 dark:text-teal-400 tracking-wide">
                     TABEEB

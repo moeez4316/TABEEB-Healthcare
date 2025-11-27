@@ -8,6 +8,11 @@ export const APP_CONFIG = {
   FEATURES: {
     PROFILE_COMPLETION_TRACKING: true,
     ADVANCED_VERIFICATION: true,
+  },
+
+  // Assets
+  ASSETS: {
+    LOGO: '/tabeeb_logo.png',
   }
 };
 

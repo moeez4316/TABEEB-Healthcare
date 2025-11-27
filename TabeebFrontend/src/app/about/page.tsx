@@ -8,6 +8,7 @@ import {
   ArrowLeft, Heart, Target, Users, Zap, Award, 
   Globe, TrendingUp, Shield, Sparkles, CheckCircle2 
 } from 'lucide-react';
+import { APP_CONFIG } from '@/lib/config/appConfig';
 
 const AboutPage = () => {
   return (
@@ -20,7 +21,7 @@ const AboutPage = () => {
             <Link href="/" className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                 <Image
-                  src="/tabeeb_logo.png"
+                  src={APP_CONFIG.ASSETS.LOGO}
                   alt="TABEEB Logo"
                   width={48}
                   height={48}
@@ -354,7 +355,7 @@ const AboutPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-3 mb-4 md:mb-0">
-              <Image src="/tabeeb_logo.png" alt="TABEEB Logo" width={40} height={40} className="bg-white rounded-lg p-1"/>
+              <Image src={APP_CONFIG.ASSETS.LOGO} alt="TABEEB Logo" width={40} height={40} className="bg-white rounded-lg p-1"/>
               <span className="text-xl font-bold text-white">TABEEB</span>
             </div>
             <p className="text-sm text-center">

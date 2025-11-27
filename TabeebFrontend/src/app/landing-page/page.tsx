@@ -9,6 +9,7 @@ import {
   ArrowRight, BrainCircuit, ShieldCheck, UserCheck, HeartPulse,
   Stethoscope, X, Mail, Phone, MapPin, MessageSquareQuote 
 } from 'lucide-react';
+import { APP_CONFIG } from '@/lib/config/appConfig';
 
 // Animation variants for sections (use cubic-bezier array for type-safe easing)
 const sectionVariants = {
@@ -78,7 +79,7 @@ const LandingPage = () => {
             <Link href="/" className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                 <Image
-                  src="/tabeeb_logo.png"
+                  src={APP_CONFIG.ASSETS.LOGO}
                   alt="TABEEB Logo"
                   width={48}
                   height={48}
@@ -333,7 +334,7 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center space-x-3 mb-4">
-                <Image src="/tabeeb_logo.png" alt="TABEEB Logo" width={48} height={48} className="bg-white rounded-lg p-1"/>
+                <Image src={APP_CONFIG.ASSETS.LOGO} alt="TABEEB Logo" width={48} height={48} className="bg-white rounded-lg p-1"/>
                 <span className="text-2xl font-bold text-white">TABEEB</span>
               </div>
               <p className="max-w-md">Transforming healthcare in Pakistan through AI, making quality medical care accessible and affordable for everyone.</p>

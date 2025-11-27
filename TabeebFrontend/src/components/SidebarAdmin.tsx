@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { APP_CONFIG } from '@/lib/config/appConfig';
 
 interface SidebarAdminProps {
   className?: string;
@@ -134,7 +135,7 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
             !isMobile && isCollapsed ? 'w-8 h-8' : 'w-10 h-10'
           }`}>
             <Image
-              src="/tabeeb_logo.png"
+              src={APP_CONFIG.ASSETS.LOGO}
               alt="TABEEB Logo"
               width={!isMobile && isCollapsed ? 24 : 32}
               height={!isMobile && isCollapsed ? 24 : 32}

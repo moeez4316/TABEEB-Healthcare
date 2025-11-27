@@ -10,6 +10,7 @@ import PatientProfileEditModal from '@/components/profile/PatientProfileEditModa
 import { calculateBMI, getBMIStatus } from '@/lib/profile-utils';
 import { formatHeightDisplay } from '@/lib/height-utils';
 import { calculateProfileCompletion } from '@/lib/profile-completion';
+import { APP_CONFIG } from '@/lib/config/appConfig';
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
@@ -43,7 +44,7 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
-                <Image src="/tabeeb_logo.png" alt="TABEEB Logo" width={40} height={40} className="object-contain" />
+                <Image src={APP_CONFIG.ASSETS.LOGO} alt="TABEEB Logo" width={40} height={40} className="object-contain" />
                 <div>
                   <h1 className="text-lg font-bold text-teal-600 dark:text-teal-400 tracking-wide">
                     TABEEB

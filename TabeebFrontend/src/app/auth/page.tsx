@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import PhoneInput from 'react-phone-number-input';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
+import { APP_CONFIG } from '@/lib/config/appConfig';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
 
@@ -173,7 +174,7 @@ export default function AuthPage() {
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 space-y-6 border border-gray-200 dark:border-slate-700">
             {/* TABEEB Logo - Inside the card */}
             <div className="flex flex-col items-center space-y-1">
-              <Image src="/tabeeb_logo.png" alt="TABEEB Logo" width={64} height={64} className="object-contain" />
+              <Image src={APP_CONFIG.ASSETS.LOGO} alt="TABEEB Logo" width={64} height={64} className="object-contain" />
               <div className="text-center">
                 <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400 tracking-wide">
                   TABEEB
@@ -268,7 +269,7 @@ export default function AuthPage() {
           {/* No top toggle, default to phone sign in, allow switching to email sign in via link at bottom */}
           {/* TABEEB Logo - Inside the card */}
           <div className="flex flex-col items-center space-y-1">
-            <Image src="/tabeeb_logo.png" alt="TABEEB Logo" width={64} height={64} className="object-contain" />
+            <Image src={APP_CONFIG.ASSETS.LOGO} alt="TABEEB Logo" width={64} height={64} className="object-contain" />
             <div className="text-center">
               <h1 className="text-xl font-bold text-teal-600 dark:text-teal-400 tracking-wide">
                 TABEEB

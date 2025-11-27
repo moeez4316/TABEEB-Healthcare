@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useAppSelector } from "@/store/hooks";
+import { APP_CONFIG } from "@/lib/config/appConfig";
 
 const navItems = [
   { label: "Dashboard", href: "/Patient/dashboard", icon: <FaTachometerAlt /> },
@@ -15,9 +16,9 @@ const navItems = [
   { label: "My Appointments", href: "/Patient/appointments", icon: <FaCalendarAlt /> },
   { label: "My Prescriptions", href: "/Patient/prescriptions", icon: <FaPrescriptionBottleAlt /> },
   { label: "Medical Records", href: "/Patient/medical-records", icon: <FaFileMedical /> },
-  { label: "Medication", href: "/Patient/medication", icon: <FaPills /> },
+  //{ label: "Medication", href: "/Patient/medication", icon: <FaPills /> },
   { label: "AI Chat", href: "/Patient/ai-chat", icon: <FaRobot /> },
-  { label: "Image Analysis", href: "/Patient/image-analysis", icon: <FaImage /> },
+  //{ label: "Image Analysis", href: "/Patient/image-analysis", icon: <FaImage /> },
 ];
 
 export default function Sidebar() {
@@ -110,7 +111,7 @@ export default function Sidebar() {
       {/* Header/logo fixed at top */}
       <div className={`flex flex-col items-center py-8 transition-all duration-300 ${!isMobile && isCollapsed ? 'scale-75' : 'scale-100'}`} style={{ flexShrink: 0 }}>
         <Image 
-          src="/tabeeb_logo.png" 
+          src={APP_CONFIG.ASSETS.LOGO} 
           alt="Tabeeb Logo" 
           width={!isMobile && isCollapsed ? 48 : 64} 
           height={!isMobile && isCollapsed ? 48 : 64} 
