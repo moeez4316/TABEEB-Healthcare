@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { User, UserCheck, Stethoscope, Heart, Mail, Phone, GraduationCap, Award, Calendar, AlertTriangle, CheckCircle, Loader2, LogOut } from "lucide-react";
+import { User, UserCheck, Stethoscope, Heart, Mail, Phone, GraduationCap, Award, AlertTriangle, CheckCircle, Loader2, LogOut, Calendar } from "lucide-react";
 import Image from "next/image";
 import { getDoctorRedirectPath } from "@/lib/doctorRedirect";
 import ProfileImageUpload from "@/components/shared/ProfileImageUpload";
@@ -630,17 +630,28 @@ export default function SelectRolePage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Date of Birth *
                   </label>
-                  <input
-                    type="date"
-                    name="dateOfBirth"
-                    required
-                    value={doctorForm.dateOfBirth}
-                    onChange={handleDoctorChange}
-                    max={new Date().toISOString().split('T')[0]}
-                    className={`block w-full px-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                      formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
-                    }`}
-                  />
+                  <div 
+                    className="relative cursor-pointer"
+                    onClick={() => {
+                      const dateInput = document.querySelector('input[name="dateOfBirth"]') as HTMLInputElement;
+                      if (dateInput) dateInput.showPicker();
+                    }}
+                  >
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <input
+                      type="date"
+                      name="dateOfBirth"
+                      required
+                      value={doctorForm.dateOfBirth}
+                      onChange={handleDoctorChange}
+                      max={new Date().toISOString().split('T')[0]}
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 cursor-pointer ${
+                        formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                      }`}
+                    />
+                  </div>
                   {formErrors.dateOfBirth && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.dateOfBirth}</p>}
                 </div>
 
@@ -915,17 +926,28 @@ export default function SelectRolePage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Date of Birth *
                   </label>
-                  <input
-                    type="date"
-                    name="dateOfBirth"
-                    required
-                    value={patientForm.dateOfBirth}
-                    onChange={handlePatientChange}
-                    max={new Date().toISOString().split('T')[0]}
-                    className={`block w-full px-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                      formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
-                    }`}
-                  />
+                  <div 
+                    className="relative cursor-pointer"
+                    onClick={() => {
+                      const dateInput = document.querySelector('input[name="patientDateOfBirth"]') as HTMLInputElement;
+                      if (dateInput) dateInput.showPicker();
+                    }}
+                  >
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <input
+                      type="date"
+                      name="patientDateOfBirth"
+                      required
+                      value={patientForm.dateOfBirth}
+                      onChange={(e) => handlePatientChange({ target: { name: 'dateOfBirth', value: e.target.value } } as React.ChangeEvent<HTMLInputElement>)}
+                      max={new Date().toISOString().split('T')[0]}
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 cursor-pointer ${
+                        formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
+                      }`}
+                    />
+                  </div>
                   {formErrors.dateOfBirth && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.dateOfBirth}</p>}
                 </div>
               </div>

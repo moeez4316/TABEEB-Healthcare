@@ -7,7 +7,7 @@ import { validateVerificationForm, formatFileSize } from '@/lib/verification/uti
 import { VerificationFormData, FileUploadError } from '@/lib/verification/types';
 import { formatCNIC } from '@/lib/profile-utils';
 import { Toast } from '@/components/Toast';
-import { User, Calendar, FileText, Camera, Upload, AlertCircle, CheckCircle, Info, X, Video } from 'lucide-react';
+import { User, Calendar, FileText, Camera, Upload, CheckCircle, Info, X, Video } from 'lucide-react';
 
 type FileFieldName = 'cnicFront' | 'cnicBack' | 'verificationPhoto' | 'degreeCertificate' | 'pmdcCertificate';
 

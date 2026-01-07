@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { FaTachometerAlt, FaCalendarAlt, FaFileMedical, FaPills, FaRobot, FaImage, FaSignOutAlt, FaUserMd, FaBars, FaTimes, FaChevronLeft, FaChevronRight, FaPrescriptionBottleAlt } from "react-icons/fa";
+import { FaTachometerAlt, FaCalendarAlt, FaFileMedical, FaRobot, FaSignOutAlt, FaUserMd, FaBars, FaTimes, FaChevronLeft, FaChevronRight, FaPrescriptionBottleAlt } from "react-icons/fa";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";

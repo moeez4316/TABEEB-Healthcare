@@ -25,10 +25,7 @@ const upload = multer({
 
 const router = express.Router();
 
-// JSON body parser middleware (only for non-file routes)
-const jsonParser = express.json();
-
-// Doctor routes (require auth token) - File uploads (no JSON parsing)
+// Doctor routes (require auth token) - File uploads
 router.post('/', verifyToken, upload.fields([
   { name: 'cnicFront', maxCount: 1 },
   { name: 'cnicBack', maxCount: 1 },
@@ -39,9 +36,9 @@ router.post('/', verifyToken, upload.fields([
 
 router.get('/', verifyToken, getVerification);
 
-// Admin routes (require admin auth) - JSON data (need JSON parsing)
+// Admin routes (require admin auth)
 router.get('/all', authenticateAdminFromHeaders, getAllVerifications);
-router.patch('/approve/:uid', jsonParser, authenticateAdminFromHeaders, approveVerification);
-router.patch('/reject/:uid', jsonParser, authenticateAdminFromHeaders, rejectVerification);
+router.patch('/approve/:uid', authenticateAdminFromHeaders, approveVerification);
+router.patch('/reject/:uid', authenticateAdminFromHeaders, rejectVerification);
 
 export default router;

@@ -14,9 +14,6 @@ import { verifyToken } from '../middleware/verifyToken';
 
 const router = express.Router();
 
-// JSON body parser middleware (only for non-file routes)
-const jsonParser = express.json();
-
 // Configure multer for profile image uploads
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -34,13 +31,13 @@ const upload = multer({
 
 router.post('/', verifyToken, upload.single('profileImage'), createDoctor);
 router.get('/', verifyToken, getDoctor);
-router.put('/', jsonParser, verifyToken, updateDoctor);
-router.delete('/', jsonParser, verifyToken, deleteDoctor);
-router.post('/restore', jsonParser, verifyToken, restoreDoctor);
+router.put('/', verifyToken, updateDoctor);
+router.delete('/', verifyToken, deleteDoctor);
+router.post('/restore', verifyToken, restoreDoctor);
 
 // Profile image routes
 router.post('/profile-image', verifyToken, upload.single('profileImage'), uploadDoctorProfileImage);
-router.delete('/profile-image', jsonParser, verifyToken, deleteDoctorProfileImage);
+router.delete('/profile-image', verifyToken, deleteDoctorProfileImage);
 
 // Public route to get verified doctors for patients
 router.get('/verified', getVerifiedDoctors);

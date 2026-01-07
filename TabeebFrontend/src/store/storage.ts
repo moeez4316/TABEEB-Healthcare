@@ -3,13 +3,14 @@ import createWebStorage from 'redux-persist/lib/storage/createWebStorage';
 // Create a noop (no operation) storage for SSR
 const createNoopStorage = () => {
   return {
-    getItem(_key: string) {
+    getItem() {
       return Promise.resolve(null);
     },
-    setItem(_key: string, value: string) {
+    setItem(key: string, value: string) {
+      void key;
       return Promise.resolve(value);
     },
-    removeItem(_key: string) {
+    removeItem() {
       return Promise.resolve();
     },
   };

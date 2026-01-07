@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Save, User, Stethoscope, MapPin, Settings, AlertCircle, Trash2, DollarSign } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { updateProfile, saveDoctorProfile, uploadDoctorProfileImage, DoctorProfile, resetProfile } from '@/store/slices/doctorSlice';
+import { updateProfile, saveDoctorProfile, DoctorProfile, resetProfile } from '@/store/slices/doctorSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import { formatPhoneNumber, pakistaniProvinces } from '@/lib/profile-utils';
 import { Toast } from '../Toast';

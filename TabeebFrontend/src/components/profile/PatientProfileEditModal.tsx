@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Save, User, Heart, Settings, Phone, AlertCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { updateProfile, savePatientProfile, uploadProfileImage, PatientProfile } from '@/store/slices/patientSlice';
+import { updateProfile, savePatientProfile, PatientProfile } from '@/store/slices/patientSlice';
 import { resetProfile } from '@/store/slices/patientSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import HeightInput from '../shared/HeightInput';

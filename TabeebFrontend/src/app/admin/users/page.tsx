@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { FaUserMd, FaUser, FaBan, FaCheckCircle, FaSearch, FaFilter } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FaUserMd, FaUser, FaBan, FaCheckCircle, FaSearch } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -29,18 +29,7 @@ export default function AdminUsersPage() {
   const [actionType, setActionType] = useState<'suspend' | 'activate'>('suspend');
   const [suspendReason, setSuspendReason] = useState('');
 
-  useEffect(() => {
-    // Check if admin is logged in
-    const adminToken = localStorage.getItem('adminToken');
-    if (!adminToken) {
-      router.push('/admin/login');
-      return;
-    }
-
-    fetchUsers();
-  }, [filter, statusFilter, router]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -69,7 +58,18 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, statusFilter]);
+
+  useEffect(() => {
+    // Check if admin is logged in
+    const adminToken = localStorage.getItem('adminToken');
+    if (!adminToken) {
+      router.push('/admin/login');
+      return;
+    }
+
+    fetchUsers();
+  }, [fetchUsers, router]);
 
   const handleSuspendClick = (user: User) => {
     setSelectedUser(user);

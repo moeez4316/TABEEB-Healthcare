@@ -143,14 +143,6 @@ export default function AuthPage() {
     }
   };
 
-  const resetForm = () => {
-    setEmail('');
-    setPassword('');
-    setError('');
-    setSuccess('');
-    setShowPassword(false);
-  };
-
   const switchMode = (newMode: AuthMode) => {
     setMode(newMode);
     // Only clear error/success messages, keep user input
