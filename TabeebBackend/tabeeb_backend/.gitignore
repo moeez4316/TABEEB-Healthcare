@@ -40,3 +40,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+TABEEB_Review_System.postman_collection.json
+TABEEB_Appointment_System.postman_collection.json
+REVIEW_SYSTEM_POSTMAN_GUIDE.md

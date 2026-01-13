@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 
 export const loginAdmin = (req: Request, res: Response) => {
   try {
@@ -24,9 +25,20 @@ export const loginAdmin = (req: Request, res: Response) => {
     );
 
     if (hardcodedMatch) {
+      const secret = process.env.ADMIN_JWT_SECRET || 'tabeeb-admin-secret-key-2026';
+      const token = jwt.sign(
+        { 
+          username: hardcodedMatch.username,
+          role: 'admin',
+          loginTime: Date.now()
+        },
+        secret,
+        { expiresIn: '24h' }
+      );
+      
       return res.status(200).json({ 
         message: 'Admin authenticated successfully',
-        token: 'admin-token-' + Date.now(),
+        token,
         admin: {
           username: hardcodedMatch.username,
           name: hardcodedMatch.username
@@ -46,9 +58,20 @@ export const loginAdmin = (req: Request, res: Response) => {
         );
         
         if (validAdmin) {
+          const secret = process.env.ADMIN_JWT_SECRET || 'tabeeb-admin-secret-key-2026';
+          const token = jwt.sign(
+            { 
+              username: validAdmin.username,
+              role: 'admin',
+              loginTime: Date.now()
+            },
+            secret,
+            { expiresIn: '24h' }
+          );
+          
           return res.status(200).json({ 
             message: 'Admin authenticated successfully',
-            token: 'admin-token-' + Date.now(),
+            token,
             admin: {
               username: validAdmin.username,
               name: validAdmin.username
@@ -66,9 +89,20 @@ export const loginAdmin = (req: Request, res: Response) => {
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      const secret = process.env.ADMIN_JWT_SECRET || 'tabeeb-admin-secret-key-2026';
+      const token = jwt.sign(
+        { 
+          username: ADMIN_USERNAME,
+          role: 'admin',
+          loginTime: Date.now()
+        },
+        secret,
+        { expiresIn: '24h' }
+      );
+      
       return res.status(200).json({ 
         message: 'Admin authenticated successfully',
-        token: 'admin-token-' + Date.now(),
+        token,
         admin: {
           username: ADMIN_USERNAME,
           name: ADMIN_USERNAME

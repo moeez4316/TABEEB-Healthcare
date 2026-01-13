@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 
 export const authenticateAdmin = (req: Request, res: Response, next: NextFunction) => {
   const { username, password } = req.body;
@@ -44,34 +45,32 @@ export const authenticateAdminFromHeaders = (req: Request, res: Response, next: 
   
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
   
-  // Validate admin token format (simple validation for admin-token-timestamp)
-  if (!token.startsWith('admin-token-')) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid admin token format' });
+  try {
+    // Verify JWT token
+    const secret = process.env.ADMIN_JWT_SECRET || 'tabeeb-admin-secret-key-2026';
+    const decoded = jwt.verify(token, secret) as any;
+    
+    // Check if token has admin role
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized: Invalid admin role' });
+    }
+    
+    // Token is valid, add admin info to request
+    (req as any).admin = { 
+      username: decoded.username,
+      role: decoded.role,
+      token: token,
+      loginTime: decoded.loginTime ? new Date(decoded.loginTime) : null
+    };
+    
+    next();
+  } catch (error: any) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Unauthorized: Admin token expired' });
+    } else if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Unauthorized: Invalid admin token' });
+    } else {
+      return res.status(401).json({ error: 'Unauthorized: Token verification failed' });
+    }
   }
-  
-  // Extract timestamp and validate it's not too old (optional: add expiry logic)
-  const timestamp = token.substring(12); // Remove 'admin-token-' prefix
-  const tokenTime = parseInt(timestamp);
-  
-  if (isNaN(tokenTime)) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid admin token' });
-  }
-  
-  // Optional: Check if token is not older than 24 hours (86400000 ms)
-  const now = Date.now();
-  const tokenAge = now - tokenTime;
-  const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-  
-  if (tokenAge > maxAge) {
-    return res.status(401).json({ error: 'Unauthorized: Admin token expired' });
-  }
-  
-  // Token is valid, add admin info to request
-  (req as any).admin = { 
-    username: 'admin', // Generic admin user
-    token: token,
-    loginTime: new Date(tokenTime)
-  };
-  
-  next();
 };

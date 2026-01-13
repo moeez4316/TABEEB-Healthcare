@@ -89,6 +89,7 @@ model Appointment {
   patient          patient                     @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
   prescriptions    Prescription[]
   videoCall        VideoCall?
+  review           Review?
 
   @@index([doctorUid])
   @@index([patientUid])
@@ -179,6 +180,23 @@ model VideoCall {
   @@map("video_calls")
 }
 
+model Review {
+  id               String      @id @default(cuid())
+  appointmentId    String      @unique
+  rating           Int
+  comment          String?     @db.Text
+  isComplaint      Boolean     @default(false)
+  adminNotes       String?     @db.Text
+  adminActionTaken String?     @db.Text
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  appointment      Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+  @@index([isComplaint])
+  @@map("reviews")
+}
+
 model doctor {
   uid                     String               @id @db.VarChar(255)
   firstName               String               @db.VarChar(100)
@@ -205,6 +223,8 @@ model doctor {
   privacyShareData        Boolean              @default(false)
   privacyMarketing        Boolean              @default(false)
   isActive                Boolean              @default(true)
+  averageRating           Float?               @default(0.0)
+  totalReviews            Int                  @default(0)
   createdAt               DateTime             @default(now())
   updatedAt               DateTime             @default(now()) @updatedAt
   appointments            Appointment[]
