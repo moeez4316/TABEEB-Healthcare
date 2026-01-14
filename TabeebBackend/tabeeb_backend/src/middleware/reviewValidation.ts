@@ -81,23 +81,6 @@ export const validateUpdateComplaintAction = (req: Request, res: Response, next:
 };
 
 /**
- * Validate review ID format (CUID)
- */
-export const validateReviewId = (paramName: string = 'reviewId') => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const id = req.params[paramName];
-    
-    if (!id || typeof id !== 'string' || id.length < 20) {
-      return res.status(400).json({ 
-        error: 'Invalid review ID format'
-      });
-    }
-    
-    next();
-  };
-};
-
-/**
  * Check if the authenticated user is a doctor
  */
 export const checkDoctorRole = async (req: Request, res: Response, next: NextFunction) => {
@@ -172,6 +155,19 @@ export const validatePaginationParams = (req: Request, res: Response, next: Next
   
   if (isNaN(limit) || limit < 1 || limit > 100) {
     return res.status(400).json({ error: 'Invalid limit. Must be between 1 and 100' });
+  }
+  
+  next();
+};
+
+/**
+ * Validate review ID parameter
+ */
+export const validateReviewId = (req: Request, res: Response, next: NextFunction) => {
+  const { reviewId } = req.params;
+  
+  if (!reviewId || reviewId.trim() === '') {
+    return res.status(400).json({ error: 'Review ID is required' });
   }
   
   next();

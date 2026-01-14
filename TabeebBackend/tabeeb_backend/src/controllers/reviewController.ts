@@ -8,7 +8,8 @@ import {
   canReviewAppointment,
   getPatientReviews,
   getPublicDoctorReviews,
-  getPublicDoctorRating
+  getPublicDoctorRating,
+  deleteReview
 } from '../services/reviewService';
 import prisma from '../lib/prisma';
 
@@ -268,6 +269,95 @@ export const getDoctorPublicRating = async (req: Request, res: Response) => {
     console.error('Error fetching doctor rating:', error);
     return res.status(500).json({ 
       error: error.message || 'Failed to fetch rating'
+    });
+  }
+};
+
+/**
+ * DELETE /api/reviews/:reviewId
+ * Delete a review (patient can delete their own)
+ * Auth: Patient only
+ */
+export const deleteReviewByPatient = async (req: Request, res: Response) => {
+  try {
+    const { reviewId } = req.params;
+    const patientUid = req.user!.uid;
+
+    // Verify user is a patient
+    const patient = await prisma.patient.findUnique({
+      where: { uid: patientUid }
+    });
+
+    if (!patient) {
+      return res.status(403).json({ error: 'Access denied. Patient account required.' });
+    }
+
+    // Get the review and verify ownership
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      include: {
+        appointment: {
+          select: {
+            patientUid: true
+          }
+        }
+      }
+    });
+
+    if (!review) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    // Check if the patient owns this review
+    if (review.appointment.patientUid !== patientUid) {
+      return res.status(403).json({ error: 'You can only delete your own reviews' });
+    }
+
+    const result = await deleteReview(reviewId);
+
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error('Error deleting review:', error);
+    return res.status(500).json({ 
+      error: error.message || 'Failed to delete review'
+    });
+  }
+};
+
+/**
+ * DELETE /api/reviews/admin/:reviewId
+ * Delete any review (admin can delete any inappropriate review)
+ * Auth: Admin only (JWT)
+ */
+export const deleteReviewByAdmin = async (req: Request, res: Response) => {
+  try {
+    const { reviewId } = req.params;
+    const admin = (req as any).admin;
+
+    if (!admin) {
+      return res.status(401).json({ error: 'Admin authentication required' });
+    }
+
+    // Get the review to verify it exists
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId }
+    });
+
+    if (!review) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    const result = await deleteReview(reviewId);
+
+    return res.status(200).json({
+      ...result,
+      deletedBy: 'admin',
+      adminUsername: admin.username
+    });
+  } catch (error: any) {
+    console.error('Error deleting review (admin):', error);
+    return res.status(500).json({ 
+      error: error.message || 'Failed to delete review'
     });
   }
 };

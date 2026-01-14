@@ -484,3 +484,43 @@ export const getPublicDoctorRating = async (doctorUid: string) => {
     totalReviews: doctor.totalReviews || 0
   };
 };
+
+/**
+ * Delete a review by ID
+ * Used by patients to delete their own reviews or admins to delete any review
+ */
+export const deleteReview = async (reviewId: string) => {
+  // Get the review first to check if it exists and get doctor info
+  const review = await prisma.review.findUnique({
+    where: { id: reviewId },
+    include: {
+      appointment: {
+        select: {
+          doctorUid: true
+        }
+      }
+    }
+  });
+
+  if (!review) {
+    throw new Error('Review not found');
+  }
+
+  const doctorUid = review.appointment.doctorUid;
+  const wasComplaint = review.isComplaint;
+
+  // Delete the review
+  await prisma.review.delete({
+    where: { id: reviewId }
+  });
+
+  // If it was a regular review (not a complaint), update doctor's rating
+  if (!wasComplaint) {
+    await updateDoctorRating(doctorUid);
+  }
+
+  return {
+    message: 'Review deleted successfully',
+    deletedReviewId: reviewId
+  };
+};

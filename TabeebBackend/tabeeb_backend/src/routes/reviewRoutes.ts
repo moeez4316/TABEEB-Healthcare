@@ -18,7 +18,9 @@ import {
   checkReviewEligibility,
   getMyWrittenReviews,
   getDoctorPublicReviews,
-  getDoctorPublicRating
+  getDoctorPublicRating,
+  deleteReviewByPatient,
+  deleteReviewByAdmin
 } from '../controllers/reviewController';
 
 const router = express.Router();
@@ -47,6 +49,15 @@ router.get(
   checkPatientRole,
   validatePaginationParams,
   getMyWrittenReviews
+);
+
+// Patient routes - Delete own review
+router.delete(
+  '/:reviewId',
+  verifyToken,
+  checkPatientRole,
+  validateReviewId,
+  deleteReviewByPatient
 );
 
 // Public routes - Get doctor reviews (no auth required)
@@ -91,9 +102,17 @@ router.get(
 router.patch(
   '/admin/:reviewId/action',
   authenticateAdminFromHeaders,
-  validateReviewId('reviewId'),
+  validateReviewId,
   validateUpdateComplaintAction,
   updateComplaintActionController
+);
+
+// Admin routes - Delete any review
+router.delete(
+  '/admin/:reviewId',
+  authenticateAdminFromHeaders,
+  validateReviewId,
+  deleteReviewByAdmin
 );
 
 export default router;
