@@ -68,6 +68,12 @@ export default function DoctorReviewsPage() {
     fetchReviews();
   }, [token, filter, currentPage]);
 
+  const isClosedByPatient = (review: Review) => {
+    return review.isComplaint && review.adminActionTaken && 
+      (review.adminActionTaken.includes('[Complaint closed by patient]') || 
+       review.adminActionTaken.includes('[Complaint closed by admin]'));
+  };
+
   const renderStars = (rating: number) => {
     return (
       <div className="flex gap-1">
@@ -225,7 +231,9 @@ export default function DoctorReviewsPage() {
               <div
                 key={review.id}
                 className={`bg-white dark:bg-slate-800 rounded-lg shadow-sm border ${
-                  review.isComplaint
+                  isClosedByPatient(review)
+                    ? 'border-blue-400 dark:border-blue-500'
+                    : review.isComplaint
                     ? 'border-red-200 dark:border-red-800'
                     : 'border-gray-200 dark:border-slate-700'
                 } p-6 hover:shadow-md transition-shadow`}
@@ -237,9 +245,13 @@ export default function DoctorReviewsPage() {
                         {review.appointment.patient.firstName} {review.appointment.patient.lastName}
                       </h3>
                       {review.isComplaint && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium rounded-full">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
+                          isClosedByPatient(review)
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                        }`}>
                           <FaExclamationTriangle className="text-xs" />
-                          Complaint
+                          {isClosedByPatient(review) ? 'Resolved' : 'Complaint'}
                         </span>
                       )}
                     </div>

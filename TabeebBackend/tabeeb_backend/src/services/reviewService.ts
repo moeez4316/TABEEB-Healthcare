@@ -528,18 +528,35 @@ export const deleteReview = async (reviewId: string) => {
   const doctorUid = review.appointment.doctorUid;
   const wasComplaint = review.isComplaint;
 
-  // Delete the review
+  // If it's a complaint, mark as closed by patient instead of deleting
+  if (wasComplaint) {
+    await prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        adminActionTaken: review.adminActionTaken 
+          ? `${review.adminActionTaken}\n\n[Complaint closed by patient]`
+          : '[Complaint closed by patient]'
+      }
+    });
+
+    return {
+      message: 'Complaint closed successfully',
+      reviewId: reviewId,
+      closed: true
+    };
+  }
+
+  // For regular reviews, delete them
   await prisma.review.delete({
     where: { id: reviewId }
   });
 
-  // If it was a regular review (not a complaint), update doctor's rating
-  if (!wasComplaint) {
-    await updateDoctorRating(doctorUid);
-  }
+  // Update doctor's rating since a regular review was deleted
+  await updateDoctorRating(doctorUid);
 
   return {
     message: 'Review deleted successfully',
-    deletedReviewId: reviewId
+    deletedReviewId: reviewId,
+    closed: false
   };
 };

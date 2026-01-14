@@ -56,6 +56,7 @@ export default function AdminComplaintsPage() {
   const [adminNotes, setAdminNotes] = useState('');
   const [adminAction, setAdminAction] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
@@ -155,6 +156,52 @@ export default function AdminComplaintsPage() {
     }
   };
 
+  const handleCloseComplaint = async () => {
+    if (!selectedComplaint) return;
+
+    setClosing(true);
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/reviews/admin/${selectedComplaint.id}/action`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            adminActionTaken: selectedComplaint.adminActionTaken 
+              ? `${selectedComplaint.adminActionTaken}\n\n[Complaint closed by admin]`
+              : '[Complaint closed by admin]'
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to close complaint');
+      }
+
+      // Refresh complaints list
+      await fetchComplaints(pagination.currentPage);
+      setShowModal(false);
+      setSelectedComplaint(null);
+      
+      // Show success toast
+      setToastMessage('Complaint closed successfully');
+      setToastType('success');
+      setShowToast(true);
+    } catch (error: any) {
+      console.error('Error closing complaint:', error);
+      setToastMessage(error.message || 'Failed to close complaint');
+      setToastType('error');
+      setShowToast(true);
+    } finally {
+      setClosing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Header */}
@@ -235,21 +282,33 @@ export default function AdminComplaintsPage() {
             </div>
           ) : (
             <div className="divide-y divide-gray-200 dark:divide-slate-700">
-              {complaints.map((complaint) => (
-                <div
-                  key={complaint.id}
-                  onClick={() => handleComplaintClick(complaint)}
-                  className="p-6 hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
-                >
+              {complaints.map((complaint) => {
+                // Check if complaint is closed by patient or admin
+                const isClosedComplaint = complaint.adminActionTaken ? 
+                  (complaint.adminActionTaken.includes('[Complaint closed by patient]') || 
+                   complaint.adminActionTaken.includes('[Complaint closed by admin]')) : false;
+                
+                return (
+                  <div
+                    key={complaint.id}
+                    onClick={() => handleComplaintClick(complaint)}
+                    className={`p-6 hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors ${
+                      isClosedComplaint ? 'border-l-4 border-blue-400 dark:border-blue-500' : ''
+                    }`}
+                  >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        complaint.adminActionTaken
+                        isClosedComplaint
+                          ? 'bg-blue-100 dark:bg-blue-900/20'
+                          : complaint.adminActionTaken
                           ? 'bg-green-100 dark:bg-green-900/20'
                           : 'bg-red-100 dark:bg-red-900/20'
                       }`}>
                         <FaFlag className={`w-5 h-5 ${
-                          complaint.adminActionTaken
+                          isClosedComplaint
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : complaint.adminActionTaken
                             ? 'text-green-600 dark:text-green-400'
                             : 'text-red-600 dark:text-red-400'
                         }`} />
@@ -275,13 +334,27 @@ export default function AdminComplaintsPage() {
                         </p>
                       </div>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      complaint.adminActionTaken
-                        ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-                        : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
-                    }`}>
-                      {complaint.adminActionTaken ? 'Resolved' : 'Pending'}
-                    </span>
+                    <div className="flex flex-col items-end space-y-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        isClosedComplaint
+                          ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                          : complaint.adminActionTaken
+                          ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                          : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
+                      }`}>
+                        {isClosedComplaint ? 'Resolved' : complaint.adminActionTaken ? 'Resolved' : 'Pending'}
+                      </span>
+                      {complaint.adminActionTaken && complaint.adminActionTaken.includes('[Complaint closed by patient]') && (
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">
+                          Closed by Patient
+                        </span>
+                      )}
+                      {complaint.adminActionTaken && complaint.adminActionTaken.includes('[Complaint closed by admin]') && (
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400">
+                          Closed by Admin
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -320,7 +393,8 @@ export default function AdminComplaintsPage() {
                     <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">{complaint.comment}</p>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
 
@@ -501,31 +575,50 @@ export default function AdminComplaintsPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-gray-50 dark:bg-slate-900/50 border-t border-gray-200 dark:border-slate-700 px-6 py-4 flex items-center justify-end space-x-3">
+            <div className="sticky bottom-0 bg-gray-50 dark:bg-slate-900/50 border-t border-gray-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
               <button
-                onClick={() => setShowModal(false)}
-                disabled={submitting}
-                className="px-6 py-3 border-2 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 font-medium"
+                onClick={handleCloseComplaint}
+                disabled={closing || submitting || (selectedComplaint.adminActionTaken?.includes('[Complaint closed by') || false)}
+                className="px-6 py-3 bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-600 hover:via-purple-700 hover:to-purple-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-semibold shadow-lg shadow-purple-500/30"
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitResponse}
-                disabled={submitting}
-                className="px-6 py-3 bg-gradient-to-r from-teal-500 via-teal-600 to-teal-700 text-white rounded-lg hover:from-teal-600 hover:via-teal-700 hover:to-teal-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-semibold shadow-lg shadow-teal-500/30"
-              >
-                {submitting ? (
+                {closing ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-3 border-white border-t-transparent" />
-                    <span>Updating...</span>
+                    <span>Closing...</span>
                   </>
                 ) : (
                   <>
-                    <FaCheck className="w-4 h-4" />
-                    <span>Update Complaint</span>
+                    <FaTimes className="w-4 h-4" />
+                    <span>Close Complaint</span>
                   </>
                 )}
               </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setShowModal(false)}
+                  disabled={submitting || closing}
+                  className="px-6 py-3 border-2 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitResponse}
+                  disabled={submitting || closing}
+                  className="px-6 py-3 bg-gradient-to-r from-teal-500 via-teal-600 to-teal-700 text-white rounded-lg hover:from-teal-600 hover:via-teal-700 hover:to-teal-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-semibold shadow-lg shadow-teal-500/30"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-3 border-white border-t-transparent" />
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaCheck className="w-4 h-4" />
+                      <span>Update Complaint</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

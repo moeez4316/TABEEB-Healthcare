@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { FaStar, FaCalendar, FaUserMd, FaFlag, FaExclamationTriangle } from 'react-icons/fa';
+import { FaStar, FaCalendar, FaUserMd, FaFlag, FaExclamationTriangle, FaTrash } from 'react-icons/fa';
 import { formatDate } from '@/lib/dateUtils';
 import Link from 'next/link';
+import { Toast } from '@/components/Toast';
 
 interface Review {
   id: string;
@@ -28,6 +29,10 @@ export default function PatientReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -59,6 +64,73 @@ export default function PatientReviewsPage() {
     fetchReviews();
   }, [token]);
 
+  const handleDeleteClick = (review: Review) => {
+    setSelectedReview(review);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedReview || !token) return;
+
+    try {
+      setDeleting(true);
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/reviews/${selectedReview.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete review');
+      }
+
+      const data = await response.json();
+      
+      // Remove the review from the list if it was actually deleted (not a complaint)
+      if (data.closed) {
+        setToast({ message: 'Complaint closed successfully', type: 'success' });
+      } else {
+        setReviews(reviews.filter(r => r.id !== selectedReview.id));
+        setToast({ message: 'Review deleted successfully', type: 'success' });
+      }
+      
+      setDeleteModalOpen(false);
+      setSelectedReview(null);
+
+      // Refresh the reviews list
+      const fetchResponse = await fetch(`${API_URL}/api/reviews/my-written-reviews`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (fetchResponse.ok) {
+        const fetchData = await fetchResponse.json();
+        setReviews(fetchData.reviews || []);
+      }
+
+    } catch (err: any) {
+      setToast({ message: err.message || 'Failed to delete review', type: 'error' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModalOpen(false);
+    setSelectedReview(null);
+  };
+
+  const isClosedByPatient = (review: Review) => {
+    return review.isComplaint && review.adminActionTaken && 
+      (review.adminActionTaken.includes('[Complaint closed by patient]') || 
+       review.adminActionTaken.includes('[Complaint closed by admin]'));
+  };
+
   const renderStars = (rating: number) => {
     return (
       <div className="flex items-center space-x-1">
@@ -89,6 +161,83 @@ export default function PatientReviewsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          show={true}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && selectedReview && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-slate-700">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <FaTrash className="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {selectedReview.isComplaint ? 'Close Complaint?' : 'Delete Review?'}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {selectedReview.isComplaint 
+                      ? 'The complaint will be marked as closed by you'
+                      : 'This action cannot be undone'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4 mb-6">
+                <p className="text-sm text-gray-700 dark:text-gray-300 font-medium mb-1">
+                  Dr. {selectedReview.appointment.doctor.name}
+                </p>
+                <div className="flex items-center space-x-2 mb-2">
+                  {renderStars(selectedReview.rating)}
+                </div>
+                {selectedReview.comment && (
+                  <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                    {selectedReview.comment}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleDeleteCancel}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2.5 bg-red-600 dark:bg-red-500 text-white rounded-lg font-medium hover:bg-red-700 dark:hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                  {deleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>{selectedReview.isComplaint ? 'Closing...' : 'Deleting...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaTrash className="w-4 h-4" />
+                      <span>{selectedReview.isComplaint ? 'Close' : 'Delete'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -162,7 +311,9 @@ export default function PatientReviewsPage() {
                 <div
                   key={review.id}
                   className={`bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border ${
-                    review.isComplaint
+                    isClosedByPatient(review)
+                      ? 'border-blue-400 dark:border-blue-500'
+                      : review.isComplaint
                       ? 'border-red-200 dark:border-red-800'
                       : 'border-gray-200 dark:border-slate-700'
                   }`}
@@ -171,7 +322,7 @@ export default function PatientReviewsPage() {
                     {/* Left Section */}
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-3">
-                        <div>
+                        <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
                             <FaUserMd className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -182,12 +333,27 @@ export default function PatientReviewsPage() {
                             {review.appointment.doctor.specialization}
                           </p>
                         </div>
-                        {review.isComplaint && (
-                          <span className="flex items-center space-x-1 px-3 py-1 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-full text-xs font-medium">
-                            <FaFlag className="w-3 h-3" />
-                            <span>Complaint</span>
-                          </span>
-                        )}
+                        <div className="flex items-center space-x-2">
+                          {review.isComplaint && (
+                            <span className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium ${
+                              isClosedByPatient(review)
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                            }`}>
+                              <FaFlag className="w-3 h-3" />
+                              <span>{isClosedByPatient(review) ? 'Closed' : 'Complaint'}</span>
+                            </span>
+                          )}
+                          {!isClosedByPatient(review) && (
+                            <button
+                              onClick={() => handleDeleteClick(review)}
+                              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors group"
+                              title={review.isComplaint ? "Close complaint" : "Delete review"}
+                            >
+                              <FaTrash className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
