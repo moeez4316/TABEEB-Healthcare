@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Mail, Calendar, Stethoscope, Clock, AlertTriangle, CheckCircle, Edit3, Phone, ChevronRight } from 'lucide-react';
+import { Mail, Calendar, Stethoscope, Clock, AlertTriangle, CheckCircle, Edit3, Phone, ChevronRight, Star } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -10,12 +10,15 @@ import { calculateDoctorProfileCompletion } from '@/lib/doctor-profile-completio
 import DoctorProfileEditModal from '@/components/profile/DoctorProfileEditModal';
 import Link from 'next/link';
 import { APP_CONFIG } from '@/lib/config/appConfig';
+import { getDoctorRating } from '@/lib/review-api';
 
 export default function DoctorDashboard() {
   const { user, token, verificationStatus } = useAuth();
   const dispatch = useAppDispatch();
   const { profile } = useAppSelector((state) => state.doctor || { profile: null });
   const [showProfileEdit, setShowProfileEdit] = useState<string | boolean>(false);
+  const [rating, setRating] = useState<{ averageRating: number; totalReviews: number } | null>(null);
+  const [loadingRating, setLoadingRating] = useState(true);
 
   // Load profile data on component mount
   useEffect(() => {
@@ -23,6 +26,25 @@ export default function DoctorDashboard() {
       dispatch(loadDoctorProfile(token));
     }
   }, [dispatch, token]);
+
+  // Load rating data
+  useEffect(() => {
+    const fetchRating = async () => {
+      if (!token) return;
+      
+      try {
+        setLoadingRating(true);
+        const ratingData = await getDoctorRating(token);
+        setRating(ratingData);
+      } catch (error) {
+        console.error('Failed to load rating:', error);
+      } finally {
+        setLoadingRating(false);
+      }
+    };
+
+    fetchRating();
+  }, [token]);
 
   if (!user || !profile) return null;
 
@@ -182,8 +204,8 @@ export default function DoctorDashboard() {
           </div>
 
           {/* Dashboard Stats */}
-          <div className="grid grid-cols-1 gap-6 mb-6">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700 opacity-90 cursor-default">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
               <div className="flex items-center">
                 <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
                   <Clock className="w-6 h-6 text-orange-600 dark:text-orange-400" />
@@ -196,10 +218,35 @@ export default function DoctorDashboard() {
                 </div>
               </div>
             </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+                  <Star className="w-6 h-6 text-yellow-600 dark:text-yellow-400 fill-yellow-600 dark:fill-yellow-400" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Patient Rating</p>
+                  {loadingRating ? (
+                    <p className="text-2xl font-bold text-gray-400 dark:text-gray-500">Loading...</p>
+                  ) : rating && rating.totalReviews > 0 ? (
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {rating.averageRating.toFixed(1)}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        ({rating.totalReviews} {rating.totalReviews === 1 ? 'review' : 'reviews'})
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-2xl font-bold text-gray-400 dark:text-gray-500">No reviews yet</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
             <Link href="/Doctor/Appointments">
               <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/10 dark:to-slate-800 rounded-lg shadow-md p-6 border border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group">
                 <div className="flex items-center justify-between">
@@ -238,6 +285,27 @@ export default function DoctorDashboard() {
                     </div>
                   </div>
                   <ChevronRight className="w-5 h-5 text-green-400 dark:text-green-500 group-hover:text-green-600 dark:group-hover:text-green-400 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                </div>
+              </div>
+            </Link>
+
+            <Link href="/Doctor/Reviews">
+              <div className="bg-gradient-to-br from-yellow-50 to-white dark:from-yellow-900/10 dark:to-slate-800 rounded-lg shadow-md p-6 border border-yellow-200 dark:border-yellow-800 hover:border-yellow-400 dark:hover:border-yellow-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-yellow-500 dark:bg-yellow-600 p-2.5 rounded-lg group-hover:bg-yellow-600 dark:group-hover:bg-yellow-500 transition-colors">
+                      <Star className="h-5 w-5 text-white fill-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                        Patient Reviews
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        View feedback and ratings
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-yellow-400 dark:text-yellow-500 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </div>
               </div>
             </Link>
