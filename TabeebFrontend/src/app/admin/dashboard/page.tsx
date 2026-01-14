@@ -14,7 +14,8 @@ import {
   Settings,
   Calendar,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Flag
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -169,6 +170,13 @@ export default function AdminDashboard() {
       action: () => router.push('/admin/verification'),
       color: 'teal',
       count: stats?.pendingVerifications || 0
+    },
+    {
+      title: 'Review Complaints',
+      description: 'View and respond to patient complaints',
+      icon: Flag,
+      action: () => router.push('/admin/complaints'),
+      color: 'amber'
     },
     {
       title: 'View Analytics',

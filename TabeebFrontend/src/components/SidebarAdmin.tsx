@@ -14,7 +14,8 @@ import {
   Users,
   Activity,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Flag
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 
@@ -67,6 +68,12 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       href: '/admin/users',
       icon: Users,
       description: 'Manage Accounts'
+    },
+    {
+      name: 'Complaints',
+      href: '/admin/complaints',
+      icon: Flag,
+      description: 'Review Complaints'
     },
     {
       name: 'Analytics',
