@@ -52,13 +52,6 @@ export const createReview = async (params: CreateReviewParams) => {
   
   const isAppointmentPassed = now > appointmentDate;
   
-  console.log('Review validation:', {
-    now: now.toISOString(),
-    appointmentEndTime: appointmentDate.toISOString(),
-    isAppointmentPassed,
-    status: appointment.status
-  });
-  
   if (appointment.status !== 'COMPLETED' && !isAppointmentPassed) {
     throw new Error('Can only review completed appointments or appointments where the scheduled time has passed');
   }
@@ -360,13 +353,6 @@ export const canReviewAppointment = async (appointmentId: string, patientUid: st
   appointmentDate.setHours(hours, minutes, 0, 0);
   
   const isAppointmentPassed = now > appointmentDate;
-  
-  console.log('Can Review Check:', {
-    now: now.toISOString(),
-    appointmentEndTime: appointmentDate.toISOString(),
-    isAppointmentPassed,
-    status: appointment.status
-  });
 
   if (appointment.status !== 'COMPLETED' && !isAppointmentPassed) {
     return { canReview: false, reason: 'Can only review completed appointments or appointments where the scheduled time has passed' };
