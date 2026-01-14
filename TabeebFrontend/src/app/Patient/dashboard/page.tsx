@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Mail, Edit3, Heart, Activity, Phone, MapPin, Settings, ChevronRight } from 'lucide-react';
+import { User, Mail, Edit3, Heart, Activity, Phone, MapPin, Settings, ChevronRight, Star } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { loadPatientProfile } from '@/store/slices/patientSlice';
@@ -206,28 +207,24 @@ export default function DashboardPage() {
               </div>
             </button>
 
-            <button
-              onClick={() => openProfileEdit('contact')}
-              className={`bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700 text-left transition cursor-pointer hover:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500`}
-              type="button"
-            >
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                  <MapPin className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Location</p>
-                  <p className="text-lg font-bold text-gray-900 dark:text-white">
-                    {profile.address.city || 'Not Set'}
-                  </p>
-                  {profile.address.province && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {profile.address.province}
+            <Link href="/Patient/reviews">
+              <div className="bg-gradient-to-br from-yellow-50 to-white dark:from-yellow-900/10 dark:to-slate-800 rounded-lg shadow-lg p-6 border border-yellow-200 dark:border-yellow-800 hover:border-yellow-400 dark:hover:border-yellow-600 hover:shadow-xl hover:scale-[1.02] transition-all cursor-pointer group">
+                <div className="flex items-center">
+                  <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg group-hover:bg-yellow-200 dark:group-hover:bg-yellow-800/40 transition-colors">
+                    <Star className="w-6 h-6 text-yellow-600 dark:text-yellow-400 fill-yellow-600 dark:fill-yellow-400" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">My Reviews</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">
+                      View All
                     </p>
-                  )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Reviews you've written
+                    </p>
+                  </div>
                 </div>
               </div>
-            </button>
+            </Link>
           </div>
 
           {/* Medical Information */}

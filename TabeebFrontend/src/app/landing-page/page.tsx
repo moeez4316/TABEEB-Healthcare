@@ -357,6 +357,9 @@ const LandingPage = () => {
                   <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
                 </li>
                 <li>
+                  <Link href="/complaint-policy" className="hover:text-white transition-colors">Complaint Policy</Link>
+                </li>
+                <li>
                   <Link href="/admin/login" className="hover:text-white transition-colors">Admin Panel</Link>
                 </li>
               </ul>

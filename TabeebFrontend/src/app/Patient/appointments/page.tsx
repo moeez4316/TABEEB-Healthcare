@@ -6,8 +6,9 @@ import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
-import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp, FaStar } from 'react-icons/fa';
 import PatientVideoCallModal from '@/components/VideoCall/PatientVideoCallModal';
+import PatientReviewModal from '@/components/appointment/PatientReviewModal';
 import { Toast } from '@/components/Toast';
 
 export default function PatientAppointmentsPage() {
@@ -23,6 +24,8 @@ export default function PatientAppointmentsPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewAppointment, setReviewAppointment] = useState<Appointment | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return;
@@ -394,6 +397,35 @@ export default function PatientAppointmentsPage() {
                       );
                     })()}
                     
+                    {(() => {
+                      // Show review button if appointment is completed OR if appointment time has passed (for no-show complaints)
+                      const now = new Date();
+                      const dateStr = appointment.appointmentDate;
+                      const timeStr = appointment.endTime; // Use end time to check if appointment period has fully passed
+                      const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+                      const timeWithSeconds = timeStr.includes(':') && timeStr.split(':').length === 2 
+                        ? `${timeStr}:00` 
+                        : timeStr;
+                      const appointmentEndTime = new Date(`${datePart}T${timeWithSeconds}`);
+                      
+                      const isAppointmentPassed = now > appointmentEndTime;
+                      const canWriteReview = appointment.status === 'COMPLETED' || isAppointmentPassed;
+                      
+                      return canWriteReview ? (
+                        <button
+                          onClick={() => {
+                            setReviewAppointment(appointment);
+                            setShowReviewModal(true);
+                          }}
+                          className="group relative flex items-center justify-center space-x-2 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-500 dark:from-amber-500 dark:via-yellow-600 dark:to-amber-600 text-white hover:from-amber-500 hover:via-yellow-600 hover:to-amber-600 dark:hover:from-amber-600 dark:hover:via-yellow-700 dark:hover:to-amber-700 px-5 py-2.5 rounded-xl shadow-lg shadow-yellow-500/30 dark:shadow-yellow-900/30 hover:shadow-xl hover:shadow-yellow-500/40 dark:hover:shadow-yellow-900/40 transition-all duration-300 font-semibold hover:scale-105 overflow-hidden"
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 group-hover:translate-x-full transition-transform duration-700" />
+                          <FaStar className="w-4 h-4 drop-shadow-sm group-hover:rotate-12 transition-transform duration-300" />
+                          <span className="text-sm drop-shadow-sm">Share Your Experience</span>
+                        </button>
+                      ) : null;
+                    })()}
+                    
                     <button
                       onClick={() => setExpandedAppointment(
                         expandedAppointment === appointment.id ? null : appointment.id
@@ -526,6 +558,23 @@ export default function PatientAppointmentsPage() {
             fetchAppointments();
           }}
           firebaseToken={token}
+        />
+      )}
+
+      {/* Review Modal */}
+      {showReviewModal && reviewAppointment && token && (
+        <PatientReviewModal
+          isOpen={showReviewModal}
+          appointment={reviewAppointment}
+          firebaseToken={token}
+          onClose={() => {
+            setShowReviewModal(false);
+            setReviewAppointment(null);
+          }}
+          onSuccess={() => {
+            showNotification('Review submitted successfully!', 'success');
+            fetchAppointments();
+          }}
         />
       )}
 
