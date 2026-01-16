@@ -129,16 +129,22 @@ export default function BlogDetailPage({ params }: BlogDetailPageProps) {
               </div>
 
               {/* Similar/Related Blogs */}
-              {blog.similarBlogs && blog.similarBlogs.length > 0 && (
+              {blog.similarBlogs && blog.similarBlogs.length > 0 ? (
                 <div className="mt-12">
                   <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
                     You Might Also Like
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {blog.similarBlogs.slice(0, 3).map((similarBlog) => (
                       <BlogCard key={similarBlog.id} blog={similarBlog} />
                     ))}
                   </div>
+                </div>
+              ) : (
+                <div className="mt-12 bg-gray-100 dark:bg-slate-800 rounded-xl p-8 text-center">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    No related articles available at this time.
+                  </p>
                 </div>
               )}
             </article>

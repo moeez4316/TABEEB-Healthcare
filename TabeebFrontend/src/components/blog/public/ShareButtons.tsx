@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Share2, Link as LinkIcon, Check, Facebook, Twitter } from 'lucide-react';
-import { FaWhatsapp } from 'react-icons/fa';
+import { Share2, Link as LinkIcon, Check, Facebook } from 'lucide-react';
+import { FaWhatsapp, FaXTwitter } from 'react-icons/fa6';
 
 interface ShareButtonsProps {
   title: string;
@@ -25,7 +25,7 @@ export const ShareButtons: React.FC<ShareButtonsProps> = ({ title, url }) => {
   const shareLinks = {
     whatsapp: `https://wa.me/?text=${encodeURIComponent(`${title} - ${url}`)}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-    twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`,
+    x: `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`,
   };
 
   return (
@@ -78,15 +78,14 @@ export const ShareButtons: React.FC<ShareButtonsProps> = ({ title, url }) => {
           <span>Facebook</span>
         </a>
 
-        {/* Twitter */}
+        {/* X (Twitter) */}
         <a
-          href={shareLinks.twitter}
+          href={shareLinks.x}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-sky-500 hover:bg-sky-600 transition-colors text-white font-medium"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-black hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 transition-colors text-white dark:text-black font-medium"
         >
-          <Twitter className="w-5 h-5" />
-          <span>Twitter</span>
+          <FaXTwitter className="w-5 h-5" />
         </a>
       </div>
     </div>
