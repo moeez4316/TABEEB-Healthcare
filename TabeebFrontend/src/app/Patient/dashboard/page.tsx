@@ -225,6 +225,25 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Link>
+
+            <Link href="/blogs">
+              <div className="bg-gradient-to-br from-teal-50 to-white dark:from-teal-900/10 dark:to-slate-800 rounded-lg shadow-lg p-6 border border-teal-200 dark:border-teal-800 hover:border-teal-400 dark:hover:border-teal-600 hover:shadow-xl hover:scale-[1.02] transition-all cursor-pointer group">
+                <div className="flex items-center">
+                  <div className="p-2 bg-teal-100 dark:bg-teal-900/20 rounded-lg group-hover:bg-teal-200 dark:group-hover:bg-teal-800/40 transition-colors">
+                    <Activity className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Health Blog</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">
+                      Read Articles
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Expert health insights
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Link>
           </div>
 
           {/* Medical Information */}

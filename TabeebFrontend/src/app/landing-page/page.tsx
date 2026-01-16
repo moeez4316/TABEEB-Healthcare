@@ -102,6 +102,9 @@ const LandingPage = () => {
               <a href="#how-it-works" className="text-slate-600 dark:text-slate-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors font-medium">
                 How It Works
               </a>
+              <Link href="/blogs" className="text-slate-600 dark:text-slate-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors font-medium">
+                Health Blog
+              </Link>
               <button 
                 onClick={() => setShowContactModal(true)}
                 className="text-slate-600 dark:text-slate-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors font-medium"
