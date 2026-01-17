@@ -11,7 +11,7 @@ interface BlogCardProps {
 }
 
 export const BlogCard: React.FC<BlogCardProps> = ({ blog, priority = false }) => {
-  const publishedDate = formatDistanceToNow(new Date(blog.publishedAt), { addSuffix: true });
+  const publishedDate = formatDistanceToNow(new Date(blog.publishedAt || blog.createdAt), { addSuffix: true });
 
   return (
     <Link href={`/blogs/${blog.slug}`} className="group">

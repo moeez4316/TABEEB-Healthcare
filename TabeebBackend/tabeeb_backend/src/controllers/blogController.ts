@@ -132,7 +132,10 @@ export const getAllBlogs = async (req: Request, res: Response) => {
     // Build where clause
     const where: any = {};
     
-    if (status) where.status = status;
+    // For public route, ALWAYS filter by PUBLISHED status only
+    // Status parameter from query is ignored for public routes to ensure security
+    where.status = BlogStatus.PUBLISHED;
+    
     if (authorType) where.authorType = authorType;
     if (isFeatured !== undefined) {
       where.isFeatured = typeof isFeatured === 'string' ? isFeatured === 'true' : isFeatured;

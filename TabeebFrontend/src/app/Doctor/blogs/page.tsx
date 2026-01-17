@@ -5,8 +5,32 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { PenSquare, BookOpen, FileText, ChevronRight } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
+import { useAuth } from '@/lib/auth-context';
+import { useMyBlogs } from '@/lib/hooks/useBlog';
 
 export default function DoctorBlogsPage() {
+  const { token } = useAuth();
+
+  // Fetch doctor's blogs for stats
+  const { data: blogsData } = useMyBlogs(
+    {
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      limit: 100,
+    },
+    token!,
+    !!token
+  );
+
+  const blogs = blogsData?.blogs || [];
+
+  // Calculate stats
+  const stats = {
+    published: blogs.filter(b => b.status === 'PUBLISHED').length,
+    totalViews: blogs.reduce((sum, b) => sum + b.viewCount, 0),
+    drafts: blogs.filter(b => b.status === 'DRAFT').length,
+  };
+
   const blogOptions = [
     {
       id: 'write',
@@ -133,7 +157,7 @@ export default function DoctorBlogsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-teal-600 dark:text-teal-400 mb-2">
-                0
+                {stats.published}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Published Articles
@@ -141,7 +165,7 @@ export default function DoctorBlogsPage() {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                0
+                {stats.totalViews}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Total Views
@@ -149,7 +173,7 @@ export default function DoctorBlogsPage() {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                0
+                {stats.drafts}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Draft Articles

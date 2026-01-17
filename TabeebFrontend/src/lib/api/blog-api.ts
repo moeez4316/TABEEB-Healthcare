@@ -34,6 +34,27 @@ export const getBlogs = async (filters: BlogFilters = {}): Promise<BlogListRespo
   return response.json();
 };
 
+// Get doctor's own blogs (including drafts) - requires authentication
+export const getMyBlogs = async (filters: BlogFilters = {}, token: string): Promise<BlogListResponse> => {
+  const queryString = buildQueryString(filters);
+  const url = `${BLOG_API_URL}/my-blogs${queryString ? `?${queryString}` : ''}`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    cache: 'no-store', // Always fetch fresh data
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch your blogs: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
 // Get featured blogs
 export const getFeaturedBlogs = async (limit: number = 6): Promise<Blog[]> => {
   const response = await fetch(`${BLOG_API_URL}/public/featured?limit=${limit}`, {

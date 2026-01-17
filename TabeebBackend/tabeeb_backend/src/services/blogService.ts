@@ -236,6 +236,7 @@ export const formatBlogResponse = (blog: any) => {
     slug: blog.slug,
     excerpt: blog.excerpt,
     coverImageUrl: blog.coverImageUrl,
+    contentHtml: blog.contentHtml,
     readTime: blog.readTime,
     viewCount: blog.viewCount,
     authorType: blog.authorType,
@@ -243,7 +244,9 @@ export const formatBlogResponse = (blog: any) => {
     authorImage,
     externalSourceName: blog.externalSourceName,
     isFeatured: blog.isFeatured,
+    status: blog.status,
     publishedAt: blog.publishedAt,
+    createdAt: blog.createdAt,
     tags: blog.tags || []
   };
 };

@@ -13,7 +13,9 @@ export interface Blog {
   authorImage: string | null;
   externalSourceName: string | null;
   isFeatured: boolean;
-  publishedAt: string;
+  status: 'PUBLISHED' | 'DRAFT' | 'ARCHIVED';
+  publishedAt: string | null;
+  createdAt: string;
   tags: BlogTag[];
 }
 

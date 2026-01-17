@@ -1,6 +1,7 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import {
   getBlogs,
+  getMyBlogs,
   getFeaturedBlogs,
   getRecentBlogs,
   getBlogBySlug,
@@ -14,6 +15,8 @@ export const blogKeys = {
   all: ['blogs'] as const,
   lists: () => [...blogKeys.all, 'list'] as const,
   list: (filters: BlogFilters) => [...blogKeys.lists(), filters] as const,
+  myBlogs: () => [...blogKeys.all, 'myBlogs'] as const,
+  myBlogsList: (filters: BlogFilters) => [...blogKeys.myBlogs(), filters] as const,
   featured: () => [...blogKeys.all, 'featured'] as const,
   recent: (limit: number) => [...blogKeys.all, 'recent', limit] as const,
   details: () => [...blogKeys.all, 'detail'] as const,
@@ -22,7 +25,7 @@ export const blogKeys = {
   tags: () => [...blogKeys.all, 'tags'] as const,
 };
 
-// Get paginated blogs with filters
+// Get paginated blogs with filters (PUBLIC - only published)
 export const useBlogs = (
   filters: BlogFilters = {}
 ): UseQueryResult<BlogListResponse, Error> => {
@@ -31,6 +34,21 @@ export const useBlogs = (
     queryFn: () => getBlogs(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+// Get doctor's own blogs (including drafts) - requires authentication
+export const useMyBlogs = (
+  filters: BlogFilters = {},
+  token: string,
+  enabled: boolean = true
+): UseQueryResult<BlogListResponse, Error> => {
+  return useQuery({
+    queryKey: blogKeys.myBlogsList(filters),
+    queryFn: () => getMyBlogs(filters, token),
+    enabled: enabled && !!token,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 };
 

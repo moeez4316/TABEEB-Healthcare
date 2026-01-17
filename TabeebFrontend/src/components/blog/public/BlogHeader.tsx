@@ -11,8 +11,9 @@ interface BlogHeaderProps {
 }
 
 export const BlogHeader: React.FC<BlogHeaderProps> = ({ blog }) => {
-  const publishedDate = format(new Date(blog.publishedAt), 'MMMM dd, yyyy');
-  const timeAgo = formatDistanceToNow(new Date(blog.publishedAt), { addSuffix: true });
+  const dateToUse = (blog.publishedAt || blog.createdAt) as string;
+  const publishedDate = format(new Date(dateToUse), 'MMMM dd, yyyy');
+  const timeAgo = formatDistanceToNow(new Date(dateToUse), { addSuffix: true });
 
   return (
     <header className="mb-8">

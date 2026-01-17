@@ -74,14 +74,15 @@ export default function WriteBlogPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload image');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to upload image' }));
+        throw new Error(errorData.error || 'Failed to upload image');
       }
 
       const data = await response.json();
       setFormData(prev => ({ ...prev, coverImageUrl: data.url }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Image upload error:', error);
-      setErrorMessage('Failed to upload image. Please try again.');
+      setErrorMessage(error.message || 'Failed to upload image. Please try again.');
     } finally {
       setUploadingImage(false);
     }
@@ -128,12 +129,20 @@ export default function WriteBlogPage() {
 
     setIsSubmitting(true);
 
+    // Truncate excerpt to 500 characters max (database limit)
+    const truncatedExcerpt = formData.excerpt.substring(0, 500);
+
     const blogData = {
       ...formData,
+      excerpt: truncatedExcerpt,
       status,
       authorType: 'DOCTOR' as const,
       doctorUid: user?.uid, // Add doctor UID from authenticated user
     };
+
+    console.log('Submitting blog data:', { ...blogData, contentHtml: blogData.contentHtml.substring(0, 100) + '...' });
+    console.log('API URL:', `${API_URL}/api/blogs/create`);
+    console.log('Auth token present:', !!token);
 
     try {
       const response = await fetch(`${API_URL}/api/blogs/create`, {
@@ -145,13 +154,28 @@ export default function WriteBlogPage() {
         body: JSON.stringify(blogData),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create blog');
+        const responseText = await response.text();
+        console.error('Server error response text:', responseText);
+        
+        let error: any = {};
+        try {
+          error = JSON.parse(responseText);
+        } catch (e) {
+          console.error('Failed to parse error response as JSON');
+          throw new Error(`Server error (${response.status}): ${responseText || 'Unknown error'}`);
+        }
+        
+        throw new Error(error.error || error.message || `Failed to create blog (${response.status})`);
       }
 
       const result = await response.json();
-      setSuccessMessage(`Blog ${status === 'DRAFT' ? 'saved as draft' : 'published'} successfully!`);
+      console.log('Success response:', result);
+      const isDraft = status === 'DRAFT';
+      setSuccessMessage(`Blog ${isDraft ? 'saved as draft' : 'published'} successfully!`);
       
       setTimeout(() => {
         router.push('/Doctor/blogs/my-blogs');
@@ -262,15 +286,21 @@ export default function WriteBlogPage() {
 
               {/* Excerpt */}
               <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-slate-700">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Excerpt / Summary
-                </label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Excerpt / Summary
+                  </label>
+                  <span className={`text-xs ${formData.excerpt.length > 500 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {formData.excerpt.length}/500
+                  </span>
+                </div>
                 <textarea
                   name="excerpt"
                   value={formData.excerpt}
                   onChange={handleInputChange}
                   placeholder="Brief summary of your blog (optional, will be auto-generated if left empty)..."
                   rows={3}
+                  maxLength={500}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none custom-scrollbar"
                 />
                 <style jsx>{`
