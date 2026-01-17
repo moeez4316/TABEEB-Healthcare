@@ -254,6 +254,60 @@ export const getBlogBySlug = async (req: Request, res: Response) => {
 };
 
 /**
+ * Get a single blog by ID (for editing)
+ */
+export const getBlogById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userUid = req.user?.uid;
+    const isAdminRequest = (req as any).admin && (req as any).admin.isAdmin;
+    
+    const blog = await prisma.blog.findUnique({
+      where: { id },
+      include: {
+        tags: true,
+        doctor: {
+          select: {
+            uid: true,
+            name: true,
+            profileImageUrl: true,
+            specialization: true,
+            qualification: true
+          }
+        }
+      }
+    });
+    
+    if (!blog) {
+      return res.status(404).json({ error: 'Blog not found' });
+    }
+    
+    // Check ownership - only allow if user is the author or admin
+    if (!isAdminRequest && blog.doctorUid !== userUid) {
+      return res.status(403).json({ error: 'Not authorized to access this blog' });
+    }
+    
+    res.json({
+      blog: {
+        ...formatBlogResponse(blog),
+        contentHtml: blog.contentHtml,
+        seoTitle: blog.seoTitle,
+        seoDescription: blog.seoDescription,
+        externalAuthorBio: blog.externalAuthorBio,
+        externalSourceUrl: blog.externalSourceUrl,
+        canonicalUrl: blog.canonicalUrl,
+        createdAt: blog.createdAt,
+        updatedAt: blog.updatedAt,
+        doctor: blog.doctor
+      }
+    });
+  } catch (error: any) {
+    console.error('Get blog by ID error:', error);
+    res.status(500).json({ error: 'Failed to fetch blog', details: error.message });
+  }
+};
+
+/**
  * Get featured blogs
  */
 export const getFeaturedBlogs = async (req: Request, res: Response) => {

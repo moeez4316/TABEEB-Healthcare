@@ -16,6 +16,7 @@ import {
   createBlog,
   getAllBlogs,
   getBlogBySlug,
+  getBlogById,
   getFeaturedBlogs,
   getRecentBlogs,
   getMyBlogs,
@@ -41,6 +42,7 @@ router.post('/create', verifyTokenOrAdmin, isDoctorOrAdmin, validateCreateBlog, 
 
 // Protected routes - Doctor (own blogs only)
 router.get('/my-blogs', verifyToken, isDoctor, getMyBlogs); // Get current doctor's blogs
+router.get('/:id', verifyTokenOrAdmin, validateCUID('id'), getBlogById); // Get single blog by ID for editing
 router.put('/:id', verifyTokenOrAdmin, validateCUID('id'), validateUpdateBlog, updateBlog); // Update blog (checks ownership/admin)
 router.delete('/:id', verifyTokenOrAdmin, validateCUID('id'), deleteBlog); // Delete blog (checks ownership/admin)
 

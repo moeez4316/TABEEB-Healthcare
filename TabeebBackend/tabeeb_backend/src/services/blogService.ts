@@ -139,37 +139,70 @@ export const findSimilarBlogs = async (
   
   const tagIds = currentBlog.tags.map(tag => tag.id);
   
+  // Build where clause for similar blogs
+  const whereConditions: any[] = [];
+  
+  // Add tag matching condition if blog has tags
+  if (tagIds.length > 0) {
+    whereConditions.push({
+      tags: {
+        some: {
+          id: { in: tagIds }
+        }
+      }
+    });
+  }
+  
+  // Add same author condition if doctor blog
+  if (currentBlog.doctorUid) {
+    whereConditions.push({
+      doctorUid: currentBlog.doctorUid
+    });
+  }
+  
   // Find blogs with similar tags or same author
-  const similarBlogs = await prisma.blog.findMany({
+  let similarBlogs = await prisma.blog.findMany({
     where: {
       id: { not: blogId },
       status: BlogStatus.PUBLISHED,
-      OR: [
-        // Same tags
-        {
-          tags: {
-            some: {
-              id: { in: tagIds }
-            }
-          }
-        },
-        // Same author (if doctor)
-        ...(currentBlog.doctorUid ? [{
-          doctorUid: currentBlog.doctorUid
-        }] : [])
-      ]
+      ...(whereConditions.length > 0 && { OR: whereConditions })
     },
     include: {
       tags: true,
       doctor: {
         select: {
           name: true,
-          profileImageUrl: true
+          profileImageUrl: true,
+          specialization: true
         }
       }
     },
     take: limit * 2 // Get more to allow for scoring
   });
+  
+  // If no similar blogs found with criteria, just get recent blogs
+  if (similarBlogs.length === 0) {
+    similarBlogs = await prisma.blog.findMany({
+      where: {
+        id: { not: blogId },
+        status: BlogStatus.PUBLISHED
+      },
+      include: {
+        tags: true,
+        doctor: {
+          select: {
+            name: true,
+            profileImageUrl: true,
+            specialization: true
+          }
+        }
+      },
+      orderBy: { publishedAt: 'desc' },
+      take: limit
+    });
+    
+    return similarBlogs;
+  }
   
   // Score and sort by relevance
   const scored = similarBlogs.map(blog => {

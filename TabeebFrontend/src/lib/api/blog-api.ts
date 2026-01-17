@@ -109,7 +109,11 @@ export const getBlogBySlug = async (slug: string): Promise<BlogDetail> => {
   }
 
   const data = await response.json();
-  return data.blog;
+  // Merge similarBlogs from response into blog object
+  return {
+    ...data.blog,
+    similarBlogs: data.similarBlogs || []
+  };
 };
 
 // Search blogs
