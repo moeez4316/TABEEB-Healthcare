@@ -88,6 +88,36 @@ export const uploadProfileImage = (buffer: Buffer, userId: string) => {
   });
 };
 
+// Upload blog images
+export const uploadBlogImage = (buffer: Buffer, userId: string, folder: string) => {
+  return new Promise((resolve, reject) => {
+    const timestamp = Date.now();
+    const filename = `${folder}/${userId}/image_${timestamp}`;
+    
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'image',
+        public_id: filename,
+        folder: 'tabeeb/blogs',
+        type: 'upload',
+        access_mode: 'public',
+        tags: ['blog', folder, userId],
+        transformation: [
+          { quality: 'auto', format: 'auto', width: 1200, crop: 'limit' }
+        ]
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Cloudinary blog image upload error:', error);
+          return reject(error);
+        }
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+};
+
 // Cleanup utility - Delete files from Cloudinary
 export const deleteFromCloudinary = async (publicId: string): Promise<void> => {
   try {

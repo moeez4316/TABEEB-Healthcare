@@ -14,6 +14,7 @@ import prescriptionRoutes from './routes/prescriptionRoutes';
 import videoCallRoutes from './routes/videoCallRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import blogRoutes from './routes/blogRoutes';
+import uploadRoutes from './routes/uploadRoutes';
 import { scheduleAutoGeneration } from './utils/autoGenerateSlots';
 
 dotenv.config();
@@ -39,6 +40,7 @@ app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/video-calls', videoCallRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/blogs', blogRoutes);
+app.use('/api/upload', uploadRoutes);
 
 
 const PORT = process.env.PORT || 5002;
