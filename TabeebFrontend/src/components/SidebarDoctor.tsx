@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { FaTachometerAlt, FaCalendarAlt, FaCalendarCheck, FaClock, FaSignOutAlt, FaBars, FaTimes, FaChevronLeft, FaChevronRight, FaStar } from "react-icons/fa";
+import { FaTachometerAlt, FaCalendarAlt, FaCalendarCheck, FaClock, FaSignOutAlt, FaBars, FaTimes, FaChevronLeft, FaChevronRight, FaStar, FaNewspaper } from "react-icons/fa";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -14,6 +14,7 @@ const navItems = [
   { label: "Appointments", href: "/Doctor/Appointments", icon: <FaCalendarAlt /> },
   { label: "Availability", href: "/Doctor/availability", icon: <FaClock /> },
   { label: "Calendar", href: "/Doctor/Calendar", icon: <FaCalendarCheck /> },
+  { label: "Blogs", href: "/Doctor/blogs", icon: <FaNewspaper /> },
   { label: "Reviews", href: "/Doctor/Reviews", icon: <FaStar /> },
 ];
 
