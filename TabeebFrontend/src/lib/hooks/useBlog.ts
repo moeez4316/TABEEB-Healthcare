@@ -7,6 +7,7 @@ import {
   getBlogBySlug,
   searchBlogs,
   getBlogTags,
+  getAdminBlogs,
 } from '@/lib/api/blog-api';
 import { Blog, BlogDetail, BlogFilters, BlogListResponse, BlogSearchParams, BlogTag } from '@/types/blog';
 
@@ -17,6 +18,8 @@ export const blogKeys = {
   list: (filters: BlogFilters) => [...blogKeys.lists(), filters] as const,
   myBlogs: () => [...blogKeys.all, 'myBlogs'] as const,
   myBlogsList: (filters: BlogFilters) => [...blogKeys.myBlogs(), filters] as const,
+  adminBlogs: () => [...blogKeys.all, 'adminBlogs'] as const,
+  adminBlogsList: (filters: BlogFilters) => [...blogKeys.adminBlogs(), filters] as const,
   featured: () => [...blogKeys.all, 'featured'] as const,
   recent: (limit: number) => [...blogKeys.all, 'recent', limit] as const,
   details: () => [...blogKeys.all, 'detail'] as const,
@@ -109,5 +112,24 @@ export const useBlogTags = (): UseQueryResult<BlogTag[], Error> => {
     queryFn: () => getBlogTags(),
     staleTime: 30 * 60 * 1000, // 30 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
+  });
+};
+
+// ============================================
+// ADMIN BLOG HOOKS
+// ============================================
+
+// Get all blogs including drafts (Admin only)
+export const useAdminBlogs = (
+  filters: BlogFilters = {},
+  adminToken: string,
+  enabled: boolean = true
+): UseQueryResult<BlogListResponse, Error> => {
+  return useQuery({
+    queryKey: blogKeys.adminBlogsList(filters),
+    queryFn: () => getAdminBlogs(filters, adminToken),
+    enabled: enabled && !!adminToken,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 };

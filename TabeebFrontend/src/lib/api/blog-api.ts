@@ -151,3 +151,90 @@ export const getBlogTags = async (): Promise<BlogTag[]> => {
   const data = await response.json();
   return data.tags;
 };
+
+// ============================================
+// ADMIN BLOG API FUNCTIONS
+// ============================================
+
+// Get all blogs (including drafts) - Admin only
+export const getAdminBlogs = async (filters: BlogFilters = {}, adminToken: string): Promise<BlogListResponse> => {
+  const queryString = buildQueryString(filters);
+  const url = `${BLOG_API_URL}/admin/all${queryString ? `?${queryString}` : ''}`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch blogs: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
+// Toggle featured status - Admin only
+export const toggleBlogFeatured = async (blogId: string, currentFeaturedStatus: boolean, adminToken: string): Promise<{ message: string; blog: Blog }> => {
+  const response = await fetch(`${BLOG_API_URL}/admin/${blogId}/feature`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`,
+    },
+    body: JSON.stringify({
+      isFeatured: !currentFeaturedStatus,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to toggle featured status: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
+// Admin can access any blog for editing (uses existing endpoint with admin token)
+export const getAdminBlogById = async (blogId: string, adminToken: string): Promise<BlogDetail> => {
+  const response = await fetch(`${BLOG_API_URL}/${blogId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Blog not found');
+    }
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to fetch blog: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.blog;
+};
+
+// Admin can delete any blog
+export const adminDeleteBlog = async (blogId: string, adminToken: string): Promise<{ message: string }> => {
+  const response = await fetch(`${BLOG_API_URL}/${blogId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to delete blog: ${response.statusText}`);
+  }
+
+  return response.json();
+};
