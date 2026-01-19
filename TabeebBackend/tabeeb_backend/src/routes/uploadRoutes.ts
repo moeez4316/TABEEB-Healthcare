@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { verifyToken } from '../middleware/verifyToken';
+import { verifyTokenOrAdmin } from '../middleware/verifyTokenOrAdmin';
 import { uploadImage } from '../controllers/uploadController';
 
 const router = express.Router();
@@ -20,7 +21,7 @@ const upload = multer({
   }
 });
 
-// Upload single image
-router.post('/', verifyToken, upload.single('image'), uploadImage);
+// Upload single image (accepts both Firebase and Admin JWT tokens)
+router.post('/', verifyTokenOrAdmin, upload.single('image'), uploadImage);
 
 export default router;

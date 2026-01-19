@@ -17,7 +17,8 @@ import {
   Loader2,
   Calendar,
   User,
-  TrendingUp
+  TrendingUp,
+  PlusCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -92,13 +93,22 @@ export default function AdminBlogsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Blog Management
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Manage all blog posts, set featured articles, and moderate content
-        </p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Blog Management
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage all blog posts, set featured articles, and moderate content
+          </p>
+        </div>
+        <Link 
+          href="/admin/blogs/write"
+          className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors shadow-lg"
+        >
+          <PlusCircle className="w-5 h-5" />
+          <span>Create Blog</span>
+        </Link>
       </div>
 
       {/* Stats */}

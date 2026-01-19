@@ -238,3 +238,41 @@ export const adminDeleteBlog = async (blogId: string, adminToken: string): Promi
 
   return response.json();
 };
+
+// Admin create blog (can create as ADMIN, EXTERNAL, or impersonate DOCTOR)
+export const adminCreateBlog = async (blogData: any, adminToken: string): Promise<{ message: string; blog: any }> => {
+  const response = await fetch(`${BLOG_API_URL}/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`,
+    },
+    body: JSON.stringify(blogData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to create blog: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
+// Admin update blog (can update any blog)
+export const adminUpdateBlog = async (blogId: string, blogData: any, adminToken: string): Promise<{ message: string; blog: any }> => {
+  const response = await fetch(`${BLOG_API_URL}/${blogId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`,
+    },
+    body: JSON.stringify(blogData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to update blog: ${response.statusText}`);
+  }
+
+  return response.json();
+};
