@@ -5,15 +5,16 @@ import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate, formatAge } from '@/lib/dateUtils';
-import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaChevronDown, FaChevronUp, FaPrescriptionBottleAlt, FaVideo, FaPills } from 'react-icons/fa';
+import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaChevronDown, FaChevronUp, FaPrescriptionBottleAlt, FaVideo, FaPills, FaComments } from 'react-icons/fa';
 import { SharedDocumentsView } from '@/components/appointment/SharedDocumentsView';
 import { useRouter } from 'next/navigation';
 import DoctorVideoCallModal from '@/components/VideoCall/DoctorVideoCallModal';
 import { Toast } from '@/components/Toast';
 import { fetchWithRateLimit } from '@/lib/api-utils';
+import AppointmentChat from '@/components/chat/AppointmentChat';
 
 export default function DoctorAppointmentsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const router = useRouter();
   
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -30,6 +31,8 @@ export default function DoctorAppointmentsPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [showChat, setShowChat] = useState(false);
+  const [chatAppointment, setChatAppointment] = useState<Appointment | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return;
@@ -568,6 +571,20 @@ export default function DoctorAppointmentsPage() {
                             </button>
                           )}
                           
+                          {/* Chat Button */}
+                          {(appointment.status === 'CONFIRMED' || appointment.status === 'IN_PROGRESS') && (
+                            <button
+                              onClick={() => {
+                                setChatAppointment(appointment);
+                                setShowChat(true);
+                              }}
+                              className="flex items-center justify-center space-x-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 px-4 py-2 rounded-lg border border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors w-full"
+                            >
+                              <FaComments className="w-4 h-4" />
+                              <span>Chat with Patient</span>
+                            </button>
+                          )}
+                          
                           {/* Patient Medications Button */}
                           {appointment.status === 'CONFIRMED' && (
                             <button
@@ -714,6 +731,28 @@ export default function DoctorAppointmentsPage() {
           }}
           firebaseToken={token}
         />
+      )}
+
+      {/* Chat Modal */}
+      {showChat && chatAppointment && user && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg h-[600px]">
+            <AppointmentChat
+              appointmentId={chatAppointment.id}
+              doctorUid={chatAppointment.doctorUid}
+              patientUid={chatAppointment.patientUid}
+              doctorName={user.displayName || 'Doctor'}
+              patientName={chatAppointment.patient?.firstName && chatAppointment.patient?.lastName 
+                ? `${chatAppointment.patient.firstName} ${chatAppointment.patient.lastName}`
+                : chatAppointment.patient?.name || 'Patient'}
+              currentUserRole="doctor"
+              onClose={() => {
+                setShowChat(false);
+                setChatAppointment(null);
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Toast Notification */}

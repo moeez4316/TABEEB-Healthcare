@@ -6,11 +6,12 @@ import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
-import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp, FaStar, FaRedo } from 'react-icons/fa';
+import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp, FaStar, FaRedo, FaComments } from 'react-icons/fa';
 import PatientVideoCallModal from '@/components/VideoCall/PatientVideoCallModal';
 import PatientReviewModal from '@/components/appointment/PatientReviewModal';
 import { Toast } from '@/components/Toast';
 import { fetchWithRateLimit } from '@/lib/api-utils';
+import AppointmentChat from '@/components/chat/AppointmentChat';
 
 interface FollowUpEligibility {
   eligible: boolean;
@@ -22,7 +23,7 @@ interface FollowUpEligibility {
 }
 
 export default function PatientAppointmentsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +38,8 @@ export default function PatientAppointmentsPage() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewAppointment, setReviewAppointment] = useState<Appointment | null>(null);
   const [followUpEligibility, setFollowUpEligibility] = useState<Record<string, FollowUpEligibility>>({});
+  const [showChat, setShowChat] = useState(false);
+  const [chatAppointment, setChatAppointment] = useState<Appointment | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return;
@@ -439,6 +442,18 @@ export default function PatientAppointmentsPage() {
                             <span className="text-sm">Start Consultation</span>
                           </button>
                           
+                          {/* Chat Button */}
+                          <button
+                            onClick={() => {
+                              setChatAppointment(appointment);
+                              setShowChat(true);
+                            }}
+                            className="flex items-center justify-center space-x-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 px-4 py-2 rounded-lg border border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                          >
+                            <FaComments className="w-4 h-4" />
+                            <span className="text-sm font-medium">Chat with Doctor</span>
+                          </button>
+                          
                           {canCancel && (
                             <button
                               className="flex items-center justify-center space-x-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 px-4 py-2 rounded-lg border border-red-600 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
@@ -643,6 +658,26 @@ export default function PatientAppointmentsPage() {
             fetchAppointments();
           }}
         />
+      )}
+
+      {/* Chat Modal */}
+      {showChat && chatAppointment && user && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg h-[600px]">
+            <AppointmentChat
+              appointmentId={chatAppointment.id}
+              doctorUid={chatAppointment.doctorUid}
+              patientUid={chatAppointment.patientUid}
+              doctorName={chatAppointment.doctor?.name || 'Doctor'}
+              patientName={user.displayName || 'Patient'}
+              currentUserRole="patient"
+              onClose={() => {
+                setShowChat(false);
+                setChatAppointment(null);
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Toast Notification */}

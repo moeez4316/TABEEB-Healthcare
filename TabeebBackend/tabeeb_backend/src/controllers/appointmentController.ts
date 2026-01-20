@@ -800,8 +800,8 @@ export const checkFollowUpEligibility = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Doctor UID is required' });
     }
 
-    // Get the most recent completed appointment with this doctor
-    const lastAppointment = await prisma.appointment.findFirst({
+    // Get all completed appointments with this doctor, ordered by completion date
+    const completedAppointments = await prisma.appointment.findMany({
       where: {
         patientUid,
         doctorUid,
@@ -817,25 +817,38 @@ export const checkFollowUpEligibility = async (req: Request, res: Response) => {
       }
     });
 
-    if (!lastAppointment) {
+    if (completedAppointments.length === 0) {
       return res.json({
         eligible: false,
         reason: 'No previous completed appointment with this doctor'
       });
     }
 
-    // Check if a follow-up has already been created for this appointment
-    const existingFollowUp = await prisma.appointment.findFirst({
-      where: {
-        originalAppointmentId: lastAppointment.id,
-        status: { notIn: ['CANCELLED'] }
-      }
-    });
+    // Find the latest appointment in the chain that doesn't have a follow-up yet
+    // This allows: Original A → Follow-up B → Follow-up C (chain)
+    // But prevents: Original A having multiple follow-ups
+    let eligibleAppointment = null;
 
-    if (existingFollowUp) {
+    for (const appointment of completedAppointments) {
+      // Check if this appointment already has a follow-up (any status except CANCELLED)
+      const existingFollowUp = await prisma.appointment.findFirst({
+        where: {
+          originalAppointmentId: appointment.id,
+          status: { notIn: ['CANCELLED'] }
+        }
+      });
+
+      if (!existingFollowUp) {
+        // This appointment doesn't have a follow-up yet - it's eligible
+        eligibleAppointment = appointment;
+        break; // Take the most recent one
+      }
+    }
+
+    if (!eligibleAppointment) {
       return res.json({
         eligible: false,
-        reason: 'A follow-up appointment has already been booked for this consultation'
+        reason: 'All completed appointments already have follow-ups scheduled'
       });
     }
 
@@ -845,13 +858,13 @@ export const checkFollowUpEligibility = async (req: Request, res: Response) => {
     // Determine eligibility window based on prescription
     let eligibilityEndDate: Date;
     
-    if (lastAppointment.prescriptions.length > 0 && lastAppointment.prescriptions[0].prescriptionEndDate) {
+    if (eligibleAppointment.prescriptions.length > 0 && eligibleAppointment.prescriptions[0].prescriptionEndDate) {
       // If there's a prescription, follow-up window is prescription end + 3 days
-      eligibilityEndDate = new Date(lastAppointment.prescriptions[0].prescriptionEndDate);
+      eligibilityEndDate = new Date(eligibleAppointment.prescriptions[0].prescriptionEndDate);
       eligibilityEndDate.setDate(eligibilityEndDate.getDate() + 3);
     } else {
       // If no prescription, follow-up window is 3 days after appointment completion
-      eligibilityEndDate = new Date(lastAppointment.completedAt || lastAppointment.updatedAt);
+      eligibilityEndDate = new Date(eligibleAppointment.completedAt || eligibleAppointment.updatedAt);
       eligibilityEndDate.setDate(eligibilityEndDate.getDate() + 3);
     }
 
@@ -869,7 +882,8 @@ export const checkFollowUpEligibility = async (req: Request, res: Response) => {
 
     return res.json({
       eligible: isEligible,
-      originalAppointmentId: lastAppointment.id,
+      originalAppointmentId: eligibleAppointment.id,
+      isChainedFollowUp: eligibleAppointment.isFollowUp, // Let frontend know if this is a follow-up of a follow-up
       eligibilityEndDate: eligibilityEndDate.toISOString().split('T')[0],
       daysRemaining: isEligible ? Math.ceil((eligibilityEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0,
       followUpPercentage: doctor?.followUpPercentage ?? 50,
