@@ -789,3 +789,250 @@ export const confirmAppointmentPayment = async (req: Request, res: Response) => 
     res.status(500).json({ error: 'Failed to confirm payment' });
   }
 };
+
+// Check follow-up eligibility for a patient with a specific doctor
+export const checkFollowUpEligibility = async (req: Request, res: Response) => {
+  try {
+    const patientUid = req.user!.uid;
+    const { doctorUid } = req.params;
+
+    if (!doctorUid) {
+      return res.status(400).json({ error: 'Doctor UID is required' });
+    }
+
+    // Get the most recent completed appointment with this doctor
+    const lastAppointment = await prisma.appointment.findFirst({
+      where: {
+        patientUid,
+        doctorUid,
+        status: 'COMPLETED'
+      },
+      orderBy: { completedAt: 'desc' },
+      include: {
+        prescriptions: {
+          where: { isActive: true },
+          orderBy: { prescriptionEndDate: 'desc' },
+          take: 1
+        }
+      }
+    });
+
+    if (!lastAppointment) {
+      return res.json({
+        eligible: false,
+        reason: 'No previous completed appointment with this doctor'
+      });
+    }
+
+    // Check if a follow-up has already been created for this appointment
+    const existingFollowUp = await prisma.appointment.findFirst({
+      where: {
+        originalAppointmentId: lastAppointment.id,
+        status: { notIn: ['CANCELLED'] }
+      }
+    });
+
+    if (existingFollowUp) {
+      return res.json({
+        eligible: false,
+        reason: 'A follow-up appointment has already been booked for this consultation'
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Determine eligibility window based on prescription
+    let eligibilityEndDate: Date;
+    
+    if (lastAppointment.prescriptions.length > 0 && lastAppointment.prescriptions[0].prescriptionEndDate) {
+      // If there's a prescription, follow-up window is prescription end + 3 days
+      eligibilityEndDate = new Date(lastAppointment.prescriptions[0].prescriptionEndDate);
+      eligibilityEndDate.setDate(eligibilityEndDate.getDate() + 3);
+    } else {
+      // If no prescription, follow-up window is 3 days after appointment completion
+      eligibilityEndDate = new Date(lastAppointment.completedAt || lastAppointment.updatedAt);
+      eligibilityEndDate.setDate(eligibilityEndDate.getDate() + 3);
+    }
+
+    const isEligible = today <= eligibilityEndDate;
+
+    // Get doctor's follow-up percentage
+    const doctor = await prisma.doctor.findUnique({
+      where: { uid: doctorUid },
+      select: { 
+        followUpPercentage: true,
+        hourlyConsultationRate: true,
+        name: true
+      }
+    });
+
+    return res.json({
+      eligible: isEligible,
+      originalAppointmentId: lastAppointment.id,
+      eligibilityEndDate: eligibilityEndDate.toISOString().split('T')[0],
+      daysRemaining: isEligible ? Math.ceil((eligibilityEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0,
+      followUpPercentage: doctor?.followUpPercentage ?? 50,
+      originalFee: doctor?.hourlyConsultationRate ? parseFloat(doctor.hourlyConsultationRate.toString()) : null,
+      reason: isEligible 
+        ? `You are eligible for a follow-up appointment until ${eligibilityEndDate.toLocaleDateString()}`
+        : 'Follow-up eligibility window has expired'
+    });
+
+  } catch (error) {
+    console.error('Error checking follow-up eligibility:', error);
+    res.status(500).json({ error: 'Failed to check follow-up eligibility' });
+  }
+};
+
+// Book follow-up appointment with discounted fees
+export const bookFollowUpAppointment = async (req: Request, res: Response) => {
+  try {
+    const patientUid = req.user!.uid;
+    const { doctorUid, appointmentDate, startTime, patientNotes, originalAppointmentId } = req.body;
+
+    // Validate required fields
+    if (!doctorUid || !appointmentDate || !startTime || !originalAppointmentId) {
+      return res.status(400).json({ error: 'Doctor UID, appointment date, start time, and original appointment ID are required' });
+    }
+
+    // Verify the original appointment exists and patient is eligible
+    const originalAppointment = await prisma.appointment.findFirst({
+      where: {
+        id: originalAppointmentId,
+        patientUid,
+        doctorUid,
+        status: 'COMPLETED'
+      },
+      include: {
+        prescriptions: {
+          where: { isActive: true },
+          orderBy: { prescriptionEndDate: 'desc' },
+          take: 1
+        }
+      }
+    });
+
+    if (!originalAppointment) {
+      return res.status(400).json({ error: 'Invalid original appointment or not eligible for follow-up' });
+    }
+
+    // Check if a follow-up has already been created for this appointment
+    const existingFollowUp = await prisma.appointment.findFirst({
+      where: {
+        originalAppointmentId: originalAppointmentId,
+        status: { notIn: ['CANCELLED'] }
+      }
+    });
+
+    if (existingFollowUp) {
+      return res.status(400).json({ error: 'A follow-up appointment has already been booked for this consultation' });
+    }
+
+    // Check eligibility window
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let eligibilityEndDate: Date;
+    if (originalAppointment.prescriptions.length > 0 && originalAppointment.prescriptions[0].prescriptionEndDate) {
+      eligibilityEndDate = new Date(originalAppointment.prescriptions[0].prescriptionEndDate);
+      eligibilityEndDate.setDate(eligibilityEndDate.getDate() + 3);
+    } else {
+      eligibilityEndDate = new Date(originalAppointment.completedAt || originalAppointment.updatedAt);
+      eligibilityEndDate.setDate(eligibilityEndDate.getDate() + 3);
+    }
+
+    if (today > eligibilityEndDate) {
+      return res.status(400).json({ error: 'Follow-up eligibility window has expired' });
+    }
+
+    // Get doctor details and availability
+    const appointmentDateObj = new Date(appointmentDate);
+    
+    const [doctor, availability] = await Promise.all([
+      prisma.doctor.findUnique({
+        where: { uid: doctorUid },
+        select: {
+          name: true,
+          specialization: true,
+          isActive: true,
+          hourlyConsultationRate: true,
+          followUpPercentage: true
+        }
+      }),
+      prisma.doctorAvailability.findFirst({
+        where: {
+          doctorUid,
+          date: appointmentDateObj,
+          isAvailable: true
+        }
+      })
+    ]);
+
+    if (!doctor || !doctor.isActive) {
+      return res.status(404).json({ error: 'Doctor not found or inactive' });
+    }
+
+    if (!availability) {
+      return res.status(400).json({ error: 'Doctor is not available on this date' });
+    }
+
+    // Check slot availability
+    const existingAppointments = await prisma.appointment.findMany({
+      where: {
+        doctorUid,
+        appointmentDate: appointmentDateObj,
+        status: { notIn: ['CANCELLED', 'NO_SHOW'] }
+      },
+      select: { startTime: true, endTime: true }
+    });
+
+    if (!isSlotAvailable(startTime, availability, existingAppointments)) {
+      return res.status(400).json({ error: 'Requested time slot is not available' });
+    }
+
+    // Calculate discounted follow-up fees
+    const endTime = calculateEndTime(startTime, availability.slotDuration);
+    let consultationFees = 1500; // Default
+    
+    if (doctor.hourlyConsultationRate) {
+      const hourlyRate = parseFloat(doctor.hourlyConsultationRate.toString());
+      const durationMultiplier = availability.slotDuration / 60;
+      const fullFee = hourlyRate * durationMultiplier;
+      const followUpPercentage = doctor.followUpPercentage ?? 50;
+      consultationFees = fullFee * (followUpPercentage / 100);
+    }
+
+    // Create follow-up appointment
+    const appointment = await prisma.appointment.create({
+      data: {
+        doctorUid,
+        patientUid,
+        appointmentDate: appointmentDateObj,
+        startTime,
+        endTime,
+        duration: availability.slotDuration,
+        status: 'PENDING',
+        patientNotes,
+        consultationFees,
+        isFollowUp: true,
+        originalAppointmentId
+      },
+      include: {
+        doctor: { select: { name: true, specialization: true } },
+        patient: { select: { firstName: true, lastName: true, phone: true } }
+      }
+    });
+
+    res.status(201).json({
+      appointment,
+      isFollowUp: true,
+      discountApplied: doctor.followUpPercentage ?? 50,
+      message: `Follow-up appointment booked successfully with ${doctor.followUpPercentage ?? 50}% discount`
+    });
+
+  } catch (error) {
+    console.error('Error booking follow-up:', error);
+    res.status(500).json({ error: 'Failed to book follow-up appointment' });
+  }
+};

@@ -17,7 +17,9 @@ import {
   shareDocumentsWithAppointment,
   unshareDocumentFromAppointment,
   getAppointmentSharedDocuments,
-  confirmAppointmentPayment
+  confirmAppointmentPayment,
+  checkFollowUpEligibility,
+  bookFollowUpAppointment
 } from '../controllers/appointmentController';
 
 const router = express.Router();
@@ -28,6 +30,10 @@ router.use(verifyToken);
 // Patient routes
 router.post('/book', validateBookAppointment, bookAppointment);
 router.get('/patient', validatePagination, getPatientAppointments);
+
+// Follow-up routes (must be before :id routes)
+router.get('/follow-up/eligibility/:doctorUid', checkFollowUpEligibility);
+router.post('/follow-up/book', bookFollowUpAppointment);
 
 // Doctor routes
 router.get('/doctor', validatePagination, getDoctorAppointments);

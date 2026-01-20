@@ -790,6 +790,50 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                     </div>
                                 )}
 
+                                {/* Follow-up Percentage */}
+                                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                                    <div className="flex items-start space-x-3">
+                                        <DollarSign className="h-5 w-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-medium text-purple-900 dark:text-purple-100 mb-2">
+                                                Follow-up Discount (%)
+                                            </h4>
+                                            <input
+                                                type="number"
+                                                value={profile.followUpPercentage ?? 50}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    if (value === '') {
+                                                        handleInputChange('followUpPercentage', 50);
+                                                    } else {
+                                                        const numValue = parseInt(value);
+                                                        if (numValue < 0 || numValue > 100) return;
+                                                        handleInputChange('followUpPercentage', numValue);
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E' || e.key === '.') {
+                                                        e.preventDefault();
+                                                    }
+                                                }}
+                                                min="0"
+                                                max="100"
+                                                step="5"
+                                                placeholder="e.g., 50"
+                                                className="w-full md:w-32 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-slate-700 dark:text-white text-lg font-semibold"
+                                            />
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                                                Percentage of consultation fee for follow-up appointments (0-100%). Default: 50%
+                                            </p>
+                                            {profile.hourlyConsultationRate && profile.hourlyConsultationRate > 0 && (
+                                                <p className="text-sm text-purple-700 dark:text-purple-300 mt-2 font-medium">
+                                                    Follow-up fee (30 min): PKR {((profile.hourlyConsultationRate * 0.5) * ((profile.followUpPercentage ?? 50) / 100)).toLocaleString('en-PK')}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Help Text */}
                                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                                     <div className="flex items-start space-x-3">

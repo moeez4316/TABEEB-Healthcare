@@ -18,6 +18,8 @@ export default function BookAppointmentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preSelectedDoctorId = searchParams.get('doctorId');
+  const isFollowUp = searchParams.get('followUp') === 'true';
+  const originalAppointmentId = searchParams.get('originalAppointmentId');
   
   // Booking flow state
   const [currentStep, setCurrentStep] = useState<BookingStep>('doctor');
@@ -74,12 +76,14 @@ export default function BookAppointmentPage() {
         name: string;
         specialization: string;
         hourlyConsultationRate?: number;
+        followUpPercentage?: number;
         verification?: { isVerified: boolean };
       }) => ({
         uid: doctor.uid,
         name: doctor.name,
         specialization: doctor.specialization,
         consultationFees: doctor.hourlyConsultationRate || 1500, // Default fee PKR 1500
+        followUpPercentage: doctor.followUpPercentage ?? 50, // Default 50%
         rating: 4.5, // Default rating
         isAvailable: doctor.verification?.isVerified || false
       })) || [];
@@ -148,13 +152,23 @@ export default function BookAppointmentPage() {
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/book`, {
+      
+      // Use follow-up endpoint if this is a follow-up booking
+      const endpoint = isFollowUp && originalAppointmentId 
+        ? `${API_URL}/api/appointments/follow-up/book`
+        : `${API_URL}/api/appointments/book`;
+      
+      const requestBody = isFollowUp && originalAppointmentId
+        ? { ...bookingData, originalAppointmentId }
+        : bookingData;
+      
+      const response = await fetchWithRateLimit(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(bookingData),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -171,7 +185,8 @@ export default function BookAppointmentPage() {
         amount: appointment.consultationFees?.toString() || '0',
         doctorName: selectedDoctor?.name || 'Doctor',
         date: selectedDate ? new Date(selectedDate).toLocaleDateString('en-PK') : '',
-        time: selectedSlot?.startTime || ''
+        time: selectedSlot?.startTime || '',
+        ...(isFollowUp && { followUp: 'true', discount: result.discountApplied?.toString() || '50' })
       });
       
       router.push(`/Patient/payment?${paymentParams.toString()}`);
@@ -295,13 +310,33 @@ export default function BookAppointmentPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+        
+        {/* Follow-up Banner */}
+        {isFollowUp && (
+          <div className="mb-6 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-100">Follow-up Appointment</h3>
+                <p className="text-sm text-purple-700 dark:text-purple-300">
+                  You&apos;re booking a follow-up with a discounted rate. The discount will be applied automatically.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{getStepTitle()}</h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                Book your medical consultation with verified doctors
+                {isFollowUp ? 'Book your follow-up consultation' : 'Book your medical consultation with verified doctors'}
               </p>
             </div>
             

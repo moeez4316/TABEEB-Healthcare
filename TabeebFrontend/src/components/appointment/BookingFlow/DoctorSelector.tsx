@@ -105,8 +105,13 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
                   )}
                   
                   {doctor.consultationFees && (
-                    <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
-                      <span className="font-medium">PKR {doctor.consultationFees.toLocaleString('en-PK')}/hr</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2">
+                      <span className="font-medium text-green-600 dark:text-green-400">PKR {doctor.consultationFees.toLocaleString('en-PK')}/hr</span>
+                      {doctor.followUpPercentage !== undefined && doctor.followUpPercentage < 100 && (
+                        <span className="text-purple-600 dark:text-purple-400 text-xs">
+                          (Follow-up: {doctor.followUpPercentage}%)
+                        </span>
+                      )}
                     </div>
                   )}
                   

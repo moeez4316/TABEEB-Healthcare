@@ -69,27 +69,29 @@ model WeeklyTemplateBreakTime {
 }
 
 model Appointment {
-  id               String                      @id @default(cuid())
-  doctorUid        String                      @db.VarChar(255)
-  patientUid       String                      @db.VarChar(255)
-  appointmentDate  DateTime                    @db.Date
-  startTime        String                      @db.VarChar(8)
-  endTime          String                      @db.VarChar(8)
-  duration         Int                         @default(30)
-  status           AppointmentStatus           @default(PENDING)
-  patientNotes     String?                     @db.Text
-  doctorNotes      String?                     @db.Text
-  cancelReason     String?                     @db.Text
-  consultationFees Decimal?                    @db.Decimal(10, 2)
-  createdAt        DateTime                    @default(now())
-  updatedAt        DateTime                    @updatedAt
-  completedAt      DateTime?
-  sharedDocuments  AppointmentSharedDocument[]
-  doctor           doctor                      @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
-  patient          patient                     @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
-  prescriptions    Prescription[]
-  videoCall        VideoCall?
-  review           Review?
+  id                    String                      @id @default(cuid())
+  doctorUid             String                      @db.VarChar(255)
+  patientUid            String                      @db.VarChar(255)
+  appointmentDate       DateTime                    @db.Date
+  startTime             String                      @db.VarChar(8)
+  endTime               String                      @db.VarChar(8)
+  duration              Int                         @default(30)
+  status                AppointmentStatus           @default(PENDING)
+  patientNotes          String?                     @db.Text
+  doctorNotes           String?                     @db.Text
+  cancelReason          String?                     @db.Text
+  consultationFees      Decimal?                    @db.Decimal(10, 2)
+  isFollowUp            Boolean                     @default(false)
+  originalAppointmentId String?                     @db.VarChar(255)
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  completedAt           DateTime?
+  sharedDocuments       AppointmentSharedDocument[]
+  doctor                doctor                      @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+  patient               patient                     @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
+  prescriptions         Prescription[]
+  videoCall             VideoCall?
+  review                Review?
 
   @@index([doctorUid])
   @@index([patientUid])
@@ -212,6 +214,7 @@ model doctor {
   qualification           String               @db.Text
   experience              String?              @db.VarChar(50)
   hourlyConsultationRate  Decimal?             @db.Decimal(10, 2)
+  followUpPercentage      Int?                 @default(50) // Percentage of consultation fee for follow-ups
   addressStreet           String?              @db.VarChar(255)
   addressCity             String?              @db.VarChar(100)
   addressProvince         String?              @db.VarChar(100)

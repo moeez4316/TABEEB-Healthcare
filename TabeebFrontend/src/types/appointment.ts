@@ -60,6 +60,8 @@ export interface Appointment {
   status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   consultationFees: number;
   patientNotes?: string;
+  isFollowUp?: boolean;
+  originalAppointmentId?: string;
   createdAt: string;
   updatedAt: string;
   doctor?: DoctorInfo;
@@ -85,6 +87,7 @@ export interface Doctor {
   experience?: string;
   profileImageUrl?: string;
   consultationFees?: number;
+  followUpPercentage?: number;
   rating?: number;
   isAvailable?: boolean;
 }

@@ -390,7 +390,7 @@ export default function DoctorAppointmentsPage() {
                     
                     {/* Appointment Details */}
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
+                      <div className="flex items-center space-x-3 mb-2 flex-wrap gap-y-1">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                           {appointment.patient?.firstName && appointment.patient?.lastName 
                             ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
@@ -400,6 +400,11 @@ export default function DoctorAppointmentsPage() {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
                           {appointment.status.replace('_', ' ')}
                         </span>
+                        {appointment.isFollowUp && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                            Follow-up
+                          </span>
+                        )}
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">

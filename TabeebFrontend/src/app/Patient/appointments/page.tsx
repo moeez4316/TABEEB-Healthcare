@@ -6,11 +6,20 @@ import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
-import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp, FaStar } from 'react-icons/fa';
+import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp, FaStar, FaRedo } from 'react-icons/fa';
 import PatientVideoCallModal from '@/components/VideoCall/PatientVideoCallModal';
 import PatientReviewModal from '@/components/appointment/PatientReviewModal';
 import { Toast } from '@/components/Toast';
 import { fetchWithRateLimit } from '@/lib/api-utils';
+
+interface FollowUpEligibility {
+  eligible: boolean;
+  originalAppointmentId?: string;
+  eligibilityEndDate?: string;
+  daysRemaining?: number;
+  followUpPercentage?: number;
+  reason?: string;
+}
 
 export default function PatientAppointmentsPage() {
   const { token } = useAuth();
@@ -27,6 +36,7 @@ export default function PatientAppointmentsPage() {
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewAppointment, setReviewAppointment] = useState<Appointment | null>(null);
+  const [followUpEligibility, setFollowUpEligibility] = useState<Record<string, FollowUpEligibility>>({});
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return;
@@ -50,13 +60,51 @@ export default function PatientAppointmentsPage() {
       const data = await response.json();
       
       // Backend returns the appointments array directly, not wrapped in an object
-      setAppointments(Array.isArray(data) ? data : []);
+      const appointmentsList = Array.isArray(data) ? data : [];
+      setAppointments(appointmentsList);
+      
+      // Check follow-up eligibility for completed appointments
+      const completedAppointments = appointmentsList.filter((a: Appointment) => a.status === 'COMPLETED');
+      for (const apt of completedAppointments) {
+        checkFollowUpEligibility(apt.doctorUid);
+      }
     } catch {
       setError('Failed to load appointments. Please try again.');
     } finally {
       setLoading(false);
     }
   }, [token]);
+
+  const checkFollowUpEligibility = async (doctorUid: string) => {
+    if (!token || followUpEligibility[doctorUid]) return;
+    
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/follow-up/eligibility/${doctorUid}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFollowUpEligibility(prev => ({ ...prev, [doctorUid]: data }));
+      }
+    } catch {
+      // Silent fail
+    }
+  };
+
+  const handleBookFollowUp = (doctorUid: string, doctorName: string) => {
+    const eligibility = followUpEligibility[doctorUid];
+    if (!eligibility?.eligible) {
+      showNotification('Follow-up eligibility has expired', 'error');
+      return;
+    }
+    
+    // Navigate to book appointment with follow-up params
+    router.push(`/Patient/book-appointment?doctorId=${doctorUid}&followUp=true&originalAppointmentId=${eligibility.originalAppointmentId}`);
+  };
 
   useEffect(() => {
     fetchAppointments();
@@ -300,13 +348,18 @@ export default function PatientAppointmentsPage() {
                     
                     {/* Appointment Details */}
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
+                      <div className="flex items-center space-x-3 mb-2 flex-wrap gap-y-1">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                           Dr. {appointment.doctor?.name || 'Unknown Doctor'}
                         </h3>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
                           {appointment.status.replace('_', ' ')}
                         </span>
+                        {appointment.isFollowUp && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                            Follow-up
+                          </span>
+                        )}
                       </div>
                       
                       <p className="text-teal-600 dark:text-teal-400 font-medium mb-3">
@@ -426,6 +479,19 @@ export default function PatientAppointmentsPage() {
                         </button>
                       ) : null;
                     })()}
+                    
+                    {/* Follow-up Button for Completed Appointments */}
+                    {appointment.status === 'COMPLETED' && followUpEligibility[appointment.doctorUid]?.eligible && (
+                      <button
+                        onClick={() => handleBookFollowUp(appointment.doctorUid, appointment.doctor?.name || 'Doctor')}
+                        className="flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 text-white hover:from-purple-600 hover:to-purple-700 dark:hover:from-purple-700 dark:hover:to-purple-800 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                      >
+                        <FaRedo className="w-4 h-4" />
+                        <span className="text-sm">
+                          Book Follow-up ({followUpEligibility[appointment.doctorUid]?.followUpPercentage}% off)
+                        </span>
+                      </button>
+                    )}
                     
                     <button
                       onClick={() => setExpandedAppointment(

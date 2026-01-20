@@ -17,6 +17,7 @@ export const createDoctor = async (req: Request, res: Response) => {
     qualification, 
     experience,
     hourlyConsultationRate,
+    followUpPercentage,
     addressStreet,
     addressCity,
     addressProvince,
@@ -108,6 +109,7 @@ export const createDoctor = async (req: Request, res: Response) => {
           qualification,
           experience: experience ? String(experience) : null,
           hourlyConsultationRate: hourlyConsultationRate ? parseFloat(hourlyConsultationRate) : null,
+          followUpPercentage: followUpPercentage ? parseInt(followUpPercentage) : 50,
           addressStreet,
           addressCity,
           addressProvince,
@@ -247,6 +249,19 @@ export const updateDoctor = async (req: Request, res: Response) => {
           return res.status(400).json({ error: 'Hourly consultation rate cannot exceed PKR 50,000' });
         }
         updateData.hourlyConsultationRate = rate;
+      }
+    }
+
+    // Validate and convert follow-up percentage if provided
+    if ('followUpPercentage' in updateData) {
+      if (updateData.followUpPercentage === null || updateData.followUpPercentage === '') {
+        updateData.followUpPercentage = 50; // Default to 50%
+      } else {
+        const percentage = parseInt(updateData.followUpPercentage);
+        if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+          return res.status(400).json({ error: 'Follow-up percentage must be between 0 and 100' });
+        }
+        updateData.followUpPercentage = percentage;
       }
     }
 
