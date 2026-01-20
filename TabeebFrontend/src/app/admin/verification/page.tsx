@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { formatDate } from '@/lib/verification/utils';
 import { Toast } from '@/components/Toast';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 import { 
   Search, 
   Eye, 
@@ -36,7 +36,7 @@ interface VerificationRecord {
   graduationYear?: string;
   degreeInstitution?: string;
   pmdcRegistrationDate?: string;
-  // Document URLs - New expanded structure
+  // Document URLs
   cnicFrontUrl?: string;
   cnicBackUrl?: string;
   verificationPhotoUrl?: string;
@@ -69,51 +69,7 @@ export default function AdminVerificationPage() {
   
   // Image popup states
   const [imageModal, setImageModal] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<{ url: string; title: string; fileType?: string } | null>(null);
-
-  // File type detection functions
-  const isImage = (fileType?: string) => fileType?.startsWith("image/") || false;
-  const isPDF = (fileType?: string) => fileType === "application/pdf" || false;
-  
-  // Function to detect file type from URL if not provided
-  const detectFileType = (url: string): string => {
-    // Handle Cloudinary URLs which might have format indicators
-    if (url.includes('cloudinary.com')) {
-      // Check for common image formats in Cloudinary URLs
-      if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('f_jpg') || url.includes('format:jpg')) {
-        return 'image/jpeg';
-      }
-      if (url.includes('.png') || url.includes('f_png') || url.includes('format:png')) {
-        return 'image/png';
-      }
-      if (url.includes('.pdf') || url.includes('f_pdf') || url.includes('format:pdf')) {
-        return 'application/pdf';
-      }
-      if (url.includes('.webp') || url.includes('f_webp')) {
-        return 'image/webp';
-      }
-      // Default to image for Cloudinary if no specific format detected
-      return 'image/jpeg';
-    }
-    
-    // For other URLs, check file extension
-    const extension = url.split('.').pop()?.toLowerCase().split('?')[0]; // Remove query parameters
-    switch (extension) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      case 'pdf':
-        return 'application/pdf';
-      default:
-        return 'image/jpeg'; // Default assumption for images
-    }
-  };
+  const [selectedImage, setSelectedImage] = useState<{ url: string; title: string; isPdf: boolean } | null>(null);
 
   useEffect(() => {
     fetchVerifications();
@@ -127,7 +83,7 @@ export default function AdminVerificationPage() {
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/verification/all`, {
+      const response = await fetchWithRateLimit(`${process.env.NEXT_PUBLIC_API_URL}/api/verification/all`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
         },
@@ -195,9 +151,9 @@ export default function AdminVerificationPage() {
     document.body.style.overflow = 'unset';
   };
 
-  const openImageModal = (url: string, title: string, fileType?: string) => {
-    const detectedFileType = fileType || detectFileType(url);
-    setSelectedImage({ url, title, fileType: detectedFileType });
+  const openImageModal = (url: string, title: string) => {
+    const isPdf = url.includes('/raw/upload/');
+    setSelectedImage({ url, title, isPdf });
     setImageModal(true);
     document.body.style.overflow = 'hidden';
   };
@@ -228,7 +184,7 @@ export default function AdminVerificationPage() {
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/verification/${reviewData.action}/${selectedVerification.doctorUid}`, {
+      const response = await fetchWithRateLimit(`${process.env.NEXT_PUBLIC_API_URL}/api/verification/${reviewData.action}/${selectedVerification.doctorUid}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -460,8 +416,7 @@ export default function AdminVerificationPage() {
                     <button
                       onClick={() => openImageModal(
                         verification.cnicFrontUrl || verification.cnic!, 
-                        `CNIC Front - ${verification.doctorName || 'Doctor'}`, 
-                        verification.cnicFileType
+                        `CNIC Front - ${verification.doctorName || 'Doctor'}`
                       )}
                       className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl text-sm"
                     >
@@ -517,8 +472,7 @@ export default function AdminVerificationPage() {
                     <button
                       onClick={() => openImageModal(
                         verification.pmdcCertificateUrl || verification.certificate!, 
-                        `PMDC Certificate - ${verification.doctorName || 'Doctor'}`, 
-                        verification.certificateFileType
+                        `PMDC Certificate - ${verification.doctorName || 'Doctor'}`
                       )}
                       className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl hover:from-orange-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl text-sm"
                     >
@@ -735,7 +689,7 @@ export default function AdminVerificationPage() {
           </div>
         )}
 
-        {/* Image/Document Modal */}
+        {/* Document Modal */}
         {imageModal && selectedImage && (
           <div 
             className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50"
@@ -761,47 +715,20 @@ export default function AdminVerificationPage() {
                     </h3>
                   </div>
                   
-                  <div className="flex-1 flex items-center justify-center overflow-hidden p-4">
-                    {isImage(selectedImage.fileType) && (
-                      <Image
-                        src={selectedImage.url}
-                        alt={selectedImage.title}
-                        width={800}
-                        height={600}
-                        className="max-h-full max-w-full object-contain rounded-xl shadow-lg"
-                        priority={true}
-                        onError={() => {
-                          console.error('Image failed to load:', selectedImage.url);
-                        }}
-                      />
-                    )}
-                    
-                    {isPDF(selectedImage.fileType) && (
+                  <div className="flex-1 flex items-center justify-center overflow-hidden p-4 bg-slate-100 dark:bg-slate-900">
+                    {selectedImage.isPdf ? (
                       <iframe
                         src={selectedImage.url}
                         title={selectedImage.title}
-                        className="w-full h-full rounded-xl border-0"
-                        style={{ minHeight: '70vh' }}
+                        className="w-full h-full rounded-lg border-0 bg-white"
                       />
-                    )}
-                    
-                    {!isImage(selectedImage.fileType) && !isPDF(selectedImage.fileType) && (
-                      <div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
-                        <div className="w-20 h-20 mb-6 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center">
-                          <FileText className="w-10 h-10 text-slate-400 dark:text-slate-500" />
-                        </div>
-                        <p className="text-xl font-semibold mb-2 dark:text-slate-300">Unsupported file type</p>
-                        <p className="text-sm mb-6">File type: {selectedImage.fileType || 'Unknown'}</p>
-                        <a 
-                          href={selectedImage.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-xl hover:from-teal-600 hover:to-emerald-700 transition-all shadow-lg"
-                        >
-                          <Download className="w-4 h-4" />
-                          Open in new tab
-                        </a>
-                      </div>
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={selectedImage.url}
+                        alt={selectedImage.title}
+                        className="max-h-full max-w-full object-contain rounded-xl shadow-lg"
+                      />
                     )}
                   </div>
                 </div>

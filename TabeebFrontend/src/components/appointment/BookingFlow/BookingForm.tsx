@@ -27,24 +27,37 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [showMedicationsModal, setShowMedicationsModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Combined loading state to prevent double-clicks
+  const isLoading = loading || isSubmitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent double submission
+    if (isLoading) return;
     
     if (!agreeToTerms) {
       alert('Please agree to the terms and conditions');
       return;
     }
 
-    const booking = {
-      doctorUid: doctor.uid,
-      appointmentDate: formatDateForAPI(selectedDate),
-      startTime: selectedSlot.startTime,
-      patientNotes: patientNotes || 'No specific notes provided',
-      sharedDocumentIds: selectedDocuments.length > 0 ? selectedDocuments : undefined
-    };
+    setIsSubmitting(true);
+    
+    try {
+      const booking = {
+        doctorUid: doctor.uid,
+        appointmentDate: formatDateForAPI(selectedDate),
+        startTime: selectedSlot.startTime,
+        patientNotes: patientNotes || 'No specific notes provided',
+        sharedDocumentIds: selectedDocuments.length > 0 ? selectedDocuments : undefined
+      };
 
-    await onBookingSubmit(booking);
+      await onBookingSubmit(booking);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -193,17 +206,17 @@ export const BookingForm: React.FC<BookingFormProps> = ({
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={loading || !agreeToTerms}
+          disabled={isLoading || !agreeToTerms}
           className={`
             w-full py-3 px-4 rounded-lg font-medium transition-all duration-200
             ${
-              loading || !agreeToTerms
+              isLoading || !agreeToTerms
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
             }
           `}
         >
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center space-x-2">
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               <span>Booking Appointment...</span>

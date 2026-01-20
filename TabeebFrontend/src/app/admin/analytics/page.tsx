@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -47,7 +48,7 @@ export default function AdminAnalyticsPage() {
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/dashboard/stats`, {
+      const response = await fetchWithRateLimit(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/dashboard/stats`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
         },

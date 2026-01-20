@@ -8,6 +8,7 @@ import { VerificationFormData, FileUploadError } from '@/lib/verification/types'
 import { formatCNIC } from '@/lib/profile-utils';
 import { Toast } from '@/components/Toast';
 import { User, Calendar, FileText, Camera, Upload, CheckCircle, Info, X, Video } from 'lucide-react';
+import { CircularProgress, useUploadProgress } from '@/components/shared/UploadProgress';
 
 type FileFieldName = 'cnicFront' | 'cnicBack' | 'verificationPhoto' | 'degreeCertificate' | 'pmdcCertificate';
 
@@ -29,6 +30,11 @@ export default function DoctorVerificationPage() {
   
   const [errors, setErrors] = useState<FileUploadError[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const uploadProgress = useUploadProgress();
+  const [currentUploadingFile, setCurrentUploadingFile] = useState<string>('');
+  const [uploadedFilesCount, setUploadedFilesCount] = useState(0);
+  const [totalFilesToUpload, setTotalFilesToUpload] = useState(0);
+  const pmdcDateRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<{show: boolean; message: string; type: 'success' | 'error' | 'info'}>({
     show: false,
     message: '',
@@ -205,26 +211,74 @@ export default function DoctorVerificationPage() {
 
     setIsSubmitting(true);
     setErrors([]);
+    
+    // Count total files to upload for progress tracking
+    const filesToUpload = [
+      formData.cnicFront,
+      formData.cnicBack,
+      formData.verificationPhoto,
+      formData.degreeCertificate,
+      formData.pmdcCertificate
+    ].filter(f => f !== null);
+    
+    const totalFiles = filesToUpload.length;
+    setTotalFilesToUpload(totalFiles);
+    setUploadedFilesCount(0);
+    
+    // Track progress for each file
+    const fileProgress: Record<number, number> = {};
+    
+    uploadProgress.startUpload();
 
     try {
       if (!token) {
         throw new Error('Authentication token not found');
       }
 
-      await verificationAPI.submitVerification(formData, token);
+      await verificationAPI.submitVerification(formData, token, {
+        onUploadProgress: (docName, progress) => {
+          setCurrentUploadingFile(docName);
+          
+          // Calculate overall progress based on all files
+          // Each file contributes equally to total progress
+          const fileIndex = filesToUpload.findIndex((_, i) => {
+            const docTypeMap = ['CNIC Front', 'CNIC Back', 'Verification Photo', 'Degree Certificate', 'PMDC Certificate'];
+            return docTypeMap[i] === docName;
+          });
+          
+          if (fileIndex >= 0) {
+            fileProgress[fileIndex] = progress.percentage;
+          }
+          
+          // Calculate total progress
+          const totalProgress = Object.values(fileProgress).reduce((sum, p) => sum + p, 0) / totalFiles;
+          uploadProgress.updateProgress(Math.round(totalProgress));
+          
+          // Count completed files
+          const completedCount = Object.values(fileProgress).filter(p => p >= 100).length;
+          setUploadedFilesCount(completedCount);
+        }
+      });
       
+      uploadProgress.startProcessing();
       showToast('Verification documents submitted successfully!', 'success');
       
       // Refresh verification status and then redirect
       await refreshVerificationStatus();
       
+      uploadProgress.complete();
+      
       // Use window.location to force a fresh load
-      window.location.href = '/Doctor/verification/pending';
+      setTimeout(() => {
+        window.location.href = '/Doctor/verification/pending';
+      }, 1000);
     } catch (error: unknown) {
       console.error('Verification submission error:', error);
       
       // Handle specific error cases
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      uploadProgress.fail(errorMessage);
+      
       if (errorMessage.includes('already submitted')) {
         showToast('Verification already submitted. Redirecting...', 'info');
         setTimeout(() => {
@@ -325,6 +379,26 @@ export default function DoctorVerificationPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      {/* Upload Progress Overlay Modal */}
+      {(uploadProgress.status === 'uploading' || uploadProgress.status === 'processing') && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-sm w-full mx-4">
+            <CircularProgress
+              progress={uploadProgress.progress}
+              status={uploadProgress.status}
+              fileName={uploadProgress.status === 'processing' ? 'Saving...' : currentUploadingFile}
+              errorMessage={uploadProgress.error || undefined}
+              size="lg"
+            />
+            {totalFilesToUpload > 1 && uploadProgress.status === 'uploading' && (
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+                Uploaded {uploadedFilesCount} of {totalFilesToUpload} files
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -508,17 +582,27 @@ export default function DoctorVerificationPage() {
                   <label htmlFor="pmdcRegistrationDate" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                     PMDC Registration Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
-                    id="pmdcRegistrationDate"
-                    name="pmdcRegistrationDate"
-                    value={formData.pmdcRegistrationDate}
-                    onChange={handleInputChange}
-                    max={new Date().toISOString().split('T')[0]}
-                    className={`block w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white transition-all duration-200 ${
-                      getFieldError('pmdcRegistrationDate') ? 'border-red-300 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'
-                    }`}
-                  />
+                  <div 
+                    className="relative cursor-pointer"
+                    onClick={() => pmdcDateRef.current?.showPicker()}
+                  >
+                    <input
+                      ref={pmdcDateRef}
+                      type="date"
+                      id="pmdcRegistrationDate"
+                      name="pmdcRegistrationDate"
+                      value={formData.pmdcRegistrationDate}
+                      onChange={handleInputChange}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        (e.target as HTMLInputElement).showPicker();
+                      }}
+                      max={new Date().toISOString().split('T')[0]}
+                      className={`block w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white transition-all duration-200 cursor-pointer ${
+                        getFieldError('pmdcRegistrationDate') ? 'border-red-300 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'
+                      }`}
+                    />
+                  </div>
                   {getFieldError('pmdcRegistrationDate') && (
                     <p className="mt-1 text-sm text-red-500 dark:text-red-400">{getFieldError('pmdcRegistrationDate')}</p>
                   )}
@@ -737,17 +821,17 @@ export default function DoctorVerificationPage() {
             <div className="pt-8 border-t border-slate-200 dark:border-slate-700">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || uploadProgress.status === 'uploading' || uploadProgress.status === 'processing'}
                 className={`w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white transition-all duration-200 ${
-                  isSubmitting
+                  isSubmitting || uploadProgress.status === 'uploading' || uploadProgress.status === 'processing'
                     ? 'bg-slate-400 dark:bg-slate-600 cursor-not-allowed'
                     : 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transform hover:scale-[1.02] active:scale-[0.98]'
                 }`}
               >
-                {isSubmitting ? (
+                {isSubmitting || uploadProgress.status === 'uploading' || uploadProgress.status === 'processing' ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                    Submitting...
+                    {uploadProgress.status === 'uploading' ? 'Uploading...' : 'Submitting...'}
                   </div>
                 ) : (
                   <div className="flex items-center">

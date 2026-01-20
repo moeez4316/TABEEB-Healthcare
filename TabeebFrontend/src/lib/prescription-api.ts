@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS, createQueryKey } from './react-query';
 import { Prescription, Medicine, PrescriptionStats } from '@/store/slices/prescriptionSlice';
+import { handleRateLimit } from './api-utils';
 
 // Types for API requests
 export interface CreatePrescriptionRequest {
@@ -64,6 +65,10 @@ const makeAuthenticatedRequest = async (
   });
   
   if (!response.ok) {
+    if (response.status === 429) {
+      const data = await response.json().catch(() => ({}));
+      return handleRateLimit(data.retryAfter);
+    }
     let errorData;
     try {
       errorData = await response.json();

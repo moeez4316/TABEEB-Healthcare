@@ -6,6 +6,7 @@ import { FaStar, FaCalendar, FaUserMd, FaFlag, FaExclamationTriangle, FaTrash } 
 import { formatDate } from '@/lib/dateUtils';
 import Link from 'next/link';
 import { Toast } from '@/components/Toast';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 interface Review {
   id: string;
@@ -41,7 +42,7 @@ export default function PatientReviewsPage() {
       try {
         setLoading(true);
         const API_URL = process.env.NEXT_PUBLIC_API_URL;
-        const response = await fetch(`${API_URL}/api/reviews/my-written-reviews`, {
+        const response = await fetchWithRateLimit(`${API_URL}/api/reviews/my-written-reviews`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -54,8 +55,9 @@ export default function PatientReviewsPage() {
 
         const data = await response.json();
         setReviews(data.reviews || []);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load reviews');
+      } catch (err: unknown) {
+        const error = err as Error;
+        setError(error.message || 'Failed to load reviews');
       } finally {
         setLoading(false);
       }
@@ -75,7 +77,7 @@ export default function PatientReviewsPage() {
     try {
       setDeleting(true);
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/reviews/${selectedReview.id}`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/reviews/${selectedReview.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -101,7 +103,7 @@ export default function PatientReviewsPage() {
       setSelectedReview(null);
 
       // Refresh the reviews list
-      const fetchResponse = await fetch(`${API_URL}/api/reviews/my-written-reviews`, {
+      const fetchResponse = await fetchWithRateLimit(`${API_URL}/api/reviews/my-written-reviews`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -113,8 +115,9 @@ export default function PatientReviewsPage() {
         setReviews(fetchData.reviews || []);
       }
 
-    } catch (err: any) {
-      setToast({ message: err.message || 'Failed to delete review', type: 'error' });
+    } catch (err: unknown) {
+      const error = err as Error;
+      setToast({ message: error.message || 'Failed to delete review', type: 'error' });
     } finally {
       setDeleting(false);
     }
@@ -245,7 +248,7 @@ export default function PatientReviewsPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Reviews</h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                All reviews you've written for doctors
+                All reviews you&apos;ve written for doctors
               </p>
             </div>
             <Link
@@ -273,7 +276,7 @@ export default function PatientReviewsPage() {
               No Reviews Yet
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              You haven't written any reviews yet. Complete an appointment to leave a review.
+              You haven&apos;t written any reviews yet. Complete an appointment to leave a review.
             </p>
             <Link
               href="/Patient/appointments"

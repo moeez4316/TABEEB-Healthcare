@@ -37,6 +37,7 @@ export default function DoctorDashboard() {
         const ratingData = await getDoctorRating(token);
         setRating(ratingData);
       } catch (error) {
+        // Rate limit will auto-redirect to /error/rate-limit
         console.error('Failed to load rating:', error);
       } finally {
         setLoadingRating(false);
@@ -246,12 +247,12 @@ export default function DoctorDashboard() {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-            <Link href="/Doctor/Appointments">
-              <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/10 dark:to-slate-800 rounded-lg shadow-md p-6 border border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group">
-                <div className="flex items-center justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 items-stretch">
+            <Link href="/Doctor/Appointments" className="block h-full">
+              <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/10 dark:to-slate-800 rounded-lg shadow-md p-6 border border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group h-full">
+                <div className="flex items-center justify-between h-full">
                   <div className="flex items-center space-x-3">
-                    <div className="bg-blue-500 dark:bg-blue-600 p-2.5 rounded-lg group-hover:bg-blue-600 dark:group-hover:bg-blue-500 transition-colors">
+                    <div className="bg-blue-500 dark:bg-blue-600 p-2.5 rounded-lg group-hover:bg-blue-600 dark:group-hover:bg-blue-500 transition-colors flex-shrink-0">
                       <Calendar className="h-5 w-5 text-white" />
                     </div>
                     <div>
@@ -259,7 +260,7 @@ export default function DoctorDashboard() {
                         Manage Appointments
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        View and manage patient appointments
+                        View and manage appointments
                       </p>
                     </div>
                   </div>
@@ -268,11 +269,11 @@ export default function DoctorDashboard() {
               </div>
             </Link>
 
-            <Link href="/Doctor/Calendar">
-              <div className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/10 dark:to-slate-800 rounded-lg shadow-md p-6 border border-green-200 dark:border-green-800 hover:border-green-400 dark:hover:border-green-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group">
-                <div className="flex items-center justify-between">
+            <Link href="/Doctor/Calendar" className="block h-full">
+              <div className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/10 dark:to-slate-800 rounded-lg shadow-md p-6 border border-green-200 dark:border-green-800 hover:border-green-400 dark:hover:border-green-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group h-full">
+                <div className="flex items-center justify-between h-full">
                   <div className="flex items-center space-x-3">
-                    <div className="bg-green-500 dark:bg-green-600 p-2.5 rounded-lg group-hover:bg-green-600 dark:group-hover:bg-green-500 transition-colors">
+                    <div className="bg-green-500 dark:bg-green-600 p-2.5 rounded-lg group-hover:bg-green-600 dark:group-hover:bg-green-500 transition-colors flex-shrink-0">
                       <Clock className="h-5 w-5 text-white" />
                     </div>
                     <div>
@@ -280,7 +281,7 @@ export default function DoctorDashboard() {
                         Calendar View
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Check your schedule and availability
+                        Check schedule and availability
                       </p>
                     </div>
                   </div>
@@ -289,11 +290,11 @@ export default function DoctorDashboard() {
               </div>
             </Link>
 
-            <Link href="/Doctor/Reviews">
-              <div className="bg-gradient-to-br from-yellow-50 to-white dark:from-yellow-900/10 dark:to-slate-800 rounded-lg shadow-md p-6 border border-yellow-200 dark:border-yellow-800 hover:border-yellow-400 dark:hover:border-yellow-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group">
-                <div className="flex items-center justify-between">
+            <Link href="/Doctor/Reviews" className="block h-full">
+              <div className="bg-gradient-to-br from-yellow-50 to-white dark:from-yellow-900/10 dark:to-slate-800 rounded-lg shadow-md p-6 border border-yellow-200 dark:border-yellow-800 hover:border-yellow-400 dark:hover:border-yellow-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group h-full">
+                <div className="flex items-center justify-between h-full">
                   <div className="flex items-center space-x-3">
-                    <div className="bg-yellow-500 dark:bg-yellow-600 p-2.5 rounded-lg group-hover:bg-yellow-600 dark:group-hover:bg-yellow-500 transition-colors">
+                    <div className="bg-yellow-500 dark:bg-yellow-600 p-2.5 rounded-lg group-hover:bg-yellow-600 dark:group-hover:bg-yellow-500 transition-colors flex-shrink-0">
                       <Star className="h-5 w-5 text-white fill-white" />
                     </div>
                     <div>

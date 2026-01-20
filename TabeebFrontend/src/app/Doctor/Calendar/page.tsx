@@ -7,6 +7,7 @@ import { formatTime, formatDate } from '@/lib/dateUtils';
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaUser, FaClock } from 'react-icons/fa';
 import Link from 'next/link';
 import { Clock, ChevronRight } from 'lucide-react';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 interface Availability {
   id: string;
@@ -36,13 +37,13 @@ export default function DoctorCalendarPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       // Fetch both appointments and availability
       const [appointmentsResponse, availabilityResponse] = await Promise.all([
-        fetch(`${API_URL}/api/appointments/doctor`, {
+        fetchWithRateLimit(`${API_URL}/api/appointments/doctor`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         }),
-        fetch(`${API_URL}/api/availability/doctor`, {
+        fetchWithRateLimit(`${API_URL}/api/availability/doctor`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

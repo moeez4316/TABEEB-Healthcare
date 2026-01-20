@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Mail, Edit3, Heart, Activity, Phone, MapPin, Settings, ChevronRight, Star } from 'lucide-react';
+import { User, Mail, Edit3, Heart, Activity, Phone, Settings, ChevronRight, Star } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -219,7 +219,7 @@ export default function DashboardPage() {
                       View All
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Reviews you've written
+                      Reviews you&apos;ve written
                     </p>
                   </div>
                 </div>

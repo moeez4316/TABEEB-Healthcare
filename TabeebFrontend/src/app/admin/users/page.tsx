@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaUserMd, FaUser, FaBan, FaCheckCircle, FaSearch } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 interface User {
   uid: string;
@@ -41,7 +42,7 @@ export default function AdminUsersPage() {
       if (filter !== 'all') params.append('role', filter);
       if (statusFilter !== 'all') params.append('status', statusFilter);
 
-      const response = await fetch(`${API_URL}/api/admin/users?${params.toString()}`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/admin/users?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
         },
@@ -91,7 +92,7 @@ export default function AdminUsersPage() {
       const adminToken = localStorage.getItem('adminToken');
       
       const endpoint = actionType === 'suspend' ? 'suspend' : 'activate';
-      const response = await fetch(`${API_URL}/api/admin/users/${endpoint}`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/admin/users/${endpoint}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${adminToken}`,

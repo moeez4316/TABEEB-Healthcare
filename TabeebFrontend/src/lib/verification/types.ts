@@ -56,32 +56,32 @@ export const VALIDATION_RULES = {
   },
   CNIC_FRONT: {
     required: true,
-    maxSize: 5 * 1024 * 1024, // 5MB
+    maxSize: 2 * 1024 * 1024, // 2MB for images
     acceptedTypes: ['image/jpeg', 'image/png', 'image/jpg'],
-    message: 'CNIC front must be an image (JPG, PNG) under 5MB',
+    message: 'CNIC front must be an image (JPG, PNG) under 2MB',
   },
   CNIC_BACK: {
     required: true,
-    maxSize: 5 * 1024 * 1024, // 5MB
+    maxSize: 2 * 1024 * 1024, // 2MB for images
     acceptedTypes: ['image/jpeg', 'image/png', 'image/jpg'],
-    message: 'CNIC back must be an image (JPG, PNG) under 5MB',
+    message: 'CNIC back must be an image (JPG, PNG) under 2MB',
   },
   VERIFICATION_PHOTO: {
     required: true,
-    maxSize: 5 * 1024 * 1024, // 5MB
+    maxSize: 2 * 1024 * 1024, // 2MB for images
     acceptedTypes: ['image/jpeg', 'image/png', 'image/jpg'],
-    message: 'Verification photo must be an image (JPG, PNG) under 5MB',
+    message: 'Verification photo must be an image (JPG, PNG) under 2MB',
   },
   DEGREE_CERTIFICATE: {
     required: true,
-    maxSize: 10 * 1024 * 1024, // 10MB
+    maxSize: 5 * 1024 * 1024, // 5MB
     acceptedTypes: ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'],
-    message: 'Degree certificate must be an image (JPG, PNG) or PDF file under 10MB',
+    message: 'Degree certificate must be an image (JPG, PNG) or PDF file under 5MB',
   },
   PMDC_CERTIFICATE: {
     required: true,
-    maxSize: 10 * 1024 * 1024, // 10MB
+    maxSize: 5 * 1024 * 1024, // 5MB
     acceptedTypes: ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'],
-    message: 'PMDC certificate must be an image (JPG, PNG) or PDF file under 10MB',
+    message: 'PMDC certificate must be an image (JPG, PNG) or PDF file under 5MB',
   },
 };

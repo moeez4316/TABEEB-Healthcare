@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { FaUniversity, FaMobileAlt, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 export default function PaymentPage() {
   const router = useRouter();
@@ -59,7 +60,7 @@ export default function PaymentPage() {
         // TODO: Integrate with GoFast Pay or other Pakistani payment gateway
         // For now, just confirm the appointment
         const API_URL = process.env.NEXT_PUBLIC_API_URL;
-        const response = await fetch(`${API_URL}/api/appointments/${appointmentId}/confirm-payment`, {
+        const response = await fetchWithRateLimit(`${API_URL}/api/appointments/${appointmentId}/confirm-payment`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

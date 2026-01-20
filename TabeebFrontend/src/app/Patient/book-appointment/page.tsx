@@ -9,6 +9,7 @@ import { TimeSlotPicker } from '@/components/appointment/BookingFlow/TimeSlotPic
 import { BookingForm } from '@/components/appointment/BookingFlow/BookingForm';
 import { BookingConfirmation } from '@/components/appointment/BookingFlow/BookingConfirmation';
 import { useAuth } from '@/lib/auth-context';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 type BookingStep = 'doctor' | 'date' | 'time' | 'details' | 'confirmation';
 
@@ -55,7 +56,7 @@ export default function BookAppointmentPage() {
     
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/doctor/verified`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/doctor/verified`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -95,7 +96,7 @@ export default function BookAppointmentPage() {
     setAvailabilityLoading(true);
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/availability/doctor/${doctorUid}`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/availability/doctor/${doctorUid}`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -147,7 +148,7 @@ export default function BookAppointmentPage() {
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/appointments/book`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/book`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -17,6 +17,7 @@ import {
   ArrowDown,
   Flag
 } from 'lucide-react';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 interface DashboardStats {
   totalDoctors: number;
@@ -40,7 +41,7 @@ export default function AdminDashboard() {
   const fetchDashboardStats = useCallback(async () => {
     try {
       const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/dashboard/stats`, {
+      const response = await fetchWithRateLimit(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/dashboard/stats`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
         },

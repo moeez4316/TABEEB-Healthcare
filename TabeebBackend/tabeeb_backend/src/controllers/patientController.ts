@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { uploadProfileImage, deleteFromCloudinary } from '../services/uploadService';
+import { deleteFromCloudinary, verifyPublicIdOwnership, buildCloudinaryUrl } from '../services/uploadService';
 import { v2 as cloudinary } from 'cloudinary';
 import { normalizePhoneForDB, formatPhoneForDisplay } from '../utils/phoneUtils';
 
 export const createPatient = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
-  const file = req.file;
   const { 
     firstName, 
     lastName, 
@@ -33,7 +32,10 @@ export const createPatient = async (req: Request, res: Response) => {
     notificationsSms,
     notificationsPush,
     privacyShareData,
-    privacyMarketing
+    privacyMarketing,
+    // Client-side uploaded profile image
+    profileImagePublicId,
+    profileImageUrl
   } = req.body;
 
   if (!uid) {
@@ -52,16 +54,25 @@ export const createPatient = async (req: Request, res: Response) => {
     });
   }
 
-  // Variables for cleanup
-  let uploadedImagePublicId: string | null = null;
-
   try {
     // Parse JSON arrays if they come as strings from FormData
     const parsedAllergies = typeof allergies === 'string' ? JSON.parse(allergies || '[]') : (allergies || []);
     const parsedMedications = typeof medications === 'string' ? JSON.parse(medications || '[]') : (medications || []);
     const parsedMedicalConditions = typeof medicalConditions === 'string' ? JSON.parse(medicalConditions || '[]') : (medicalConditions || []);
 
-    // Step 1: Validate and create database records in a transaction (atomic operation)
+    // Verify profile image ownership if provided
+    let validatedImageUrl = null;
+    let validatedImagePublicId = null;
+    
+    if (profileImagePublicId) {
+      if (!verifyPublicIdOwnership(profileImagePublicId, uid, 'profile-image')) {
+        return res.status(403).json({ error: 'Invalid profile image. Please upload again.' });
+      }
+      validatedImagePublicId = profileImagePublicId;
+      validatedImageUrl = profileImageUrl || buildCloudinaryUrl(profileImagePublicId, 'image');
+    }
+
+    // Create database records in a transaction (atomic operation)
     const patient = await prisma.$transaction(async (tx) => {
       // Create or update User record
       await tx.user.upsert({
@@ -70,7 +81,7 @@ export const createPatient = async (req: Request, res: Response) => {
         update: { role: 'patient' }
       });
 
-      // Create Patient record (without image URLs yet)
+      // Create Patient record
       const newPatient = await tx.patient.create({
         data: {
           uid,
@@ -81,8 +92,8 @@ export const createPatient = async (req: Request, res: Response) => {
           cnic,
           dateOfBirth: new Date(dateOfBirth),
           gender,
-          profileImageUrl: null, // Will update after Cloudinary upload
-          profileImagePublicId: null,
+          profileImageUrl: validatedImageUrl,
+          profileImagePublicId: validatedImagePublicId,
           
           // Medical Information
           bloodType,
@@ -116,39 +127,10 @@ export const createPatient = async (req: Request, res: Response) => {
       return newPatient;
     });
 
-    // Step 2: If file exists, upload to Cloudinary AFTER successful DB creation
-    if (file) {
-      try {
-        const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
-        uploadedImagePublicId = uploadResult.public_id;
-
-        await prisma.patient.update({
-          where: { uid },
-          data: {
-            profileImageUrl: uploadResult.secure_url,
-            profileImagePublicId: uploadResult.public_id
-          }
-        });
-
-        patient.profileImageUrl = uploadResult.secure_url;
-        patient.profileImagePublicId = uploadResult.public_id;
-
-      } catch (imageError) {
-        console.error('Profile image upload error:', imageError);
-
-      }
-    }
-
     res.status(201).json(patient);
 
   } catch (error) {
     console.error('Create patient error:', error);
-    
-    // Cleanup: Delete uploaded image if it exists
-    if (uploadedImagePublicId) {
-      await deleteFromCloudinary(uploadedImagePublicId);
-    }
-
     res.status(500).json({ error: 'Failed to create patient profile' });
   }
 };
@@ -323,17 +305,32 @@ export const updatePatient = async (req: Request, res: Response) => {
   }
 };
 
-// Upload profile image
-export const uploadPatientProfileImage = async (req: Request, res: Response) => {
+// Update profile image after client-side Cloudinary upload
+// POST/PUT /api/patient/profile-image
+// Body: { publicId, url? }
+export const updatePatientProfileImage = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
-  const file = req.file;
+  
+  // Defensive check for body parsing
+  if (!req.body || typeof req.body !== 'object') {
+    return res.status(400).json({ 
+      error: 'Request body is required. Ensure Content-Type is application/json' 
+    });
+  }
+  
+  const { publicId, url } = req.body;
 
   if (!uid) {
     return res.status(400).json({ error: 'User UID is required' });
   }
 
-  if (!file) {
-    return res.status(400).json({ error: 'No image file provided' });
+  if (!publicId) {
+    return res.status(400).json({ error: 'publicId is required' });
+  }
+
+  // Verify ownership
+  if (!verifyPublicIdOwnership(publicId, uid, 'profile-image')) {
+    return res.status(403).json({ error: 'Invalid publicId. Please upload again.' });
   }
 
   try {
@@ -345,29 +342,30 @@ export const uploadPatientProfileImage = async (req: Request, res: Response) => 
 
     // Delete old profile image from Cloudinary if exists
     if (patient.profileImagePublicId) {
-      await cloudinary.uploader.destroy(patient.profileImagePublicId);
+      await deleteFromCloudinary(patient.profileImagePublicId);
     }
 
-    // Upload new image to Cloudinary
-    const uploadResult = await uploadProfileImage(file.buffer, uid) as any;
+    // Build URL from publicId
+    const imageUrl = url || buildCloudinaryUrl(publicId, 'image');
 
     // Update patient record with new image data
     await prisma.patient.update({
       where: { uid },
       data: { 
-        profileImageUrl: uploadResult.secure_url,
-        profileImagePublicId: uploadResult.public_id
+        profileImageUrl: imageUrl,
+        profileImagePublicId: publicId
       }
     });
 
     res.json({
-      message: 'Profile image uploaded successfully',
-      imageUrl: uploadResult.secure_url
+      message: 'Profile image updated successfully',
+      imageUrl,
+      publicId
     });
 
   } catch (error) {
-    console.error('Upload profile image error:', error);
-    res.status(500).json({ error: 'Failed to upload profile image' });
+    console.error('Update profile image error:', error);
+    res.status(500).json({ error: 'Failed to update profile image' });
   }
 };
 

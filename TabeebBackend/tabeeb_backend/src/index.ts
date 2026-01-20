@@ -13,7 +13,9 @@ import availabilityRoutes from './routes/availabilityRoutes';
 import prescriptionRoutes from './routes/prescriptionRoutes';
 import videoCallRoutes from './routes/videoCallRoutes';
 import reviewRoutes from './routes/reviewRoutes';
+import uploadRoutes from './routes/uploadRoutes';
 import { scheduleAutoGeneration } from './utils/autoGenerateSlots';
+import { generalLimiter } from './middleware/rateLimiter';
 
 dotenv.config();
 connectDB();
@@ -21,9 +23,12 @@ connectDB();
 const app = express();
 app.use(cors());
 
-// Global body parsing - works alongside multer (multer handles multipart/form-data, these handle JSON)
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Apply general rate limiting to all routes
+app.use(generalLimiter);
+
+// Global body parsing
+app.use(express.json({ limit: '1mb' })); // JSON metadata only (files upload directly to Cloudinary)
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // All routes - multer on specific routes handles file uploads automatically
 app.use('/api/user', userRoutes);
@@ -37,6 +42,7 @@ app.use('/api/availability', availabilityRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/video-calls', videoCallRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/upload', uploadRoutes);
 
 
 const PORT = process.env.PORT || 5002;

@@ -2,12 +2,28 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { 
-  uploadVerificationDocument, 
   deleteMultipleFromCloudinary,
-  extractPublicIdFromUrl 
+  extractPublicIdFromUrl,
+  verifyPublicIdOwnership,
+  buildCloudinaryUrl
 } from '../services/uploadService';
 
-// Submit verification (Doctor uploads CNIC, PMDC, Certificate)
+// Document can be either a string (legacy: just publicId) or an object with publicId and resourceType
+type DocumentInfo = string | { publicId: string; resourceType: string };
+
+interface VerificationDocuments {
+  cnicFront: DocumentInfo;      // Cloudinary publicId or { publicId, resourceType }
+  cnicBack?: DocumentInfo;      // Optional
+  verificationPhoto: DocumentInfo;
+  degreeCertificate: DocumentInfo;
+  pmdcCertificate: DocumentInfo;
+}
+
+/**
+ * Submit verification after client-side Cloudinary upload
+ * POST /api/verification
+ * Body: { pmdcNumber, cnicNumber, documents: { cnicFront, cnicBack?, verificationPhoto, degreeCertificate, pmdcCertificate }, ... }
+ */
 export const submitVerification = async (req: Request, res: Response) => {
   const doctorUid = req.user?.uid;
   const { 
@@ -15,17 +31,34 @@ export const submitVerification = async (req: Request, res: Response) => {
     pmdcRegistrationDate,
     cnicNumber,
     graduationYear,
-    degreeInstitution
-  } = req.body;
-  const files = req.files as any;
+    degreeInstitution,
+    documents
+  } = req.body as {
+    pmdcNumber: string;
+    pmdcRegistrationDate?: string;
+    cnicNumber: string;
+    graduationYear?: string;
+    degreeInstitution?: string;
+    documents: VerificationDocuments;
+  };
 
   if (!doctorUid || !pmdcNumber) {
     return res.status(400).json({ error: 'Doctor UID and PMDC number are required' });
   }
 
-  // Validate required documents BEFORE any operations
-  const requiredDocs = ['cnicFront', 'verificationPhoto', 'degreeCertificate', 'pmdcCertificate'];
-  const missingDocs = requiredDocs.filter(doc => !files?.[doc]);
+  // Validate required documents
+  if (!documents) {
+    return res.status(400).json({ error: 'documents object is required' });
+  }
+
+  // Helper to extract publicId from document (handles both string and object formats)
+  const getPublicId = (doc: DocumentInfo | undefined): string | undefined => {
+    if (!doc) return undefined;
+    return typeof doc === 'string' ? doc : doc.publicId;
+  };
+
+  const requiredDocs = ['cnicFront', 'verificationPhoto', 'degreeCertificate', 'pmdcCertificate'] as const;
+  const missingDocs = requiredDocs.filter(doc => !getPublicId(documents[doc]));
   
   if (missingDocs.length > 0) {
     return res.status(400).json({ 
@@ -33,11 +66,19 @@ export const submitVerification = async (req: Request, res: Response) => {
     });
   }
 
-  // Track uploaded files for cleanup on failure
-  const uploadedPublicIds: string[] = [];
+  // Verify all publicIds belong to this user
+  const docTypes = ['cnicFront', 'cnicBack', 'verificationPhoto', 'degreeCertificate', 'pmdcCertificate'] as const;
+  for (const docType of docTypes) {
+    const publicId = getPublicId(documents[docType]);
+    if (publicId && !verifyPublicIdOwnership(publicId, doctorUid, 'verification-doc')) {
+      return res.status(403).json({ 
+        error: `Invalid publicId for ${docType}. Document does not belong to this user.` 
+      });
+    }
+  }
 
   try {
-    // Step 1: Validate doctor exists and verification status
+    // Validate doctor exists and verification status
     const doctor = await prisma.doctor.findUnique({ where: { uid: doctorUid } });
     
     if (!doctor) {
@@ -58,8 +99,8 @@ export const submitVerification = async (req: Request, res: Response) => {
       if (existing.status !== 'rejected') {
         return res.status(400).json({ error: 'Verification already submitted' });
       }
-      // If rejected, we'll update the existing record instead of creating new one
-      // First, delete old files from Cloudinary before uploading new ones
+      
+      // Delete old files from Cloudinary before accepting new ones
       const oldPublicIds: (string | null)[] = [
         existing.cnicFrontUrl ? extractPublicIdFromUrl(existing.cnicFrontUrl) : null,
         existing.cnicBackUrl ? extractPublicIdFromUrl(existing.cnicBackUrl) : null,
@@ -75,49 +116,32 @@ export const submitVerification = async (req: Request, res: Response) => {
       }
     }
 
-    // Step 2: Upload all documents to Cloudinary AFTER validation
-    const uploadPromises = [];
-
-    uploadPromises.push(
-      uploadVerificationDocument(files.cnicFront[0].buffer, doctorUid, 'cnic_front')
-    );
-
-    uploadPromises.push(
-      uploadVerificationDocument(files.verificationPhoto[0].buffer, doctorUid, 'verification_photo')
-    );
-
-    uploadPromises.push(
-      uploadVerificationDocument(files.degreeCertificate[0].buffer, doctorUid, 'degree_certificate')
-    );
-
-    uploadPromises.push(
-      uploadVerificationDocument(files.pmdcCertificate[0].buffer, doctorUid, 'pmdc_certificate')
-    );
-
-    // Upload CNIC Back (optional)
-    let cnicBackPromise = null;
-    if (files?.cnicBack) {
-      cnicBackPromise = uploadVerificationDocument(files.cnicBack[0].buffer, doctorUid, 'cnic_back');
-      uploadPromises.push(cnicBackPromise);
-    }
-
-    const uploadResults = await Promise.all(uploadPromises);
+    // Build URLs from publicIds with correct resource types
+    // Documents can be either string (legacy) or { publicId, resourceType } (new format)
+    const getDocInfo = (doc: string | { publicId: string; resourceType: string }) => {
+      if (typeof doc === 'string') {
+        return { publicId: doc, resourceType: 'image' as const };
+      }
+      return { publicId: doc.publicId, resourceType: (doc.resourceType || 'image') as 'image' | 'video' | 'raw' };
+    };
     
-    // Map results and track public IDs for potential cleanup
-    const [cnicFrontResult, verificationPhotoResult, degreeCertificateResult, pmdcCertificateResult, cnicBackResult] = uploadResults;
+    const cnicFrontInfo = getDocInfo(documents.cnicFront);
+    const cnicFrontUrl = buildCloudinaryUrl(cnicFrontInfo.publicId, cnicFrontInfo.resourceType);
     
-    uploadedPublicIds.push(
-      (cnicFrontResult as any).public_id,
-      (verificationPhotoResult as any).public_id,
-      (degreeCertificateResult as any).public_id,
-      (pmdcCertificateResult as any).public_id
-    );
+    const cnicBackUrl = documents.cnicBack 
+      ? buildCloudinaryUrl(getDocInfo(documents.cnicBack).publicId, getDocInfo(documents.cnicBack).resourceType) 
+      : null;
     
-    if (cnicBackResult) {
-      uploadedPublicIds.push((cnicBackResult as any).public_id);
-    }
+    const verificationPhotoInfo = getDocInfo(documents.verificationPhoto);
+    const verificationPhotoUrl = buildCloudinaryUrl(verificationPhotoInfo.publicId, verificationPhotoInfo.resourceType);
+    
+    const degreeCertificateInfo = getDocInfo(documents.degreeCertificate);
+    const degreeCertificateUrl = buildCloudinaryUrl(degreeCertificateInfo.publicId, degreeCertificateInfo.resourceType);
+    
+    const pmdcCertificateInfo = getDocInfo(documents.pmdcCertificate);
+    const pmdcCertificateUrl = buildCloudinaryUrl(pmdcCertificateInfo.publicId, pmdcCertificateInfo.resourceType);
 
-    // Step 3: Create or update verification record in database
+    // Create or update verification record
     const verificationData = {
       doctorUid,
       pmdcNumber,
@@ -125,15 +149,15 @@ export const submitVerification = async (req: Request, res: Response) => {
       cnicNumber,
       graduationYear,
       degreeInstitution,
-      cnicFrontUrl: (cnicFrontResult as any).secure_url,
-      cnicBackUrl: files?.cnicBack ? (cnicBackResult as any).secure_url : null,
-      verificationPhotoUrl: (verificationPhotoResult as any).secure_url,
-      degreeCertificateUrl: (degreeCertificateResult as any).secure_url,
-      pmdcCertificateUrl: (pmdcCertificateResult as any).secure_url,
-      status: 'pending', // Reset status to pending for resubmissions
-      isVerified: false, // Reset verification status
-      adminComments: null, // Clear previous admin comments
-      submittedAt: new Date() // Update submission date
+      cnicFrontUrl,
+      cnicBackUrl,
+      verificationPhotoUrl,
+      degreeCertificateUrl,
+      pmdcCertificateUrl,
+      status: 'pending',
+      isVerified: false,
+      adminComments: null,
+      submittedAt: new Date()
     };
 
     const verification = existing && existing.status === 'rejected' 
@@ -154,7 +178,7 @@ export const submitVerification = async (req: Request, res: Response) => {
         pmdcNumber: verification.pmdcNumber,
         documentsUploaded: {
           cnicFront: true,
-          cnicBack: !!files?.cnicBack,
+          cnicBack: !!documents.cnicBack,
           verificationPhoto: true,
           degreeCertificate: true,
           pmdcCertificate: true
@@ -164,12 +188,6 @@ export const submitVerification = async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error('Error in submitVerification:', error);
-    
-    // Cleanup: Delete all uploaded files from Cloudinary on failure
-    if (uploadedPublicIds.length > 0) {
-      await deleteMultipleFromCloudinary(uploadedPublicIds);
-    }
-    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({ error: 'Failed to submit verification', details: errorMessage });
   }

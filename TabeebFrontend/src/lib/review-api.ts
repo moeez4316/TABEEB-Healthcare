@@ -1,5 +1,22 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+/**
+ * Handle rate limit - redirect to error page
+ * Returns a promise that never resolves (since we're redirecting)
+ */
+function handleRateLimit(retryAfter?: string): Promise<never> {
+  const returnPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+  const params = new URLSearchParams({
+    retry: retryAfter || '1 minute',
+    return: returnPath,
+  });
+  if (typeof window !== 'undefined') {
+    window.location.href = `/error/rate-limit?${params.toString()}`;
+  }
+  // Return a promise that never resolves - prevents further code execution while redirecting
+  return new Promise(() => {});
+}
+
 export interface Review {
   id: string;
   appointmentId: string;
@@ -65,13 +82,11 @@ export async function getDoctorReviews(
   );
 
   if (!response.ok) {
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch reviews');
-    } else {
-      throw new Error(`Failed to fetch reviews: ${response.status} ${response.statusText}`);
+    if (response.status === 429) {
+      const data = await response.json().catch(() => ({}));
+      return handleRateLimit(data.retryAfter);
     }
+    throw new Error('Failed to fetch reviews');
   }
 
   return response.json();
@@ -90,13 +105,11 @@ export async function getDoctorRating(token: string): Promise<DoctorRatingRespon
   });
 
   if (!response.ok) {
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch rating');
-    } else {
-      throw new Error(`Failed to fetch rating: ${response.status} ${response.statusText}`);
+    if (response.status === 429) {
+      const data = await response.json().catch(() => ({}));
+      return handleRateLimit(data.retryAfter);
     }
+    throw new Error('Failed to fetch rating');
   }
 
   return response.json();

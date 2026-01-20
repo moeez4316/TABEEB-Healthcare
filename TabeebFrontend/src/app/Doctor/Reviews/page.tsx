@@ -34,7 +34,7 @@ export default function DoctorReviewsPage() {
         const data = await getDoctorRating(token);
         setAverageRating(data.averageRating);
         setRatingCount(data.totalReviews);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to fetch rating:', err);
       }
     };
@@ -58,8 +58,9 @@ export default function DoctorReviewsPage() {
         setReviews(data.reviews);
         setTotalPages(data.pagination.totalPages);
         setTotalReviews(data.pagination.totalReviews);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load reviews');
+      } catch (err: unknown) {
+        const error = err as Error;
+        setError(error.message || 'Failed to load reviews');
       } finally {
         setLoading(false);
       }

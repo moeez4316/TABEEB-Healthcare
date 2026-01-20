@@ -1,3 +1,6 @@
+import { uploadMultipleFiles, UploadProgress, validateFile } from '../cloudinary-upload';
+import { handleRateLimit } from '../api-utils';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface VerificationData {
@@ -30,65 +33,115 @@ export interface SubmitVerificationRequest {
   degreeInstitution: string;
 }
 
+export interface SubmitVerificationOptions {
+  onUploadProgress?: (docType: string, progress: UploadProgress) => void;
+}
+
 class VerificationAPI {
   private getAuthHeaders(token: string) {
     return {
       'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
     };
   }
 
-  // Submit verification documents
-  async submitVerification(data: SubmitVerificationRequest, token: string): Promise<{ message: string; [key: string]: unknown }> {
+  // Submit verification documents using client-side Cloudinary upload
+  async submitVerification(
+    data: SubmitVerificationRequest, 
+    token: string,
+    options?: SubmitVerificationOptions
+  ): Promise<{ message: string; [key: string]: unknown }> {
     // Validate minimum requirements
     if (!data.pmdcNumber) {
       throw new Error('PMDC Number is required');
     }
     
-    if (!data.cnicFront && !data.cnicBack) {
-      throw new Error('At least one CNIC document (front or back) is required');
+    if (!data.cnicFront) {
+      throw new Error('CNIC Front document is required');
     }
 
-    // Real backend implementation - Full document support
-    const formData = new FormData();
-    
-    // Add all form fields
-    formData.append('pmdcNumber', data.pmdcNumber);
-    formData.append('cnicNumber', data.cnicNumber);
-    formData.append('graduationYear', data.graduationYear);
-    formData.append('degreeInstitution', data.degreeInstitution);
-    
-    if (data.pmdcRegistrationDate) {
-      formData.append('pmdcRegistrationDate', data.pmdcRegistrationDate);
-    }
-    
-    // Add all document files with correct field names
-    if (data.cnicFront) {
-      formData.append('cnicFront', data.cnicFront);
-    }
-    
-    if (data.cnicBack) {
-      formData.append('cnicBack', data.cnicBack);
-    }
-    
-    if (data.verificationPhoto) {
-      formData.append('verificationPhoto', data.verificationPhoto);
-    }
-    
-    if (data.degreeCertificate) {
-      formData.append('degreeCertificate', data.degreeCertificate);
-    }
-    
-    if (data.pmdcCertificate) {
-      formData.append('pmdcCertificate', data.pmdcCertificate);
+    // Validate all files
+    const filesToValidate = [
+      { file: data.cnicFront, name: 'CNIC Front' },
+      { file: data.cnicBack, name: 'CNIC Back' },
+      { file: data.verificationPhoto, name: 'Verification Photo' },
+      { file: data.degreeCertificate, name: 'Degree Certificate' },
+      { file: data.pmdcCertificate, name: 'PMDC Certificate' },
+    ].filter(f => f.file !== null);
+
+    for (const { file, name } of filesToValidate) {
+      if (file) {
+        const validation = validateFile(file, {
+          maxSizeMB: 5,
+          allowedTypes: ['image/*', 'application/pdf']
+        });
+        if (!validation.valid) {
+          throw new Error(`${name}: ${validation.error}`);
+        }
+      }
     }
 
+    // Prepare files for upload with their docTypes
+    const filesToUpload: Array<{ file: File; type: 'verification-doc'; docType: string; name: string }> = [];
+    
+    const docTypeMap: Array<{ key: keyof SubmitVerificationRequest; docType: string; name: string }> = [
+      { key: 'cnicFront', docType: 'cnic_front', name: 'CNIC Front' },
+      { key: 'cnicBack', docType: 'cnic_back', name: 'CNIC Back' },
+      { key: 'verificationPhoto', docType: 'verification_photo', name: 'Verification Photo' },
+      { key: 'degreeCertificate', docType: 'degree_certificate', name: 'Degree Certificate' },
+      { key: 'pmdcCertificate', docType: 'pmdc_certificate', name: 'PMDC Certificate' },
+    ];
+
+    for (const { key, docType, name } of docTypeMap) {
+      const file = data[key];
+      if (file instanceof File) {
+        filesToUpload.push({ file, type: 'verification-doc', docType, name });
+      }
+    }
+
+    // Upload all files to Cloudinary
+    const uploadResults = await uploadMultipleFiles(
+      filesToUpload,
+      token,
+      options?.onUploadProgress 
+        ? (index, progress) => options.onUploadProgress!(filesToUpload[index].name, progress)
+        : undefined
+    );
+
+    // Map upload results to document info (publicId + resourceType)
+    const documents: Record<string, { publicId: string; resourceType: string }> = {};
+    filesToUpload.forEach((fileData, index) => {
+      documents[fileData.docType] = {
+        publicId: uploadResults[index].publicId,
+        resourceType: uploadResults[index].resourceType // 'image' or 'raw' from Cloudinary
+      };
+    });
+
+    // Submit to backend with publicIds and resource types
     const response = await fetch(`${API_URL}/api/verification`, {
       method: 'POST',
       headers: this.getAuthHeaders(token),
-      body: formData,
+      body: JSON.stringify({
+        pmdcNumber: data.pmdcNumber,
+        pmdcRegistrationDate: data.pmdcRegistrationDate || null,
+        cnicNumber: data.cnicNumber,
+        graduationYear: data.graduationYear,
+        degreeInstitution: data.degreeInstitution,
+        documents: {
+          cnicFront: documents.cnic_front,
+          cnicBack: documents.cnic_back || undefined,
+          verificationPhoto: documents.verification_photo,
+          degreeCertificate: documents.degree_certificate,
+          pmdcCertificate: documents.pmdc_certificate,
+        }
+      }),
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        const data = await response.json().catch(() => ({}));
+        return handleRateLimit(data.retryAfter);
+      }
       const error = await response.json();
       throw new Error(error.error || 'Failed to submit verification');
     }
@@ -100,10 +153,16 @@ class VerificationAPI {
   async getVerificationStatus(token: string): Promise<VerificationData> {
     const response = await fetch(`${API_URL}/api/verification`, {
       method: 'GET',
-      headers: this.getAuthHeaders(token),
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        const data = await response.json().catch(() => ({}));
+        return handleRateLimit(data.retryAfter);
+      }
       if (response.status === 404) {
         throw new Error('NOT_FOUND');
       }

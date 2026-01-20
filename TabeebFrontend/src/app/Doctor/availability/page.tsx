@@ -6,6 +6,7 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { loadDoctorProfile } from '@/store/slices/doctorSlice';
 import { FaClock, FaPlus, FaTimes, FaSave, FaCopy, FaCheck } from 'react-icons/fa';
 import DoctorProfileEditModal from '@/components/profile/DoctorProfileEditModal';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 interface BreakTime {
   startTime: string;
@@ -109,7 +110,7 @@ export default function DoctorAvailabilityPage() {
     
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/availability/template`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/availability/template`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -479,7 +480,7 @@ export default function DoctorAvailabilityPage() {
       // Only send ACTIVE days to the backend
       // This ensures only toggled days are managed by the template
       // Other days (inactive/untouched) won't be affected
-      const response = await fetch(`${API_URL}/api/availability/template`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/availability/template`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

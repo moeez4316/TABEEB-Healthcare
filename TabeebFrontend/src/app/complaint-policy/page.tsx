@@ -154,7 +154,7 @@ export default function ComplaintPolicyPage() {
                       </h3>
                       <p className="text-sm text-gray-700 dark:text-gray-300">
                         Based on the severity and findings, appropriate action may be taken, including counseling, 
-                        warnings, additional training requirements, or in serious cases, suspension of the doctor's account.
+                        warnings, additional training requirements, or in serious cases, suspension of the doctor&apos;s account.
                       </p>
                     </div>
                   </div>
@@ -176,10 +176,10 @@ export default function ComplaintPolicyPage() {
                 <div className="space-y-4">
                   <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
                     <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
-                      📊 Impact on Doctor's Rating
+                      📊 Impact on Doctor&apos;s Rating
                     </p>
                     <p className="text-sm text-blue-800 dark:text-blue-400">
-                      Complaints do <strong>NOT</strong> affect the doctor's public rating score. They are kept 
+                      Complaints do <strong>NOT</strong> affect the doctor&apos;s public rating score. They are kept 
                       separate from regular reviews to ensure fair assessment while addressing serious concerns.
                     </p>
                   </div>

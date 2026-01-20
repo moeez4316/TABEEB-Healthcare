@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FaSearch, FaSort, FaUserMd, FaStar, FaCalendarAlt } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth-context';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 interface Doctor {
   uid: string;
@@ -46,7 +47,7 @@ export default function DoctorsPage() {
   const fetchDoctors = async () => {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/doctor/verified`);
+      const response = await fetchWithRateLimit(`${API_URL}/api/doctor/verified`);
       
       if (response.ok) {
         const data: DoctorsResponse = await response.json();

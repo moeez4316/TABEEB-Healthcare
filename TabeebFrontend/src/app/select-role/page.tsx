@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { User, UserCheck, Stethoscope, Heart, Mail, Phone, GraduationCap, Award, AlertTriangle, CheckCircle, Loader2, LogOut, Calendar } from "lucide-react";
@@ -8,6 +8,9 @@ import { getDoctorRedirectPath } from "@/lib/doctorRedirect";
 import ProfileImageUpload from "@/components/shared/ProfileImageUpload";
 import { formatPhoneNumber, isValidEmail, isValidPhoneNumber, pakistaniMedicalSpecializations, pakistaniMedicalQualifications } from "@/lib/profile-utils";
 import { APP_CONFIG } from "@/lib/config/appConfig";
+import { uploadFile } from "@/lib/cloudinary-upload";
+import { LinearProgress } from "@/components/shared/UploadProgress";
+import { fetchWithRateLimit } from "@/lib/api-utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -20,7 +23,7 @@ type DoctorForm = {
   gender: string;
   specialization: string;
   qualification: string;
-  experience: number;
+  experience: string;
   profileImage?: string;
 };
 
@@ -46,6 +49,13 @@ export default function SelectRolePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const formRef = useRef<HTMLFormElement>(null);
+  const doctorDobRef = useRef<HTMLInputElement>(null);
+  const patientDobRef = useRef<HTMLInputElement>(null);
+  
+  // Upload progress state
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
   
   const [doctorForm, setDoctorForm] = useState<DoctorForm>({
     firstName: "",
@@ -56,7 +66,7 @@ export default function SelectRolePage() {
     gender: "",
     specialization: "",
     qualification: "",
-    experience: 0,
+    experience: "",
     profileImage: "",
   });
   
@@ -139,8 +149,10 @@ export default function SelectRolePage() {
     
     // Phone: optional for email auth users, pre-filled and disabled for phone auth
     if (isEmailAuth) {
-      // Email auth: phone is optional, validate only if provided
-      if (doctorForm.phone.trim() && !isValidPhoneNumber(doctorForm.phone)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
+      // Email auth: phone is optional, validate only if provided and not just the prefix
+      const phoneValue = doctorForm.phone.trim();
+      const isJustPrefix = phoneValue === '' || phoneValue === '+92-' || phoneValue === '+92' || phoneValue === '+';
+      if (phoneValue && !isJustPrefix && !isValidPhoneNumber(phoneValue)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
     } else {
       // Phone auth: phone is pre-filled and required (disabled)
       if (!doctorForm.phone.trim()) errors.phone = "Phone number is required";
@@ -157,8 +169,9 @@ export default function SelectRolePage() {
     else if (doctorForm.qualification === "Other" && !customQualification.trim()) {
       errors.customQualification = "Please specify your qualification";
     }
-    if (doctorForm.experience < 0) errors.experience = "Experience cannot be negative";
-    if (doctorForm.experience > 100) errors.experience = "Experience seems too high";
+    const experienceNum = parseInt(doctorForm.experience);
+    if (doctorForm.experience !== '' && experienceNum < 0) errors.experience = "Experience cannot be negative";
+    if (doctorForm.experience !== '' && experienceNum > 100) errors.experience = "Experience seems too high";
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -185,8 +198,10 @@ export default function SelectRolePage() {
     
     // Phone: optional for email auth users, pre-filled and disabled for phone auth
     if (isEmailAuth) {
-      // Email auth: phone is optional, validate only if provided
-      if (patientForm.phone.trim() && !isValidPhoneNumber(patientForm.phone)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
+      // Email auth: phone is optional, validate only if provided and not just the prefix
+      const phoneValue = patientForm.phone.trim();
+      const isJustPrefix = phoneValue === '' || phoneValue === '+92-' || phoneValue === '+92' || phoneValue === '+';
+      if (phoneValue && !isJustPrefix && !isValidPhoneNumber(phoneValue)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
     } else {
       // Phone auth: phone is pre-filled and required (disabled)
       if (!patientForm.phone.trim()) errors.phone = "Phone number is required";
@@ -212,7 +227,7 @@ export default function SelectRolePage() {
     
     setDoctorForm(prev => ({
       ...prev,
-      [name]: name === "experience" ? parseInt(value) || 0 : processedValue
+      [name]: processedValue
     }));
     
     // Reset custom specialization when changing from "Other"
@@ -280,56 +295,77 @@ export default function SelectRolePage() {
     if (!isValid) return;
 
     setSubmitting(true);
+    setUploadStatus('idle');
+    setUploadProgress(0);
     
     try {
       let endpoint = "";
+      let profileImagePublicId: string | undefined;
+      let profileImageUrl: string | undefined;
+      
+      // Upload profile image first if exists (for both doctor and patient)
+      const imageToUpload = role === "doctor" ? doctorForm.profileImage : patientForm.profileImage;
+      
+      if (imageToUpload && imageToUpload.startsWith('data:image') && token) {
+        const blob = await fetch(imageToUpload).then(r => r.blob());
+        
+        // Validate file size (2MB limit for profile images)
+        if (blob.size > 2 * 1024 * 1024) {
+          setError("Profile image must be less than 2MB");
+          setSubmitting(false);
+          return;
+        }
+        
+        const file = new File([blob], "profile.jpg", { type: blob.type });
+        
+        try {
+          setUploadStatus('uploading');
+          const uploadResult = await uploadFile(file, 'profile-image', token, {
+            onProgress: (p) => setUploadProgress(p.percentage)
+          });
+          profileImagePublicId = uploadResult.publicId;
+          profileImageUrl = uploadResult.secureUrl;
+          setUploadStatus('processing');
+        } catch (uploadError) {
+          console.error('Image upload error:', uploadError);
+          setUploadStatus('error');
+          setError(uploadError instanceof Error ? uploadError.message : "Failed to upload profile image");
+          setSubmitting(false);
+          return;
+        }
+      }
       
       if (role === "doctor") {
         endpoint = "/api/doctor";
-        const formData = new FormData();
         
         // Use custom specialization if "Other" is selected
         const finalSpecialization = doctorForm.specialization === "Other" ? customSpecialization : doctorForm.specialization;
         // Use custom qualification if "Other" is selected
         const finalQualification = doctorForm.qualification === "Other" ? customQualification : doctorForm.qualification;
         
-        // Append all text fields
-        formData.append("firstName", doctorForm.firstName);
-        formData.append("lastName", doctorForm.lastName);
-        formData.append("email", doctorForm.email);
-        formData.append("phone", doctorForm.phone);
-        formData.append("gender", doctorForm.gender);
-        formData.append("specialization", finalSpecialization);
-        formData.append("qualification", finalQualification);
-        formData.append("experience", doctorForm.experience.toString());
-        if (doctorForm.dateOfBirth) {
-          formData.append("dateOfBirth", new Date(doctorForm.dateOfBirth).toISOString());
-        }
-        
-        // Convert base64 image to File if exists
-        if (doctorForm.profileImage && doctorForm.profileImage.startsWith('data:image')) {
-          const blob = await fetch(doctorForm.profileImage).then(r => r.blob());
-          
-          // Validate file size (5MB limit to match backend)
-          if (blob.size > 5 * 1024 * 1024) {
-            setError("Profile image must be less than 5MB");
-            setSubmitting(false);
-            return;
-          }
-          
-          const file = new File([blob], "profile.jpg", { type: blob.type });
-          formData.append("profileImage", file);
-        }
-        
-        const res = await fetch(`${API_URL}${endpoint}`, {
+        const res = await fetchWithRateLimit(`${API_URL}${endpoint}`, {
           method: "POST",
           headers: {
+            'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {})
           },
-          body: formData,
+          body: JSON.stringify({
+            firstName: doctorForm.firstName,
+            lastName: doctorForm.lastName,
+            email: doctorForm.email,
+            phone: doctorForm.phone,
+            gender: doctorForm.gender,
+            specialization: finalSpecialization,
+            qualification: finalQualification,
+            experience: doctorForm.experience ? parseInt(doctorForm.experience) : 0,
+            dateOfBirth: doctorForm.dateOfBirth ? new Date(doctorForm.dateOfBirth).toISOString() : undefined,
+            profileImagePublicId,
+            profileImageUrl,
+          }),
         });
         
         if (res.ok) {
+          setUploadStatus('success');
           console.log("Selected role:", role);
           setUserRole(role);
           setSuccess("Profile created successfully! Redirecting...");
@@ -338,47 +374,33 @@ export default function SelectRolePage() {
           }, 1500);
         } else {
           const errorData = await res.json().catch(() => ({}));
-          setError(errorData.message || "Failed to create profile. Please try again.");
+          setUploadStatus('error');
+          setError(errorData.error || errorData.message || "Failed to create profile. Please try again.");
         }
         
       } else if (role === "patient") {
         endpoint = "/api/patient";
-        const formData = new FormData();
         
-        // Append all text fields
-        formData.append("firstName", patientForm.firstName);
-        formData.append("lastName", patientForm.lastName);
-        formData.append("email", patientForm.email);
-        formData.append("phone", patientForm.phone);
-        formData.append("gender", patientForm.gender);
-        if (patientForm.dateOfBirth) {
-          formData.append("dateOfBirth", new Date(patientForm.dateOfBirth).toISOString());
-        }
-        
-        // Convert base64 image to File if exists
-        if (patientForm.profileImage && patientForm.profileImage.startsWith('data:image')) {
-          const blob = await fetch(patientForm.profileImage).then(r => r.blob());
-          
-          // Validate file size (5MB limit to match backend)
-          if (blob.size > 5 * 1024 * 1024) {
-            setError("Profile image must be less than 5MB");
-            setSubmitting(false);
-            return;
-          }
-          
-          const file = new File([blob], "profile.jpg", { type: blob.type });
-          formData.append("profileImage", file);
-        }
-        
-        const res = await fetch(`${API_URL}${endpoint}`, {
+        const res = await fetchWithRateLimit(`${API_URL}${endpoint}`, {
           method: "POST",
           headers: {
+            'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {})
           },
-          body: formData,
+          body: JSON.stringify({
+            firstName: patientForm.firstName,
+            lastName: patientForm.lastName,
+            email: patientForm.email,
+            phone: patientForm.phone,
+            gender: patientForm.gender,
+            dateOfBirth: patientForm.dateOfBirth ? new Date(patientForm.dateOfBirth).toISOString() : undefined,
+            profileImagePublicId,
+            profileImageUrl,
+          }),
         });
         
         if (res.ok) {
+          setUploadStatus('success');
           console.log("Selected role:", role);
           setUserRole(role);
           setSuccess("Profile created successfully! Redirecting...");
@@ -387,10 +409,12 @@ export default function SelectRolePage() {
           }, 1500);
         } else {
           const errorData = await res.json().catch(() => ({}));
-          setError(errorData.message || "Failed to create profile. Please try again.");
+          setUploadStatus('error');
+          setError(errorData.error || errorData.message || "Failed to create profile. Please try again.");
         }
       }
     } catch {
+      setUploadStatus('error');
       setError("Network error. Please check your connection and try again.");
     } finally {
       setSubmitting(false);
@@ -514,7 +538,7 @@ export default function SelectRolePage() {
 
           {/* Doctor Form */}
           {role === "doctor" && (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
               {/* Profile Image Upload */}
               <div className="flex flex-col items-center space-y-3">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -632,20 +656,22 @@ export default function SelectRolePage() {
                   </label>
                   <div 
                     className="relative cursor-pointer"
-                    onClick={() => {
-                      const dateInput = document.querySelector('input[name="dateOfBirth"]') as HTMLInputElement;
-                      if (dateInput) dateInput.showPicker();
-                    }}
+                    onClick={() => doctorDobRef.current?.showPicker()}
                   >
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     </div>
                     <input
+                      ref={doctorDobRef}
                       type="date"
                       name="dateOfBirth"
                       required
                       value={doctorForm.dateOfBirth}
                       onChange={handleDoctorChange}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        (e.target as HTMLInputElement).showPicker();
+                      }}
                       max={new Date().toISOString().split('T')[0]}
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 cursor-pointer ${
                         formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
@@ -678,24 +704,28 @@ export default function SelectRolePage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Years of Experience *
+                    Years of Experience
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Award className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     </div>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       name="experience"
-                      required
-                      min="0"
-                      max="100"
                       value={doctorForm.experience}
-                      onChange={handleDoctorChange}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^\d+$/.test(val)) {
+                          handleDoctorChange(e);
+                        }
+                      }}
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
                         formErrors.experience ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
                       }`}
-                      placeholder="Years of experience"
+                      placeholder="e.g. 5"
                     />
                   </div>
                   {formErrors.experience && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.experience}</p>}
@@ -794,12 +824,24 @@ export default function SelectRolePage() {
                 </div>
               )}
 
+              {/* Upload Progress Indicator - Before submit button */}
+              {uploadStatus !== 'idle' && (
+                <div className="py-2">
+                  <LinearProgress
+                    progress={uploadProgress}
+                    status={uploadStatus}
+                    fileName="Profile image"
+                    size="sm"
+                  />
+                </div>
+              )}
+
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || uploadStatus === 'uploading' || uploadStatus === 'processing'}
                 className="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? (
+                {submitting || uploadStatus === 'uploading' ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   'Complete Doctor Profile'
@@ -810,7 +852,7 @@ export default function SelectRolePage() {
 
           {/* Patient Form */}
           {role === "patient" && (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
               {/* Profile Image Upload */}
               <div className="flex flex-col items-center space-y-3">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -928,20 +970,22 @@ export default function SelectRolePage() {
                   </label>
                   <div 
                     className="relative cursor-pointer"
-                    onClick={() => {
-                      const dateInput = document.querySelector('input[name="patientDateOfBirth"]') as HTMLInputElement;
-                      if (dateInput) dateInput.showPicker();
-                    }}
+                    onClick={() => patientDobRef.current?.showPicker()}
                   >
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     </div>
                     <input
+                      ref={patientDobRef}
                       type="date"
                       name="patientDateOfBirth"
                       required
                       value={patientForm.dateOfBirth}
                       onChange={(e) => handlePatientChange({ target: { name: 'dateOfBirth', value: e.target.value } } as React.ChangeEvent<HTMLInputElement>)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        (e.target as HTMLInputElement).showPicker();
+                      }}
                       max={new Date().toISOString().split('T')[0]}
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 cursor-pointer ${
                         formErrors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
@@ -974,14 +1018,24 @@ export default function SelectRolePage() {
                 {formErrors.gender && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.gender}</p>}
               </div>
 
-
+              {/* Upload Progress Indicator - Before submit button */}
+              {uploadStatus !== 'idle' && (
+                <div className="py-2">
+                  <LinearProgress
+                    progress={uploadProgress}
+                    status={uploadStatus}
+                    fileName="Profile image"
+                    size="sm"
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || uploadStatus === 'uploading' || uploadStatus === 'processing'}
                 className="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? (
+                {submitting || uploadStatus === 'uploading' ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   'Complete Patient Profile'

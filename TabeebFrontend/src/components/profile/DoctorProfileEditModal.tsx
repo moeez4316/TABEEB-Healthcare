@@ -9,6 +9,8 @@ import ProfileImageUpload from '../shared/ProfileImageUpload';
 import { formatPhoneNumber, pakistaniProvinces } from '@/lib/profile-utils';
 import { Toast } from '../Toast';
 import { useRouter } from 'next/navigation';
+import { uploadFile } from '@/lib/cloudinary-upload';
+import { LinearProgress } from '../shared/UploadProgress';
 
 // Delete Account Section Component
 interface DeleteAccountSectionProps {
@@ -181,6 +183,18 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+    
+    // Image upload progress state
+    const [imageUploadProgress, setImageUploadProgress] = useState(0);
+    const [imageUploadStatus, setImageUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
+
+    // Reset upload progress when modal opens/closes
+    useEffect(() => {
+        if (isOpen) {
+            setImageUploadProgress(0);
+            setImageUploadStatus('idle');
+        }
+    }, [isOpen]);
 
     // Update activeTab ONLY when modal opens AND initialTab is explicitly provided
     // Set initial tab when opening (explicit initialTab overrides saved state)
@@ -239,9 +253,9 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
             if (profile.profileImage && profile.profileImage.startsWith('data:image')) {
                 const blob = await fetch(profile.profileImage).then(r => r.blob());
                 
-                // Validate file size (5MB limit to match backend)
-                if (blob.size > 5 * 1024 * 1024) {
-                    setToastMessage('Profile image must be less than 5MB');
+                // Validate file size (2MB limit for profile images)
+                if (blob.size > 2 * 1024 * 1024) {
+                    setToastMessage('Profile image must be less than 2MB');
                     setToastType('error');
                     setShowToast(true);
                     setSaving(false);
@@ -249,29 +263,56 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                 }
                 
                 const file = new File([blob], 'profile-image.jpg', { type: blob.type });
-                const formData = new FormData();
-                formData.append('profileImage', file);
                 
-                const uploadRes = await fetch(`${API_URL}/api/doctor/profile-image`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: formData,
-                });
-                
-                if (!uploadRes.ok) {
-                    setToastMessage('Failed to upload profile image');
+                try {
+                    // Start progress tracking
+                    setImageUploadStatus('uploading');
+                    setImageUploadProgress(0);
+                    
+                    // Step 1a: Upload to Cloudinary using client-side upload
+                    const cloudinaryResult = await uploadFile(file, 'profile-image', token, {
+                        onProgress: (p) => setImageUploadProgress(p.percentage)
+                    });
+                    
+                    // Step 1b: Update backend with the publicId
+                    setImageUploadStatus('processing');
+                    const uploadRes = await fetch(`${API_URL}/api/doctor/profile-image`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            publicId: cloudinaryResult.publicId,
+                            url: cloudinaryResult.secureUrl,
+                        }),
+                    });
+                    
+                    if (!uploadRes.ok) {
+                        const errorData = await uploadRes.json();
+                        console.error('Profile image save error:', errorData);
+                        setImageUploadStatus('error');
+                        setToastMessage(errorData.error || 'Failed to save profile image');
+                        setToastType('error');
+                        setShowToast(true);
+                        setSaving(false);
+                        return;
+                    }
+                    
+                    // Get the Cloudinary URL from response
+                    const uploadResult = await uploadRes.json();
+                    updatedImageUrl = uploadResult.imageUrl;
+                    setImageUploadStatus('success');
+                    console.log('Image uploaded, new URL:', updatedImageUrl);
+                } catch (uploadError) {
+                    console.error('Cloudinary upload error:', uploadError);
+                    setImageUploadStatus('error');
+                    setToastMessage(uploadError instanceof Error ? uploadError.message : 'Failed to upload profile image');
                     setToastType('error');
                     setShowToast(true);
                     setSaving(false);
                     return;
                 }
-                
-                // Get the Cloudinary URL from response
-                const uploadResult = await uploadRes.json();
-                updatedImageUrl = uploadResult.imageUrl;
-                console.log('Image uploaded, new URL:', updatedImageUrl);
             }
             
             // Step 2: Save the profile with the Cloudinary URL (not base64)
@@ -486,6 +527,18 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                         size="lg"
                                     />
                                 </div>
+                                
+                                {/* Image Upload Progress - Compact bar below profile image */}
+                                {imageUploadStatus !== 'idle' && (
+                                    <div className="max-w-xs mx-auto">
+                                        <LinearProgress
+                                            progress={imageUploadProgress}
+                                            status={imageUploadStatus}
+                                            fileName="Profile image"
+                                            size="sm"
+                                        />
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
@@ -922,11 +975,11 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                         </button>
                         <button
                             onClick={handleSave}
-                            disabled={saving}
+                            disabled={saving || imageUploadStatus === 'uploading' || imageUploadStatus === 'processing'}
                             className="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-transparent rounded-lg hover:bg-teal-700 focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
                         >
                             <Save className="h-4 w-4" />
-                            <span>{saving ? 'Saving...' : 'Save Changes'}</span>
+                            <span>{saving || imageUploadStatus === 'uploading' ? 'Saving...' : 'Save Changes'}</span>
                         </button>
                     </div>
                 </div>

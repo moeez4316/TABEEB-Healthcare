@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
+import { fetchWithRateLimit } from '@/lib/api-utils'
 
 export interface PatientProfile {
   // Personal Information
@@ -112,7 +113,7 @@ export const createPatientProfile = createAsyncThunk(
   'patient/createProfile',
   async ({ profileData, token }: { profileData: PatientProfile; token: string }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_URL}/api/patient`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/patient`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -142,7 +143,7 @@ export const savePatientProfile = createAsyncThunk(
   'patient/saveProfile',
   async ({ profileData, token }: { profileData: PatientProfile; token: string }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_URL}/api/patient`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/patient`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -172,7 +173,7 @@ export const loadPatientProfile = createAsyncThunk(
   'patient/loadProfile',
   async (token: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_URL}/api/patient`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/patient`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -196,31 +197,39 @@ export const loadPatientProfile = createAsyncThunk(
   }
 );
 
-// Async thunk for uploading profile image
+// Async thunk for uploading profile image using client-side Cloudinary upload
 export const uploadProfileImage = createAsyncThunk(
   'patient/uploadProfileImage',
   async ({ file, token }: { file: File; token: string }, { rejectWithValue }) => {
     try {
-      const formData = new FormData();
-      formData.append('profileImage', file);
+      // Dynamic import to avoid circular dependencies
+      const { uploadFile } = await import('@/lib/cloudinary-upload');
+      
+      // Upload to Cloudinary first
+      const uploadResult = await uploadFile(file, 'profile-image', token);
 
-      const response = await fetch(`${API_URL}/api/patient/profile-image`, {
+      // Update backend with the publicId
+      const response = await fetchWithRateLimit(`${API_URL}/api/patient/profile-image`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: formData,
+        body: JSON.stringify({
+          publicId: uploadResult.publicId,
+          url: uploadResult.secureUrl,
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        return rejectWithValue(errorData.error || 'Failed to upload image');
+        return rejectWithValue(errorData.error || 'Failed to update profile image');
       }
 
       const result = await response.json();
       return result.imageUrl;
-    } catch {
-      return rejectWithValue('Network error: Failed to upload image');
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to upload image');
     }
   }
 );

@@ -1,18 +1,42 @@
 import { Request, Response } from 'express';
 import MedicalRecord from '../models/MedicalRecord';
-import { uploadToCloudinary } from '../services/uploadService';
+import { verifyPublicIdOwnership, buildCloudinaryUrl } from '../services/uploadService';
 import { v2 as cloudinary } from 'cloudinary';
 import prisma from '../lib/prisma';
 
+/**
+ * Create medical record after client-side Cloudinary upload
+ * POST /api/records
+ * Body: { publicId, resourceType, fileName, fileType, tags?, notes? }
+ */
 export const uploadRecord = async (req: Request, res: Response) => {
   try {
-    const file = req.file;
-    let { tags, notes } = req.body;
-    if (!file) return res.status(400).json({ error: 'No file uploaded' });
+    // Defensive check for body parsing
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({ 
+        error: 'Request body is required. Ensure Content-Type is application/json' 
+      });
+    }
+    
+    const { publicId, resourceType, fileName, fileType, tags, notes } = req.body;
+    const userId = req.user!.uid;
+
+    // Validate required fields
+    if (!publicId || !resourceType) {
+      return res.status(400).json({ error: 'publicId and resourceType are required' });
+    }
+
+    // Verify ownership - ensure this publicId belongs to this user
+    if (!verifyPublicIdOwnership(publicId, userId, 'medical-record')) {
+      return res.status(403).json({ 
+        error: 'Invalid publicId for this user',
+        debug: { publicId, userId, expected: `tabeeb/medical-records/${userId}/` }
+      });
+    }
 
     // Check if patient account is active
     const patient = await prisma.patient.findUnique({
-      where: { uid: req.user!.uid },
+      where: { uid: userId },
       select: { isActive: true }
     });
 
@@ -24,12 +48,8 @@ export const uploadRecord = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Your account is deactivated' });
     }
 
-    // Determine resource_type for Cloudinary
-    let resourceType: 'image' | 'raw' = 'raw';
-    if (file.mimetype.startsWith('image/')) resourceType = 'image';
-
-    // Upload directly from buffer
-    const uploadResult = await uploadToCloudinary(file.buffer, file.originalname, resourceType) as { secure_url: string, public_id: string };
+    // Build the full URL from publicId
+    const fileUrl = buildCloudinaryUrl(publicId, resourceType);
 
     // Parse tags if sent as a comma-separated string
     let tagsArray: string[] = [];
@@ -39,19 +59,22 @@ export const uploadRecord = async (req: Request, res: Response) => {
       tagsArray = tags;
     }
 
+    // Create record in MongoDB
     const record = await MedicalRecord.create({
-      userId: req.user!.uid,
-      fileUrl: uploadResult.secure_url,
-      fileType: file.mimetype,
-      publicId: uploadResult.public_id,
+      userId,
+      fileUrl,
+      fileType: fileType || 'application/octet-stream',
+      publicId,
       resourceType,
+      fileName: fileName || publicId.split('/').pop(),
       tags: tagsArray,
       notes
     });
 
     res.status(201).json(record);
   } catch (err) {
-    res.status(500).json({ error: 'Upload failed', details: err });
+    console.error('Create record error:', err);
+    res.status(500).json({ error: 'Failed to create record', details: err });
   }
 };
 

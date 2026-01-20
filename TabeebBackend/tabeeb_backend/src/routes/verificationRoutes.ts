@@ -1,5 +1,4 @@
 import express from 'express';
-import multer from 'multer';
 import { 
   submitVerification, 
   getVerification, 
@@ -9,30 +8,15 @@ import {
 } from '../controllers/verificationController';
 import { verifyToken } from '../middleware/verifyToken';
 import { authenticateAdminFromHeaders } from '../middleware/adminAuth';
-
-// Configure multer for file uploads
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
-      cb(null, true);
-    } else {
-      cb(new Error('Only images and PDF files are allowed'));
-    }
-  }
-});
+import { verificationLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
 
-// Doctor routes (require auth token) - File uploads
-router.post('/', verifyToken, upload.fields([
-  { name: 'cnicFront', maxCount: 1 },
-  { name: 'cnicBack', maxCount: 1 },
-  { name: 'verificationPhoto', maxCount: 1 },
-  { name: 'degreeCertificate', maxCount: 1 },
-  { name: 'pmdcCertificate', maxCount: 1 }
-]), submitVerification);
+// Doctor routes (require auth token) - Now accepts JSON body with Cloudinary publicIds
+// POST /api/verification
+// Body: { pmdcNumber, cnicNumber, documents: { cnicFront, cnicBack?, verificationPhoto, degreeCertificate, pmdcCertificate } }
+// Rate limited: 3 submissions per day
+router.post('/', verifyToken, verificationLimiter, submitVerification);
 
 router.get('/', verifyToken, getVerification);
 

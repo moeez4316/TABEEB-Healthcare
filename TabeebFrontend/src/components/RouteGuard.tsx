@@ -3,7 +3,7 @@
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
 import { getDoctorRedirectPath } from '@/lib/doctorRedirect';
 
 interface RouteGuardProps {
@@ -21,13 +21,19 @@ export default function RouteGuard({
   allowedRoles = [],
   requireRole = true
 }: RouteGuardProps) {
-  const { user, role, loading, roleLoading, verificationStatus, verificationLoading } = useAuth();
+  const { user, role, loading, roleLoading, verificationStatus, verificationLoading, backendError, clearBackendError, fetchUserRole } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     // Wait for auth to be fully loaded
     if (loading) {
       console.log("[RouteGuard] Auth loading...");
+      return;
+    }
+
+    // Don't redirect if there's a backend error - we'll show an error UI instead
+    if (backendError) {
+      console.log("[RouteGuard] Backend error, not redirecting");
       return;
     }
 
@@ -52,8 +58,8 @@ export default function RouteGuard({
         return;
       }
 
-      // If role is required but user has no role
-      if (requireRole && (!role || role === 'no-role')) {
+      // If role is required but user has no role (and no backend error)
+      if (requireRole && (!role || role === 'no-role') && !backendError) {
         console.log("[RouteGuard] User has no role, redirecting to /select-role");
         router.replace('/select-role');
         return;
@@ -79,7 +85,39 @@ export default function RouteGuard({
         return;
       }
     }
-  }, [user, role, loading, roleLoading, verificationStatus, verificationLoading, requireAuth, requireRole, allowedRoles, redirectTo, router]);
+  }, [user, role, loading, roleLoading, verificationStatus, verificationLoading, backendError, requireAuth, requireRole, allowedRoles, redirectTo, router]);
+
+  // Show backend error UI
+  if (backendError && user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center border border-red-200 dark:border-red-800">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <WifiOff className="h-8 w-8 text-red-600 dark:text-red-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Connection Problem
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            {backendError}
+          </p>
+          <button
+            onClick={() => {
+              clearBackendError();
+              fetchUserRole();
+            }}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Try Again
+          </button>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-4">
+            If the problem persists, please check your internet connection or contact support.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading while authentication or role is being determined
   if (loading || (user && requireAuth && (requireRole || allowedRoles.length > 0) && (roleLoading || (role === 'doctor' && verificationLoading)))) {
@@ -104,8 +142,8 @@ export default function RouteGuard({
     return null;
   }
 
-  // Don't render if role is required but user has no role
-  if (user && requireAuth && requireRole && (!role || role === 'no-role')) {
+  // Don't render if role is required but user has no role (and no backend error)
+  if (user && requireAuth && requireRole && (!role || role === 'no-role') && !backendError) {
     return null;
   }
 

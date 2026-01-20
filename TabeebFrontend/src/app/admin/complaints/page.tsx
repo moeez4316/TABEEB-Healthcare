@@ -146,9 +146,10 @@ export default function AdminComplaintsPage() {
       setToastMessage('Complaint updated successfully');
       setToastType('success');
       setShowToast(true);
-    } catch (error: any) {
-      console.error('Error updating complaint:', error);
-      setToastMessage(error.message || 'Failed to update complaint');
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error updating complaint:', err);
+      setToastMessage(err.message || 'Failed to update complaint');
       setToastType('error');
       setShowToast(true);
     } finally {
@@ -192,9 +193,10 @@ export default function AdminComplaintsPage() {
       setToastMessage('Complaint closed successfully');
       setToastType('success');
       setShowToast(true);
-    } catch (error: any) {
-      console.error('Error closing complaint:', error);
-      setToastMessage(error.message || 'Failed to close complaint');
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error closing complaint:', err);
+      setToastMessage(err.message || 'Failed to close complaint');
       setToastType('error');
       setShowToast(true);
     } finally {
@@ -535,7 +537,7 @@ export default function AdminComplaintsPage() {
               {/* Patient Complaint */}
               <div>
                 <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                  Patient's Complaint
+                  Patient&apos;s Complaint
                 </label>
                 <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
                   <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{selectedComplaint.comment}</p>

@@ -13,6 +13,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from './firebase';
+import { fetchWithRateLimit } from './api-utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -28,6 +29,7 @@ interface AuthContextType {
   loading: boolean;
   roleLoading: boolean;
   verificationLoading: boolean;
+  backendError: string | null; // New: track backend connection errors
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -39,6 +41,7 @@ interface AuthContextType {
   setUserRole: (role: string) => void;
   fetchVerificationStatus: () => Promise<void>;
   refreshVerificationStatus: () => Promise<void>;
+  clearBackendError: () => void; // New: clear backend error
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -90,6 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [verificationLoading, setVerificationLoading] = useState<boolean>(false);
   const [authInitialized, setAuthInitialized] = useState<boolean>(false);
   const [roleFetchAttempted, setRoleFetchAttempted] = useState<boolean>(false);
+  const [backendError, setBackendError] = useState<string | null>(null);
+
+  const clearBackendError = useCallback(() => {
+    setBackendError(null);
+  }, []);
 
   // Fetch verification status for doctors
   const fetchVerificationStatus = useCallback(async () => {
@@ -104,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
       
-      const verificationRes = await fetch(`${API_URL}/api/verification`, { headers });
+      const verificationRes = await fetchWithRateLimit(`${API_URL}/api/verification`, { headers });
       
       if (verificationRes.ok) {
         const verificationData = await verificationRes.json();
@@ -173,17 +181,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setRoleFetchAttempted(true);
+    setBackendError(null); // Clear previous errors
     
     try {
       const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
       
-      const userRes = await fetch(`${API_URL}/api/user`, { headers });
+      const userRes = await fetchWithRateLimit(`${API_URL}/api/user`, { headers });
 
       if(userRes.ok) {
         const userData = await userRes.json();
         const userRole: string = userData.role;
         setRole(userRole);
         localStorage.setItem('role', `${userRole}`);
+        setBackendError(null);
         return;
 
       } else if (userRes.status === 403) {
@@ -203,14 +213,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRole('no-role');
         localStorage.removeItem('role');
         return;
+      } else if (userRes.status === 429) {
+        // Rate limited - don't redirect, show error
+        const errorData = await userRes.json().catch(() => ({ error: 'Too many requests' }));
+        setBackendError(errorData.error || 'Too many requests. Please wait a moment.');
+        // Keep existing role from localStorage if available
+        const cachedRole = localStorage.getItem('role');
+        if (cachedRole && cachedRole !== 'no-role') {
+          setRole(cachedRole);
+        }
+        return;
       } else {
         setRole('no-role');
         localStorage.removeItem('role');
-        return
+        return;
       }
-    } catch {
-      setRole('no-role');
-      localStorage.removeItem('role');
+    } catch (error) {
+      // Network error - backend not reachable
+      console.error('Backend connection error:', error);
+      setBackendError('Cannot connect to server. Please check your internet connection or try again later.');
+      // Keep existing role from localStorage if available
+      const cachedRole = localStorage.getItem('role');
+      if (cachedRole && cachedRole !== 'no-role') {
+        setRole(cachedRole);
+      } else {
+        // Don't set to no-role on network error - this prevents unwanted redirects
+        setRole(null);
+      }
     } finally {
       setRoleLoading(false);
     }
@@ -307,7 +336,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const checkAccountStatus = async () => {
       try {
         const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-        const userRes = await fetch(`${API_URL}/api/user`, { headers });
+        const userRes = await fetchWithRateLimit(`${API_URL}/api/user`, { headers });
 
         if (userRes.status === 403) {
           const errorData = await userRes.json();
@@ -407,6 +436,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     roleLoading,
     verificationLoading,
+    backendError,
     signUp,
     signIn,
     signInWithGoogle,
@@ -418,6 +448,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserRole,
     fetchVerificationStatus,
     refreshVerificationStatus,
+    clearBackendError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

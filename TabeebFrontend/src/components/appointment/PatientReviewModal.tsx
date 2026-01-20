@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FaStar, FaTimes, FaCheck, FaFlag, FaExternalLinkAlt } from 'react-icons/fa';
 import { Appointment } from '@/types/appointment';
 import Link from 'next/link';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 interface PatientReviewModalProps {
   isOpen: boolean;
@@ -47,7 +48,7 @@ export default function PatientReviewModal({
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/reviews/create`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/reviews/create`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${firebaseToken}`,
@@ -68,8 +69,9 @@ export default function PatientReviewModal({
 
       onSuccess?.();
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Failed to submit review');
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || 'Failed to submit review');
     } finally {
       setSubmitting(false);
     }
@@ -226,7 +228,7 @@ export default function PatientReviewModal({
                   <span>This is a complaint</span>
                 </div>
                 <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                  Complaints will be reviewed by admin and won't affect the doctor's public rating. A comment is required for complaints.
+                  Complaints will be reviewed by admin and won&apos;t affect the doctor&apos;s public rating. A comment is required for complaints.
                 </p>
               </label>
             </div>

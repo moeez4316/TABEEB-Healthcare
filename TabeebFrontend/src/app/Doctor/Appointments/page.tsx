@@ -10,6 +10,7 @@ import { SharedDocumentsView } from '@/components/appointment/SharedDocumentsVie
 import { useRouter } from 'next/navigation';
 import DoctorVideoCallModal from '@/components/VideoCall/DoctorVideoCallModal';
 import { Toast } from '@/components/Toast';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 export default function DoctorAppointmentsPage() {
   const { token } = useAuth();
@@ -38,7 +39,7 @@ export default function DoctorAppointmentsPage() {
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/appointments/doctor?limit=100`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/doctor?limit=100`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -67,7 +68,7 @@ export default function DoctorAppointmentsPage() {
     
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/appointments/${appointmentId}/status`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/${appointmentId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -10,6 +10,7 @@ import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaC
 import PatientVideoCallModal from '@/components/VideoCall/PatientVideoCallModal';
 import PatientReviewModal from '@/components/appointment/PatientReviewModal';
 import { Toast } from '@/components/Toast';
+import { fetchWithRateLimit } from '@/lib/api-utils';
 
 export default function PatientAppointmentsPage() {
   const { token } = useAuth();
@@ -35,7 +36,7 @@ export default function PatientAppointmentsPage() {
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/appointments/patient`, {
+      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/patient`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
