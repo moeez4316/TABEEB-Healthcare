@@ -27,7 +27,12 @@ TABEEB Backend is a robust Node.js/Express.js API server that powers the TABEEB 
 - **Doctor Verification**: Multi-step verification workflow with admin approval
 - **Medical Records**: Secure storage and retrieval using MongoDB
 - **Prescription Management**: Digital prescription creation and tracking
+- **Reviews & Complaints**: Patient feedback and complaint management system
+- **Doctor Profiles**: Public-facing profiles with stats, reviews, and blogs
+- **Blog System**: Content management for health articles by doctors
+- **Video Consultations**: Video call session management
 - **Analytics**: Real-time platform statistics and insights
+- **Admin Dashboard**: Comprehensive admin panel with user management
 
 ## 🛠 Tech Stack
 
@@ -66,7 +71,11 @@ tabeeb_backend/
 │   │   ├── prescriptionController.ts
 │   │   ├── userController.ts
 │   │   ├── verificationController.ts
-│   │   └── medicalRecordController.ts
+│   │   ├── medicalRecordController.ts
+│   │   ├── publicDoctorController.ts
+│   │   ├── reviewController.ts
+│   │   ├── blogController.ts
+│   │   └── videoCallController.ts
 │   ├── middleware/               # Request processing
 │   │   ├── verifyToken.ts       # JWT authentication
 │   │   ├── adminAuth.ts         # Admin authorization
@@ -80,7 +89,11 @@ tabeeb_backend/
 │   │   ├── prescriptionRoutes.ts
 │   │   ├── userRoutes.ts
 │   │   ├── verificationRoutes.ts
-│   │   └── medicalRecords.ts
+│   │   ├── medicalRecords.ts
+│   │   ├── reviewRoutes.ts
+│   │   ├── blogRoutes.ts
+│   │   ├── videoCallRoutes.ts
+│   │   └── uploadRoutes.ts
 │   ├── services/
 │   │   └── uploadService.ts     # Cloudinary integration
 │   ├── utils/
@@ -271,9 +284,12 @@ PUT    /api/user/profile/:uid      # Update user profile
 
 #### Doctor Management
 ```http
-GET    /api/doctor/:uid            # Get doctor profile
-PUT    /api/doctor/:uid            # Update doctor profile
-GET    /api/doctor/search          # Search doctors by specialty
+GET    /api/doctor/:uid                             # Get doctor profile
+PUT    /api/doctor/profile                          # Update doctor profile
+GET    /api/doctor/search                           # Search doctors by specialty
+GET    /api/doctor/profile/:doctorUid               # Get public doctor profile with stats
+GET    /api/doctor/profile/:doctorUid/availability-summary  # Get 7-day availability
+GET    /api/doctor/stats                            # Get doctor dashboard statistics
 ```
 
 #### Patient Management
@@ -317,6 +333,40 @@ POST   /api/verification/reject                 # Reject doctor (Admin)
 POST   /api/admin/login                         # Admin login
 POST   /api/admin/verify                        # Verify admin credentials
 GET    /api/admin/dashboard/stats               # Get dashboard statistics
+GET    /api/admin/users                         # Get all users (doctors & patients)
+POST   /api/admin/users/suspend                 # Suspend user account
+POST   /api/admin/users/activate                # Activate user account
+GET    /api/admin/doctors                       # Get all doctors with verification
+```
+
+#### Reviews & Complaints
+```http
+POST   /api/reviews/create                      # Create review/complaint (Patient)
+GET    /api/reviews/doctor/:doctorUid           # Get public reviews (non-complaints)
+GET    /api/reviews/doctor/:doctorUid/rating    # Get doctor's public rating
+GET    /api/reviews/my-reviews                  # Get doctor's own reviews (Doctor)
+GET    /api/reviews/admin/complaints            # Get all complaints (Admin)
+PATCH  /api/reviews/admin/:reviewId/action      # Update complaint action (Admin)
+DELETE /api/reviews/:reviewId                   # Delete review (Patient)
+```
+
+#### Blog System
+```http
+POST   /api/blogs/create                        # Create blog (Doctor/Admin)
+GET    /api/blogs                               # Get all published blogs
+GET    /api/blogs/:blogId                       # Get single blog
+PUT    /api/blogs/:blogId                       # Update blog
+DELETE /api/blogs/:blogId                       # Delete blog
+GET    /api/blogs/author/:authorUid             # Get blogs by author
+GET    /api/blogs/search                        # Search blogs by keyword/tags
+```
+
+#### Video Consultations
+```http
+POST   /api/video-calls/create                  # Create video session (Doctor)
+GET    /api/video-calls/appointment/:appointmentId  # Get video session
+PATCH  /api/video-calls/:videoCallId/status     # Update session status
+POST   /api/video-calls/:videoCallId/end        # End video session
 ```
 
 #### Medical Records
@@ -370,6 +420,7 @@ GET    /api/prescription/doctor/:doctorUid      # Get doctor prescriptions
 - **Scalability**: No pre-generated time slots
 - **Efficiency**: Slots generated when needed
 - **Flexibility**: Dynamic break time handling
+- **Weekly Templates**: Auto-generate availability based on templates
 
 ### 2. Multi-Database Architecture
 - **MySQL**: Structured data (users, appointments, verifications)
@@ -383,12 +434,42 @@ GET    /api/prescription/doctor/:doctorUid      # Get doctor prescriptions
 ### 4. File Management
 - **Cloudinary Integration**: Secure cloud storage
 - **Medical Documents**: Verification documents, medical records
+- **Blog Images**: Cover images for blog posts
 - **Optimized Delivery**: CDN-based file serving
 
 ### 5. Real-time Analytics
 - **Dashboard Statistics**: Live platform metrics
 - **Verification Tracking**: Approval/rejection rates
 - **User Growth**: Doctor and patient analytics
+- **Rating Analytics**: Review statistics and distributions
+
+### 6. Doctor Profile System
+- **Public Profiles**: Comprehensive doctor profiles with verification badges
+- **Statistics Aggregation**: Unique patients, appointments, rating distribution
+- **Review Integration**: Display non-complaint reviews on profile
+- **Blog Integration**: Show doctor's published articles
+- **Availability Preview**: 7-day availability summary
+
+### 7. Reviews & Complaints Management
+- **Patient Reviews**: Rating and feedback system
+- **Complaint Handling**: Separate complaint workflow
+- **Admin Management**: Review complaints with notes and actions
+- **Rating Calculation**: Automatic average rating updates
+- **Rating Distribution**: 1-5 stars breakdown
+
+### 8. Blog System
+- **Content Management**: Full CRUD for blog posts
+- **Draft/Published**: Workflow for content approval
+- **Tag System**: Categorization and search by tags
+- **Author Attribution**: Link blogs to doctor profiles
+- **Search Functionality**: Keyword and tag-based search
+
+### 9. Video Consultation System
+- **Session Management**: Create and track video calls
+- **Room Generation**: Unique room names per session
+- **Status Tracking**: SCHEDULED → IN_PROGRESS → COMPLETED
+- **Duration Tracking**: Automatic session duration calculation
+- **Appointment Integration**: Link video calls to appointments
 
 ## 🏗 Architecture
 
