@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -18,9 +18,10 @@ import {
 } from '@/components/doctor-profile';
 import { FaSpinner, FaExclamationCircle } from 'react-icons/fa';
 
-export default function DoctorProfilePage({ params }: { params: { doctorUid: string } }) {
+export default function DoctorProfilePage({ params }: { params: Promise<{ doctorUid: string }> }) {
   const router = useRouter();
   const { user } = useAuth();
+  const { doctorUid } = use(params);
   const [profile, setProfile] = useState<PublicDoctorProfile | null>(null);
   const [availability, setAvailability] = useState<DoctorAvailabilitySummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,8 +35,8 @@ export default function DoctorProfilePage({ params }: { params: { doctorUid: str
 
         // Fetch profile and availability in parallel
         const [profileData, availabilityData] = await Promise.all([
-          fetchPublicDoctorProfile(params.doctorUid),
-          fetchDoctorAvailabilitySummary(params.doctorUid).catch(() => null) // Availability is optional
+          fetchPublicDoctorProfile(doctorUid),
+          fetchDoctorAvailabilitySummary(doctorUid).catch(() => null) // Availability is optional
         ]);
 
         setProfile(profileData);
@@ -48,26 +49,26 @@ export default function DoctorProfilePage({ params }: { params: { doctorUid: str
       }
     };
 
-    if (params.doctorUid) {
+    if (doctorUid) {
       loadDoctorProfile();
     }
-  }, [params.doctorUid]);
+  }, [doctorUid]);
 
   const handleBookAppointment = () => {
     if (!user) {
-      // Redirect to login if not authenticated
-      router.push(`/auth/login?redirect=/Patient/book-appointment?doctor=${params.doctorUid}`);
+      // Redirect to auth page if not authenticated
+      router.push('/auth');
     } else {
       // Navigate to booking page
-      router.push(`/Patient/book-appointment?doctor=${params.doctorUid}`);
+      router.push(`/Patient/book-appointment?doctor=${doctorUid}`);
     }
   };
 
   const handleViewFullCalendar = () => {
     if (!user) {
-      router.push(`/auth/login?redirect=/Patient/book-appointment?doctor=${params.doctorUid}`);
+      router.push('/auth');
     } else {
-      router.push(`/Patient/book-appointment?doctor=${params.doctorUid}`);
+      router.push(`/Patient/book-appointment?doctor=${doctorUid}`);
     }
   };
 

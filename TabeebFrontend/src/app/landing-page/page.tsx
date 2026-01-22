@@ -69,12 +69,12 @@ const LandingPage = () => {
   const [showContactModal, setShowContactModal] = useState(false);
   const [featuredDoctors, setFeaturedDoctors] = useState<FeaturedDoctor[]>([]);
 
-  // Fetch featured doctors
+  // Fetch featured doctors (sorted by experience)
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
-        const response = await fetch(`${API_URL}/api/doctor/verified?limit=4`);
+        const response = await fetch(`${API_URL}/api/doctor/verified?sortBy=experience&order=desc`);
         if (response.ok) {
           const data = await response.json();
           setFeaturedDoctors(data.doctors.slice(0, 4));

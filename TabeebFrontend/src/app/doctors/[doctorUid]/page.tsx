@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   fetchPublicDoctorProfile,
@@ -17,8 +17,9 @@ import {
 } from '@/components/doctor-profile';
 import { FaSpinner, FaExclamationCircle, FaUserPlus } from 'react-icons/fa';
 
-export default function PublicDoctorProfilePage({ params }: { params: { doctorUid: string } }) {
+export default function PublicDoctorProfilePage({ params }: { params: Promise<{ doctorUid: string }> }) {
   const router = useRouter();
+  const { doctorUid } = use(params);
   const [profile, setProfile] = useState<PublicDoctorProfile | null>(null);
   const [availability, setAvailability] = useState<DoctorAvailabilitySummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,8 +33,8 @@ export default function PublicDoctorProfilePage({ params }: { params: { doctorUi
 
         // Fetch profile and availability in parallel
         const [profileData, availabilityData] = await Promise.all([
-          fetchPublicDoctorProfile(params.doctorUid),
-          fetchDoctorAvailabilitySummary(params.doctorUid).catch(() => null) // Availability is optional
+          fetchPublicDoctorProfile(doctorUid),
+          fetchDoctorAvailabilitySummary(doctorUid).catch(() => null) // Availability is optional
         ]);
 
         setProfile(profileData);
@@ -46,14 +47,14 @@ export default function PublicDoctorProfilePage({ params }: { params: { doctorUi
       }
     };
 
-    if (params.doctorUid) {
+    if (doctorUid) {
       loadDoctorProfile();
     }
-  }, [params.doctorUid]);
+  }, [doctorUid]);
 
   const handleSignUpToBook = () => {
-    // Redirect to signup with return URL
-    router.push(`/auth/signup?redirect=/Patient/doctors/${params.doctorUid}`);
+    // Redirect to auth page
+    router.push('/auth');
   };
 
   // Loading State
@@ -104,7 +105,7 @@ export default function PublicDoctorProfilePage({ params }: { params: { doctorUi
           </button>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push('/auth/login')}
+              onClick={() => router.push('/auth')}
               className="text-gray-700 dark:text-gray-300 hover:text-teal-600 dark:hover:text-teal-400 font-semibold transition-colors"
             >
               Login
@@ -196,7 +197,7 @@ export default function PublicDoctorProfilePage({ params }: { params: { doctorUi
               Create Free Account
             </button>
             <button
-              onClick={() => router.push('/auth/login')}
+              onClick={() => router.push('/auth')}
               className="bg-transparent border-2 border-white text-white hover:bg-white/10 font-bold py-4 px-10 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
             >
               Already have an account? Login
