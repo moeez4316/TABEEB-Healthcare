@@ -296,14 +296,23 @@ export default function DoctorsPage() {
                   </div>
                 </div>
 
-                {/* Action Button */}
-                <button
-                  onClick={() => handleBookAppointment(doctor.uid)}
-                  className="w-full mt-4 bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-500 dark:to-teal-600 text-white py-2 px-4 rounded-lg hover:from-teal-700 hover:to-teal-800 dark:hover:from-teal-600 dark:hover:to-teal-700 transition-all duration-200 flex items-center justify-center gap-2 font-medium shadow-lg hover:shadow-xl"
-                >
-                  <FaCalendarAlt />
-                  Book Appointment
-                </button>
+                {/* Action Buttons */}
+                <div className="mt-4 space-y-2">
+                  <button
+                    onClick={() => router.push(`/Patient/doctors/${doctor.uid}`)}
+                    className="w-full bg-white dark:bg-gray-700 text-teal-700 dark:text-teal-400 border-2 border-teal-600 dark:border-teal-500 py-2 px-4 rounded-lg hover:bg-teal-50 dark:hover:bg-gray-600 transition-all duration-200 flex items-center justify-center gap-2 font-medium"
+                  >
+                    <FaUserMd />
+                    View Profile
+                  </button>
+                  <button
+                    onClick={() => handleBookAppointment(doctor.uid)}
+                    className="w-full bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-500 dark:to-teal-600 text-white py-2 px-4 rounded-lg hover:from-teal-700 hover:to-teal-800 dark:hover:from-teal-600 dark:hover:to-teal-700 transition-all duration-200 flex items-center justify-center gap-2 font-medium shadow-lg hover:shadow-xl"
+                  >
+                    <FaCalendarAlt />
+                    Book Appointment
+                  </button>
+                </div>
               </div>
             </div>
           ))}

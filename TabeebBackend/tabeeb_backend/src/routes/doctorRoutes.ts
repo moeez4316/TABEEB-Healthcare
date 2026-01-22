@@ -10,6 +10,10 @@ import {
   uploadDoctorProfileImage,
   deleteDoctorProfileImage,
 } from '../controllers/doctorController';
+import {
+  getPublicDoctorProfile,
+  getDoctorAvailabilitySummary
+} from '../controllers/publicDoctorController';
 import { verifyToken } from '../middleware/verifyToken';
 
 const router = express.Router();
@@ -39,7 +43,9 @@ router.post('/restore', verifyToken, restoreDoctor);
 router.post('/profile-image', verifyToken, upload.single('profileImage'), uploadDoctorProfileImage);
 router.delete('/profile-image', verifyToken, deleteDoctorProfileImage);
 
-// Public route to get verified doctors for patients
-router.get('/verified', getVerifiedDoctors);
+// Public routes (no authentication required)
+router.get('/verified', getVerifiedDoctors); // Get all verified doctors
+router.get('/profile/:doctorUid', getPublicDoctorProfile); // Get single doctor public profile
+router.get('/profile/:doctorUid/availability-summary', getDoctorAvailabilitySummary); // Get availability summary
 
 export default router;
