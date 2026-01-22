@@ -21,7 +21,8 @@ import {
   TrendingUp,
   UserCheck,
   XCircle,
-  ChevronRight
+  ChevronRight,
+  Stethoscope
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -276,6 +277,19 @@ export default function AdminDashboard() {
                   </div>
                   <h4 className="font-semibold text-gray-900 dark:text-white mb-1">Review Verifications</h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Manage doctor verification requests</p>
+                </div>
+              </Link>
+
+              <Link href="/admin/doctors">
+                <div className="bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-900/10 dark:to-slate-800 rounded-lg shadow-md p-5 border border-cyan-200 dark:border-cyan-800 hover:border-cyan-400 dark:hover:border-cyan-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2.5 bg-cyan-100 dark:bg-cyan-900/20 rounded-lg">
+                      <Stethoscope className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-cyan-400 dark:text-cyan-500 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-1">View Doctors</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Browse all doctor profiles</p>
                 </div>
               </Link>
 

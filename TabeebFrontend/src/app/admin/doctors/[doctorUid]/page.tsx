@@ -59,19 +59,21 @@ export default function AdminDoctorProfilePage({ params }: { params: Promise<{ d
         setProfile(profileData);
         setAvailability(availabilityData);
 
-        // Fetch all reviews including complaints
+        // Fetch all complaints for admin using correct endpoint
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
-        const reviewsResponse = await fetch(`${API_URL}/api/reviews/doctor/${doctorUid}?limit=100`, {
+        
+        const complaintsResponse = await fetch(`${API_URL}/api/reviews/admin/complaints?limit=100`, {
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${adminToken}`,
           },
         });
 
-        if (reviewsResponse.ok) {
-          const reviewsData = await reviewsResponse.json();
-          // Filter only complaints
-          const complaintReviews = reviewsData.reviews
-            .filter((review: any) => review.isComplaint)
+        if (complaintsResponse.ok) {
+          const complaintsData = await complaintsResponse.json();
+          // Filter complaints for this specific doctor
+          const doctorComplaints = complaintsData.reviews
+            .filter((review: any) => review.appointment.doctor.uid === doctorUid)
             .map((review: any) => ({
               id: review.id,
               rating: review.rating,
@@ -81,7 +83,9 @@ export default function AdminDoctorProfilePage({ params }: { params: Promise<{ d
               adminNotes: review.adminNotes,
               adminActionTaken: review.adminActionTaken
             }));
-          setComplaints(complaintReviews);
+          setComplaints(doctorComplaints);
+        } else {
+          console.error('Failed to fetch complaints:', complaintsResponse.status, await complaintsResponse.text());
         }
       } catch (err: any) {
         console.error('Error loading doctor data:', err);
