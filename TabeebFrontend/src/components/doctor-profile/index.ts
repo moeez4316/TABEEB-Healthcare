@@ -5,3 +5,4 @@ export { AboutSection } from './AboutSection';
 export { ReviewsSection } from './ReviewsSection';
 export { BlogsSection } from './BlogsSection';
 export { AvailabilityPreview } from './AvailabilityPreview';
+export { ComplaintsSection } from './ComplaintsSection';
