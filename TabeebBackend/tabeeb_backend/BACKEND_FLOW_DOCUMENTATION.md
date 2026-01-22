@@ -39,7 +39,12 @@ src/
 │   ├── adminController.ts         # Admin operations
 │   ├── userController.ts          # User authentication
 │   ├── medicalRecordController.ts # Medical records (MongoDB)
-│   └── verificationController.ts  # Doctor verification
+│   ├── verificationController.ts  # Doctor verification
+│   ├── publicDoctorController.ts  # Public doctor profile data
+│   ├── reviewController.ts        # Review and complaint management
+│   ├── blogController.ts          # Blog system management
+│   ├── prescriptionController.ts  # Prescription management
+│   └── videoCallController.ts     # Video consultation management
 ├── middleware/            # Request processing middleware
 │   ├── verifyToken.ts             # JWT authentication
 │   ├── appointmentValidation.ts   # Appointment data validation
@@ -52,7 +57,12 @@ src/
 │   ├── adminRoutes.ts             # /api/admin/*
 │   ├── userRoutes.ts              # /api/user/*
 │   ├── medicalRecords.ts          # /api/records/*
-│   └── verificationRoutes.ts      # /api/verification/*
+│   ├── verificationRoutes.ts      # /api/verification/*
+│   ├── reviewRoutes.ts            # /api/reviews/*
+│   ├── blogRoutes.ts              # /api/blogs/*
+│   ├── prescriptionRoutes.ts      # /api/prescriptions/*
+│   ├── videoCallRoutes.ts         # /api/video-calls/*
+│   └── uploadRoutes.ts            # /api/upload/*
 ├── lib/
 │   └── prisma.ts          # Prisma client instance
 ├── models/
@@ -76,9 +86,13 @@ Doctor (uid, name, email, specialization, fees, ...)
 Patient (uid, name, email, dob, gender, ...)
 Verification (doctorUid, isVerified, status, documents, ...)
 
--- Admin System
-Admin (id, email, password)
-
+WeeklyAvailabilityTemplate (id, doctorUid, dayOfWeek, isActive, startTime, endTime, ...)
+Appointment (id, doctorUid, patientUid, appointmentDate, startTime, endTime, ...)
+BreakTime (id, availabilityId, startTime, endTime)
+Prescription (id, appointmentId, doctorUid, patientUid, medications, ...)
+Review (id, appointmentId, rating, comment, isComplaint, adminNotes, adminActionTaken, ...)
+VideoCall (id, appointmentId, roomName, status, startedAt, endedAt, ...)
+Blog (id, doctorUid, title, content, tags, imageUrl, statu
 -- Optimized Appointment System (No TimeSlot table!)
 DoctorAvailability (id, doctorUid, date, startTime, endTime, slotDuration, ...)
 Appointment (id, doctorUid, patientUid, appointmentDate, startTime, endTime, ...)
@@ -321,15 +335,165 @@ graph TD
    - Key metrics (approval rate, rejection rate)
    - Quick actions (navigate to verification page)
 
-## 🛣️ API Route Structure
+### 9. 🏥 Public Doctor Profile System Flow
 
-### Core Routes
+```mermaid
+graph TD
+    A[Request Doctor Profile] --> B[Fetch Doctor Data]
+    B --> C[Get Verification Status]
+    C --> D[Aggregate Appointment Stats]
+    D --> E[Calculate Rating Distribution]
+    E --> F[Fetch Public Reviews]
+    F --> G[Get Recent Blogs]
+    G --> H[Return Complete Profile]
 ```
-/api/user/*           - User authentication and profile
-/api/doctor/*         - Doctor profile management
+
+**Code Path:** `src/controllers/publicDoctorController.ts::getPublicDoctorProfile`
+1. **Doctor Data**: Fetch doctor profile with verification status (via relation)
+2. **Statistics Aggregation**:
+   - Total unique patients (count distinct patientUid)
+   - Total completed appointments
+   - Average rating from non-complaint reviews
+   - Total reviews count
+   - Rating distribution (1-5 stars breakdown)
+3. **Public Reviews**: Fetch non-complaint reviews with pagination (default: 5 most recent)
+4. **Recent Blogs**: Fetch published blogs by doctor (default: 3 most recent)
+5. **Response Structure**:
+```json
+{
+  "doctor": {
+    "uid": string,
+    "firstName": string,
+    "lastName": string,
+    "name": string,
+    "email": string,
+    "phone": string,
+    "specialization": string,
+    "qualification": string,
+    "experience": string,
+    "profileImageUrl": string,
+    "addressCity": string,
+    "addressProvince": string,
+    "isVerified": boolean
+  },
+  "stats": {
+    "totalPatients": number,
+    "totalAppointments": number,
+    "averageRating": number,
+    "totalReviews": number,
+    "ratingDistribution": {
+      "5": number, "4": number, "3": number, "2": number, "1": number
+    }
+  },
+  "recentReviews": [...],
+  "recentBlogs": [...]
+}
+```
+
+#### Availability Summary
+**Endpoint:** `GET /api/doctor/profile/:doctorUid/availability-summary`
+- Returns next 7 days of doctor availability
+- Shows total available slots per day
+- Used for quick availability preview on profile page
+
+### 10. 📝 Reviews & Complaints System Flow
+
+```mermaid
+graph TD
+    A[Patient Submits Review] --> B{Is Complaint?}
+    B -->|No| C[Regular Review]
+    B -->|Yes| D[Complaint Review]
+    C --> E[Update Doctor Rating]
+    D --> F[Admin Notification]
+    F --> G[Admin Reviews Complaint]
+    G --> H[Admin Adds Notes/Action]
+    H --> I[Store Admin Response]
+```
+
+**Code Path:** `src/services/reviewService.ts` + `src/controllers/reviewController.ts`
+
+#### Review Creation Flow:
+1. **Validation**: Verify appointment exists and is completed
+2. **Authorization**: Ensure patient is owner of appointment
+3. **Duplication Check**: One review per appointment
+4. **Create Review**: Save with `isComplaint` flag
+5. **Rating Update**: If not complaint, update doctor's average rating
+6. **Response**: Return created review
+
+#### Complaint Management:
+- **Admin Access**: GET `/api/reviews/admin/complaints` (requires admin auth)
+- **Filtering**: Returns all complaints with doctor and patient info
+- **Admin Action**: PATCH `/api/reviews/admin/:reviewId/action`
+  - Add `adminNotes` (internal notes about complaint)
+  - Add `adminActionTaken` (action taken to resolve)
+- **Display**: Both resolved and unresolved complaints shown to admin
+
+### 11. 📰 Blog System Flow
+
+```mermaid
+graph TD
+    A[Create Blog] --> B[Validate Content]
+    B --> C[Upload Cover Image]
+    C --> D[Save to Database]
+    D --> E[Set Status: DRAFT/PUBLISHED]
+    E --> F{Status?}
+    F -->|DRAFT| G[Only Author Can View]
+    F -->|PUBLISHED| H[Public Access]
+```
+
+**Code Path:** `src/controllers/blogController.ts`
+
+#### Blog Creation:
+1. **Authentication**: Verify doctor/admin token
+2. **Validation**: Validate title, content, tags
+3. **Image Upload**: Optional cover image to Cloudinary
+4. **Database Save**: Create blog with author UID
+5. **Status**: Set DRAFT or PUBLISHED
+
+#### Blog Management:
+- **Public Access**: GET `/api/blogs` returns only published blogs
+- **Search**: GET `/api/blogs/search?q=keyword&tags=tag1,tag2`
+- **Author Filter**: GET `/api/blogs/author/:authorUid`
+- **Admin Control**: Update/delete any blog
+- **Author Control**: Doctor can manage own blogs
+
+### 12. 🎥 Video Call System Flow
+
+```mermaid
+graph TD
+    A[Start Video Call] --> B[Create Video Session]
+    B --> C[Generate Room Name]
+    C --> D[Update Appointment Status]
+    D --> E[Return Room Details]
+    E --> F[Both Parties Join]
+    F --> G[Session IN_PROGRESS]
+    G --> H[End Call]
+    H --> I[Update Duration]
+    I --> J[Session COMPLETED]
+```
+
+**Code Path:** `src/controllers/videoCallController.ts`
+
+#### Video Session Lifecycle:
+1. **Creation**: Doctor initiates video call for appointment
+2. **Room Generation**: Unique room name created
+3. **Status**: SCHEDULED → IN_PROGRESS → COMPLETED
+4. **Integration**: Links to appointment, updates appointment status
+5. **Duration Tracking**: Calculate total call duration on completion
+
+## 🛣️ API Route Structure
+ (public + authenticated)
 /api/patient/*        - Patient profile management
 /api/admin/*          - Admin operations and analytics
 /api/verification/*   - Doctor verification process
+/api/records/*        - Medical records (MongoDB)
+/api/appointments/*   - Appointment management (MySQL)
+/api/availability/*   - Doctor availability (MySQL)
+/api/prescriptions/*  - Prescription management
+/api/reviews/*        - Reviews and complaints system
+/api/blogs/*          - Blog content management
+/api/video-calls/*    - Video consultation sessions
+/api/upload/*         - File upload to Cloudinarycess
 /api/records/*        - Medical records (MongoDB)
 /api/appointments/*   - Appointment management (MySQL)
 /api/availability/*   - Doctor availability (MySQL)
@@ -352,7 +516,53 @@ PATCH  /api/appointments/:id/cancel             # Cancel appointment
 GET    /api/appointments/:id                    # Get appointment details
 GET    /api/appointments/stats/overview         # Dashboard statistics
 
+```
+
+### Doctor Profile Routes (Public & Authenticated)
+```
+GET    /api/doctor/profile/:doctorUid           # Public doctor profile with stats
+GET    /api/doctor/profile/:doctorUid/availability-summary  # 7-day availability preview
+GET    /api/doctor/stats                        # Doctor dashboard statistics
+PUT    /api/doctor/profile                      # Update doctor profile
+```
+
+GET    /api/admin/users                         # Get all users (doctors & patients)
+POST   /api/admin/users/suspend                 # Suspend user account
+POST   /api/admin/users/activate                # Activate user account
+GET    /api/admin/doctors                       # Get all doctors with verification status
+### Review & Complaint Routes
+```
+POST   /api/reviews/create                      # Create review/complaint (patient)
+GET    /api/reviews/doctor/:doctorUid           # Get public reviews (non-complaints)
+GET    /api/reviews/doctor/:doctorUid/rating    # Get doctor's public rating
+GET    /api/reviews/my-reviews                  # Doctor's own reviews
+GET    /api/reviews/admin/complaints            # Get all complaints (admin only)
+PATCH  /api/reviews/admin/:reviewId/action      # Update complaint admin action
+DELETE /api/reviews/:reviewId                   # Delete review (patient only)
+```
+
+### Blog System Routes
+```
+POST   /api/blogs/create                        # Create blog (doctor/admin)
+GET    /api/blogs                               # Get all published blogs
+GET    /api/blogs/:blogId                       # Get single blog
+PUT    /api/blogs/:blogId                       # Update blog
+DELETE /api/blogs/:blogId                       # Delete blog
+GET    /api/blogs/author/:authorUid             # Get blogs by author
+GET    /api/blogs/search                        # Search blogs by query/tags
+```
+
+### Video Call Routes
+```
+POST   /api/video-calls/create                  # Create video session
+GET    /api/video-calls/appointment/:appointmentId  # Get video session
+PATCH  /api/video-calls/:videoCallId/status     # Update session status
+POST   /api/video-calls/:videoCallId/end        # End video session
 POST   /api/prescription/create                 # Doctor creates prescription
+  - View all doctor profiles with verification status
+  - Access all complaints (resolved and unresolved)
+  - Manage user accounts (suspend/activate)
+  - View and manage all blogs
 GET    /api/prescription/appointment/:id        # Get prescription by appointment
 GET    /api/prescription/patient/:patientUid    # Get patient's prescriptions
 GET    /api/prescription/doctor/:doctorUid      # Get doctor's prescriptions
@@ -513,6 +723,51 @@ PORT=5002
 
 ## 🔧 Recent Updates & Optimizations
 
+### Doctor Profile System (January 2026)
+- ✅ **Public Doctor Profiles**: Comprehensive public-facing doctor profile API
+  - Aggregates doctor info, verification status, appointment stats
+  - Calculates rating distribution (1-5 stars breakdown)
+  - Fetches non-complaint reviews and recent blogs
+  - Returns unique patient counts and completed appointments
+- ✅ **Availability Summary API**: 7-day availability preview endpoint
+  - Shows available slots per day for next week
+  - Used for quick availability view on profile pages
+- ✅ **Admin Doctor Management**: Complete doctor list with verification status
+  - New endpoint: GET `/api/admin/doctors`
+  - Returns all doctors with profile data and verification status
+  - Includes filtering by specialization and verification status
+  - Integrated with admin dashboard sidebar navigation
+
+### Reviews & Complaints System (January 2026)
+- ✅ **Complaint Management**: Full admin complaint workflow
+  - Separate endpoints for public reviews vs admin complaints
+  - Admin can view all complaints (resolved and unresolved)
+  - `adminNotes` and `adminActionTaken` fields for complaint resolution
+  - Rating distribution calculated from non-complaint reviews only
+- ✅ **Admin Complaint Dashboard**: Dedicated complaint viewing
+  - Filter complaints by doctor
+  - Expandable admin notes and actions
+  - Visual distinction between complaint and regular reviews
+
+### Blog System (January 2026)
+- ✅ **Content Management**: Full blog CRUD operations
+  - Doctors and admins can create/edit blogs
+  - Draft and published status workflow
+  - Tag-based categorization and search
+  - Cover image upload to Cloudinary
+- ✅ **Public Blog Access**: Browse and search published content
+  - Search by keywords and tags
+  - Filter by author
+  - Pagination support
+
+### Video Call Integration (January 2026)
+- ✅ **Video Consultation System**: Complete video session management
+  - Create video sessions for appointments
+  - Unique room name generation
+  - Session status tracking (SCHEDULED → IN_PROGRESS → COMPLETED)
+  - Duration calculation and recording
+  - Integration with appointment status updates
+
 ### Analytics System (October 2025)
 - ✅ Fixed data structure mismatch between API and frontend
 - ✅ Updated TypeScript interfaces to match API response
@@ -525,11 +780,13 @@ PORT=5002
 - ✅ Fixed TypeScript errors with NavigationItem interface
 - ✅ Added proper icon type definitions
 - ✅ Activated Analytics navigation option
+- ✅ Added Doctors navigation with Stethoscope icon
+- ✅ Integrated doctor profile links in admin panel
 
 ### Build Optimizations
 - ✅ Fixed all ESLint errors (escaped quotes/apostrophes)
 - ✅ Removed unused imports
 - ✅ Fixed React Hook dependencies
-- ✅ Production build successful (30 pages generated)
+- ✅ Production build successful (30+ pages generated)
 
 This comprehensive backend flow documentation should give you a complete understanding of how the TABEEB appointment system works! 🏥✨
