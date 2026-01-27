@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
+import { AppointmentWithDetails } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate, formatAge } from '@/lib/dateUtils';
 import { FaCalendarCheck, FaUser, FaClock, FaCheckCircle, FaTimesCircle, FaChevronDown, FaChevronUp, FaPrescriptionBottleAlt, FaVideo, FaPills, FaComments } from 'react-icons/fa';
@@ -32,7 +33,7 @@ export default function DoctorAppointmentsPage() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const [showChat, setShowChat] = useState(false);
-  const [chatAppointment, setChatAppointment] = useState<Appointment | null>(null);
+  const [chatAppointment, setChatAppointment] = useState<AppointmentWithDetails | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return;
@@ -144,6 +145,25 @@ export default function DoctorAppointmentsPage() {
     );
   };
 
+  const isChatActive = (appointment: AppointmentWithDetails) => {
+    if (appointment.status === 'CONFIRMED' || appointment.status === 'IN_PROGRESS') return true;
+    if (appointment.status === 'COMPLETED') {
+      const completedDate = new Date(appointment.completedAt || appointment.updatedAt || appointment.appointmentDate);
+      let expiryDate = new Date(completedDate);
+      expiryDate.setDate(expiryDate.getDate() + 3); // Default 3 days
+
+      // Check for prescriptions
+      if (appointment.prescriptions && appointment.prescriptions.length > 0 && appointment.prescriptions[0].prescriptionEndDate) {
+         const prescriptionEnd = new Date(appointment.prescriptions[0].prescriptionEndDate);
+         expiryDate = new Date(prescriptionEnd);
+         expiryDate.setDate(expiryDate.getDate() + 3);
+      }
+      
+      return new Date() <= expiryDate;
+    }
+    return false;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'confirmed': return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800';
@@ -176,17 +196,17 @@ export default function DoctorAppointmentsPage() {
       }
     });
 
-    // Sort filtered appointments by date and time
+    // Sort filtered appointments newest-first (date desc, time desc)
     return filtered.sort((a, b) => {
       const dateA = new Date(a.appointmentDate);
       const dateB = new Date(b.appointmentDate);
-      
+
       if (dateA.getTime() !== dateB.getTime()) {
-        return dateA.getTime() - dateB.getTime();
+        return dateB.getTime() - dateA.getTime();
       }
-      
-      // If dates are the same, sort by start time
-      return a.startTime.localeCompare(b.startTime);
+
+      // If dates are the same, sort by start time (later time first)
+      return b.startTime.localeCompare(a.startTime);
     });
   };
 
@@ -548,8 +568,6 @@ export default function DoctorAppointmentsPage() {
                       // Can cancel only if appointment is at least 2 hours away (only for CONFIRMED)
                       const canCancel = appointment.status === 'CONFIRMED' && hoursUntilAppointment >= 2;
                       
-                      if (!showPrescriptionButton && !canStartVideoCall && !canCancel) return null;
-                      
                       return (
                         <div className="flex flex-col space-y-2 w-full">
                           {showPrescriptionButton && (
@@ -572,16 +590,21 @@ export default function DoctorAppointmentsPage() {
                           )}
                           
                           {/* Chat Button */}
-                          {(appointment.status === 'CONFIRMED' || appointment.status === 'IN_PROGRESS') && (
+                          {(appointment.status === 'CONFIRMED' || appointment.status === 'COMPLETED') && (
                             <button
                               onClick={() => {
                                 setChatAppointment(appointment);
                                 setShowChat(true);
                               }}
-                              className="flex items-center justify-center space-x-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 px-4 py-2 rounded-lg border border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors w-full"
+                              title={isChatActive(appointment) ? 'Open chat with patient' : 'Read-only — view chat history'}
+                              className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-lg border transition-colors w-full ${
+                                isChatActive(appointment)
+                                  ? "text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                  : "text-gray-600 dark:text-gray-400 border-gray-600 dark:border-gray-400 bg-gray-50 dark:bg-transparent opacity-80 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                              }`}
                             >
                               <FaComments className="w-4 h-4" />
-                              <span>Chat with Patient</span>
+                              <span>{isChatActive(appointment) ? 'Chat with Patient' : 'View Chat History'}</span>
                             </button>
                           )}
                           
@@ -746,6 +769,7 @@ export default function DoctorAppointmentsPage() {
                 ? `${chatAppointment.patient.firstName} ${chatAppointment.patient.lastName}`
                 : chatAppointment.patient?.name || 'Patient'}
               currentUserRole="doctor"
+              readOnly={!isChatActive(chatAppointment)}
               onClose={() => {
                 setShowChat(false);
                 setChatAppointment(null);

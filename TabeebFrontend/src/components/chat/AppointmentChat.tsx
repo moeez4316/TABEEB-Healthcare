@@ -10,8 +10,10 @@ import {
   markMessagesAsRead,
   initializeChatRoom
 } from '@/lib/chat-service';
-import { FaPaperPlane, FaMicrophone, FaStop, FaPaperclip, FaTimes, FaPlay, FaPause, FaFileAlt, FaImage } from 'react-icons/fa';
+import { FaPaperPlane, FaMicrophone, FaPaperclip, FaTimes, FaPlay, FaPause, FaFileAlt, FaTrash } from 'react-icons/fa';
+import Image from 'next/image';
 import { uploadFile } from '@/lib/cloudinary-upload';
+import { LinearProgress, useUploadProgress } from '@/components/shared/UploadProgress';
 
 interface AppointmentChatProps {
   appointmentId: string;
@@ -21,6 +23,7 @@ interface AppointmentChatProps {
   patientName: string;
   currentUserRole: 'patient' | 'doctor';
   onClose?: () => void;
+  readOnly?: boolean;
 }
 
 export default function AppointmentChat({
@@ -30,7 +33,8 @@ export default function AppointmentChat({
   doctorName,
   patientName,
   currentUserRole,
-  onClose
+  onClose,
+  readOnly = false
 }: AppointmentChatProps) {
   const { user, token } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -39,7 +43,9 @@ export default function AppointmentChat({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const sendOnStopRef = useRef<boolean>(false);
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
+  const uploadProgress = useUploadProgress();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,7 +119,7 @@ export default function AppointmentChat({
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const duration = recordingTimeRef.current;
         stream.getTracks().forEach(track => track.stop());
-        
+
         // Check file size (2MB limit for voice - allows ~2-3 min)
         const maxSize = 2 * 1024 * 1024; // 2MB
         if (audioBlob.size > maxSize) {
@@ -122,8 +128,14 @@ export default function AppointmentChat({
           recordingTimeRef.current = 0;
           return;
         }
-        
-        await uploadVoiceMessage(audioBlob, duration);
+
+          // If user requested send on stop, upload immediately; otherwise discard silently
+          if (sendOnStopRef.current) {
+            sendOnStopRef.current = false;
+            await uploadVoiceMessage(audioBlob, duration);
+          }
+          setRecordingTime(0);
+          recordingTimeRef.current = 0;
       };
 
       mediaRecorder.start();
@@ -156,9 +168,15 @@ export default function AppointmentChat({
   const uploadVoiceMessage = async (audioBlob: Blob, duration: number) => {
     if (!token) return;
     setUploading(true);
+    uploadProgress.startUpload();
     try {
-      // Use the existing uploadFile utility
-      const result = await uploadFile(audioBlob, 'chat-media', token);
+      const result = await uploadFile(audioBlob, 'chat-media', token, {
+        onProgress: (p) => {
+          uploadProgress.updateProgress(p.percentage);
+        }
+      });
+
+      uploadProgress.startProcessing();
 
       // Send media message
       await sendMediaMessage(
@@ -171,8 +189,12 @@ export default function AppointmentChat({
         undefined,
         duration
       );
+
+      uploadProgress.complete();
+      // done
     } catch (error) {
       console.error('Failed to upload voice message:', error);
+      uploadProgress.fail(String(error));
     } finally {
       setUploading(false);
       setRecordingTime(0);
@@ -207,11 +229,14 @@ export default function AppointmentChat({
     }
 
     setUploading(true);
+    uploadProgress.startUpload();
     try {
-      // Use the existing uploadFile utility
-      const result = await uploadFile(file, 'chat-media', token);
+      const result = await uploadFile(file, 'chat-media', token, {
+        onProgress: (p) => uploadProgress.updateProgress(p.percentage)
+      });
 
-      // Send media message
+      uploadProgress.startProcessing();
+
       await sendMediaMessage(
         appointmentId,
         currentUserId,
@@ -221,8 +246,11 @@ export default function AppointmentChat({
         result.secureUrl,
         file.name
       );
+
+      uploadProgress.complete();
     } catch (error) {
       console.error('Failed to upload file:', error);
+      uploadProgress.fail(String(error));
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -247,6 +275,8 @@ export default function AppointmentChat({
     }
   };
 
+  
+
   // Format time
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -254,9 +284,17 @@ export default function AppointmentChat({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatMessageTime = (timestamp: any) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const isTimestampWithToDate = (t: unknown): t is { toDate: () => Date } =>
+    typeof t === 'object' && t !== null && 'toDate' in (t as object) && typeof (t as { toDate?: unknown }).toDate === 'function';
+
+  const formatMessageTime = (timestamp?: Date | string | number | { toDate?: () => Date } | null) => {
+    if (timestamp == null) return '';
+    let date: Date;
+    if (isTimestampWithToDate(timestamp)) {
+      date = timestamp.toDate();
+    } else {
+      date = new Date(timestamp as string | number | Date);
+    }
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
@@ -348,9 +386,12 @@ export default function AppointmentChat({
                   {/* Image Message */}
                   {message.type === 'image' && (
                     <a href={message.content} target="_blank" rel="noopener noreferrer">
-                      <img
+                      <Image
                         src={message.content}
                         alt="Shared image"
+                        width={400}
+                        height={300}
+                        unoptimized
                         className="max-w-full rounded-lg max-h-48 object-cover"
                       />
                     </a>
@@ -372,27 +413,36 @@ export default function AppointmentChat({
         <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            <span className="text-sm text-red-600 dark:text-red-400">Recording... {formatTime(recordingTime)}</span>
+              <span className="text-sm text-red-600 dark:text-red-400">Recording... {formatTime(recordingTime)} — press send or discard</span>
           </div>
-          <button
-            onClick={stopRecording}
-            className="text-red-600 dark:text-red-400 hover:text-red-700 text-sm font-medium"
-          >
-            Stop & Send
-          </button>
+        
         </div>
       )}
 
-      {/* Uploading indicator */}
+      {/* Uploading indicator / progress */}
       {uploading && (
-        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 flex items-center space-x-2">
-          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-blue-600 dark:text-blue-400">Uploading...</span>
+        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20">
+          <LinearProgress
+            progress={uploadProgress.progress}
+            status={uploadProgress.status}
+            fileName={uploadProgress.status === 'uploading' ? 'Uploading...' : undefined}
+            size="sm"
+            onCancel={() => {
+              // No-op for now; uploads are not cancellable from here
+            }}
+          />
         </div>
       )}
 
       {/* Input */}
-      <div className="px-4 py-3 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+      {readOnly ? (
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+            This chat is closed. You can no longer send messages.
+          </p>
+        </div>
+      ) : (
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
         <div className="flex items-center space-x-2">
           {/* File attachment */}
           <input
@@ -415,28 +465,65 @@ export default function AppointmentChat({
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (isRecording) {
+                  // mark to send when recorder stops and stop
+                  sendOnStopRef.current = true;
+                  stopRecording();
+                } else {
+                  handleSendMessage();
+                }
+              }
+            }}
             placeholder="Type a message..."
             disabled={isRecording || uploading}
             className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-full focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50"
           />
 
-          {/* Voice record button */}
+          {/* Voice controls */}
           {!newMessage.trim() && (
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={uploading}
-              className={`p-2 rounded-full transition-colors ${
-                isRecording
-                  ? 'bg-red-500 text-white hover:bg-red-600'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-gray-100 dark:hover:bg-slate-700'
-              } disabled:opacity-50`}
-            >
-              {isRecording ? <FaStop className="w-5 h-5" /> : <FaMicrophone className="w-5 h-5" />}
-            </button>
+            <div className="flex items-center space-x-2">
+              {!isRecording ? (
+                <button
+                  onClick={startRecording}
+                  disabled={uploading}
+                  className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                >
+                  <FaMicrophone className="w-5 h-5" />
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      // discard: ensure we don't send on stop
+                      sendOnStopRef.current = false;
+                      stopRecording();
+                    }}
+                    className="p-2 text-gray-500 hover:text-red-500"
+                    title="Discard recording"
+                  >
+                    <FaTrash />
+                  </button>
+                  <button
+                    onClick={() => {
+                      // send: mark send and stop recorder; upload will proceed onstop
+                      sendOnStopRef.current = true;
+                      stopRecording();
+                    }}
+                    disabled={uploading}
+                    className="p-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-colors disabled:opacity-50"
+                    title="Send recording"
+                  >
+                    <FaPaperPlane className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
           )}
 
-          {/* Send button */}
+          {/* Send button for text */}
           {newMessage.trim() && (
             <button
               onClick={handleSendMessage}
@@ -448,6 +535,7 @@ export default function AppointmentChat({
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

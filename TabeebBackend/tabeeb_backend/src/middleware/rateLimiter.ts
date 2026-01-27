@@ -1,4 +1,29 @@
 import rateLimit from 'express-rate-limit';
+import { Request, Response, NextFunction } from 'express';
+
+// Helper to parse common truthy env values
+const parseBool = (v?: string): boolean | undefined =>
+  v ? ['1', 'true', 'yes'].includes(v.toLowerCase()) : undefined;
+
+// Runtime override for local/dev testing (process-local)
+let runtimeOverride: boolean | undefined;
+export const setRuntimeRateLimitOverride = (val: boolean | undefined) => {
+  runtimeOverride = val;
+};
+
+// Effective evaluation: runtime override > explicit env var > production default
+export const isRateLimitEnabledEffective = (): boolean =>
+  runtimeOverride ?? parseBool(process.env.RATE_LIMIT_ENABLED) ?? process.env.NODE_ENV === 'production';
+
+// Typed wrapper for express-rate-limit so we can skip it when disabled
+export const wrapLimiter = (
+  limiter: (req: Request, res: Response, next: NextFunction) => void
+) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!isRateLimitEnabledEffective()) return next();
+    return limiter(req, res, next);
+  };
+};
 
 /**
  * Rate limiters for TABEEB Healthcare App
@@ -6,7 +31,7 @@ import rateLimit from 'express-rate-limit';
  */
 
 // General API rate limiter - 200 requests per 15 minutes per IP (balanced)
-export const generalLimiter = rateLimit({
+export const generalLimiter = wrapLimiter(rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200,
   message: {
@@ -16,11 +41,11 @@ export const generalLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-});
+}));
 
 // Auth rate limiter - stricter for login/register to prevent brute force
 // 10 attempts per 15 minutes
-export const authLimiter = rateLimit({
+export const authLimiter = wrapLimiter(rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   message: {
@@ -30,11 +55,11 @@ export const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-});
+}));
 
 // Upload signature rate limiter - prevent abuse of upload system
 // 20 signature requests per hour per user (balanced)
-export const uploadSignatureLimiter = rateLimit({
+export const uploadSignatureLimiter = wrapLimiter(rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 20,
   message: {
@@ -48,11 +73,11 @@ export const uploadSignatureLimiter = rateLimit({
     return (req as any).user?.uid || 'anonymous';
   },
   skip: (req) => !(req as any).user?.uid,
-});
+}));
 
 // Verification submission rate limiter - prevent spam submissions
 // 3 per day (reasonable for resubmissions)
-export const verificationLimiter = rateLimit({
+export const verificationLimiter = wrapLimiter(rateLimit({
   windowMs: 24 * 60 * 60 * 1000, // 24 hours
   max: 3,
   message: {
@@ -66,11 +91,11 @@ export const verificationLimiter = rateLimit({
     return (req as any).user?.uid || 'anonymous';
   },
   skip: (req) => !(req as any).user?.uid,
-});
+}));
 
 // Appointment booking rate limiter - prevent booking spam
 // 10 bookings per hour
-export const appointmentLimiter = rateLimit({
+export const appointmentLimiter = wrapLimiter(rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10,
   message: {
@@ -84,4 +109,4 @@ export const appointmentLimiter = rateLimit({
     return (req as any).user?.uid || 'anonymous';
   },
   skip: (req) => !(req as any).user?.uid,
-});
+}));

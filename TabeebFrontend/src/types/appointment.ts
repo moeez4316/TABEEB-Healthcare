@@ -124,3 +124,11 @@ export interface AppointmentFilters {
   page?: number;
   limit?: number;
 }
+
+export interface AppointmentWithDetails extends Appointment {
+  completedAt?: string | Date;
+  prescriptions?: {
+    prescriptionEndDate?: string | Date;
+    createdAt?: string | Date;
+  }[];
+}

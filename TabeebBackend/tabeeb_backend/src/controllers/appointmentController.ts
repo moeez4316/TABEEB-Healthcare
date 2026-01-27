@@ -217,6 +217,15 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
               gender: true,
               profileImageUrl: true
             }
+          },
+          prescriptions: {
+            select: {
+              prescriptionEndDate: true
+            },
+            orderBy: {
+              createdAt: 'desc'
+            },
+            take: 1
           }
         },
         orderBy: [
@@ -276,6 +285,15 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
             experience: true,
             profileImageUrl: true
           }
+        },
+        prescriptions: {
+          select: {
+            prescriptionEndDate: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
         }
       },
       orderBy: [

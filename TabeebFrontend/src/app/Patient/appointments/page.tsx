@@ -12,6 +12,7 @@ import PatientReviewModal from '@/components/appointment/PatientReviewModal';
 import { Toast } from '@/components/Toast';
 import { fetchWithRateLimit } from '@/lib/api-utils';
 import AppointmentChat from '@/components/chat/AppointmentChat';
+import { AppointmentWithDetails } from '@/types/appointment';
 
 interface FollowUpEligibility {
   eligible: boolean;
@@ -25,7 +26,7 @@ interface FollowUpEligibility {
 export default function PatientAppointmentsPage() {
   const { token, user } = useAuth();
   const router = useRouter();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'pending' | 'completed'>('upcoming');
@@ -36,10 +37,29 @@ export default function PatientAppointmentsPage() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewAppointment, setReviewAppointment] = useState<Appointment | null>(null);
+  const [reviewAppointment, setReviewAppointment] = useState<AppointmentWithDetails | null>(null);
   const [followUpEligibility, setFollowUpEligibility] = useState<Record<string, FollowUpEligibility>>({});
   const [showChat, setShowChat] = useState(false);
-  const [chatAppointment, setChatAppointment] = useState<Appointment | null>(null);
+  const [chatAppointment, setChatAppointment] = useState<AppointmentWithDetails | null>(null);
+
+  const checkFollowUpEligibility = useCallback(async (doctorUid: string) => {
+    if (!token || followUpEligibility[doctorUid]) return;
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/follow-up/eligibility/${doctorUid}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFollowUpEligibility(prev => ({ ...prev, [doctorUid]: data }));
+      }
+    } catch {
+      // Silent fail
+    }
+  }, [token, followUpEligibility]);
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return;
@@ -76,29 +96,11 @@ export default function PatientAppointmentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, checkFollowUpEligibility]);
 
-  const checkFollowUpEligibility = async (doctorUid: string) => {
-    if (!token || followUpEligibility[doctorUid]) return;
-    
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/follow-up/eligibility/${doctorUid}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+  
 
-      if (response.ok) {
-        const data = await response.json();
-        setFollowUpEligibility(prev => ({ ...prev, [doctorUid]: data }));
-      }
-    } catch {
-      // Silent fail
-    }
-  };
-
-  const handleBookFollowUp = (doctorUid: string, doctorName: string) => {
+  const handleBookFollowUp = (doctorUid: string) => {
     const eligibility = followUpEligibility[doctorUid];
     if (!eligibility?.eligible) {
       showNotification('Follow-up eligibility has expired', 'error');
@@ -107,6 +109,25 @@ export default function PatientAppointmentsPage() {
     
     // Navigate to book appointment with follow-up params
     router.push(`/Patient/book-appointment?doctorId=${doctorUid}&followUp=true&originalAppointmentId=${eligibility.originalAppointmentId}`);
+  };
+
+  const isChatActive = (appointment: AppointmentWithDetails) => {
+    if (appointment.status === 'CONFIRMED' || appointment.status === 'IN_PROGRESS') return true;
+    if (appointment.status === 'COMPLETED') {
+      const completedDate = new Date(appointment.completedAt || appointment.updatedAt || appointment.appointmentDate);
+      let expiryDate = new Date(completedDate);
+      expiryDate.setDate(expiryDate.getDate() + 3); // Default 3 days
+
+      // Check for prescriptions
+      if (appointment.prescriptions && appointment.prescriptions.length > 0 && appointment.prescriptions[0].prescriptionEndDate) {
+         const prescriptionEnd = new Date(appointment.prescriptions[0].prescriptionEndDate);
+         expiryDate = new Date(prescriptionEnd);
+         expiryDate.setDate(expiryDate.getDate() + 3);
+      }
+      
+      return new Date() <= expiryDate;
+    }
+    return false;
   };
 
   useEffect(() => {
@@ -146,10 +167,10 @@ export default function PatientAppointmentsPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of today
     
-    return appointments.filter(appointment => {
+    const filtered = appointments.filter(appointment => {
       const appointmentDate = new Date(appointment.appointmentDate);
       appointmentDate.setHours(0, 0, 0, 0); // Set to start of appointment day
-      
+
       switch (filter) {
         case 'upcoming':
           // Only CONFIRMED appointments that are today or in the future
@@ -162,6 +183,18 @@ export default function PatientAppointmentsPage() {
           return true;
       }
     });
+
+    // Sort newest first: later dates first, and for same date newer startTime first
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.appointmentDate);
+      const dateB = new Date(b.appointmentDate);
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateB.getTime() - dateA.getTime();
+      }
+      return b.startTime.localeCompare(a.startTime);
+    });
+
+    return filtered;
   };
 
   const filteredAppointments = filterAppointments();
@@ -442,17 +475,6 @@ export default function PatientAppointmentsPage() {
                             <span className="text-sm">Start Consultation</span>
                           </button>
                           
-                          {/* Chat Button */}
-                          <button
-                            onClick={() => {
-                              setChatAppointment(appointment);
-                              setShowChat(true);
-                            }}
-                            className="flex items-center justify-center space-x-2 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 px-4 py-2 rounded-lg border border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
-                          >
-                            <FaComments className="w-4 h-4" />
-                            <span className="text-sm font-medium">Chat with Doctor</span>
-                          </button>
                           
                           {canCancel && (
                             <button
@@ -465,6 +487,25 @@ export default function PatientAppointmentsPage() {
                         </>
                       );
                     })()}
+
+                    {/* Chat Button */}
+                    {(appointment.status === 'CONFIRMED' || appointment.status === 'IN_PROGRESS' || appointment.status === 'COMPLETED') && (
+                      <button
+                        onClick={() => {
+                          setChatAppointment(appointment);
+                          setShowChat(true);
+                        }}
+                        title={isChatActive(appointment) ? 'Open chat with doctor' : 'Read-only — view chat history'}
+                        className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-lg border transition-colors w-full ${
+                          isChatActive(appointment)
+                            ? "text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 border-green-600 dark:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                              : "text-gray-600 dark:text-gray-400 border-gray-600 dark:border-gray-400 bg-gray-50 dark:bg-transparent opacity-70 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                        }`}
+                      >
+                        <FaComments className="w-4 h-4" />
+                        <span className="text-sm font-medium">{isChatActive(appointment) ? 'Chat with Doctor' : 'View Chat History'}</span>
+                      </button>
+                    )}
                     
                     {(() => {
                       // Show review button if appointment is completed OR if appointment time has passed (for no-show complaints)
@@ -496,9 +537,11 @@ export default function PatientAppointmentsPage() {
                     })()}
                     
                     {/* Follow-up Button for Completed Appointments */}
-                    {appointment.status === 'COMPLETED' && followUpEligibility[appointment.doctorUid]?.eligible && (
+                    {appointment.status === 'COMPLETED' && 
+                     followUpEligibility[appointment.doctorUid]?.eligible && 
+                     followUpEligibility[appointment.doctorUid]?.originalAppointmentId === appointment.id && (
                       <button
-                        onClick={() => handleBookFollowUp(appointment.doctorUid, appointment.doctor?.name || 'Doctor')}
+                        onClick={() => handleBookFollowUp(appointment.doctorUid)}
                         className="flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 text-white hover:from-purple-600 hover:to-purple-700 dark:hover:from-purple-700 dark:hover:to-purple-800 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-medium"
                       >
                         <FaRedo className="w-4 h-4" />
@@ -671,6 +714,7 @@ export default function PatientAppointmentsPage() {
               doctorName={chatAppointment.doctor?.name || 'Doctor'}
               patientName={user.displayName || 'Patient'}
               currentUserRole="patient"
+              readOnly={!isChatActive(chatAppointment)}
               onClose={() => {
                 setShowChat(false);
                 setChatAppointment(null);
