@@ -163,6 +163,7 @@ export default function BlogDetailPage({ params }: BlogDetailPageProps) {
                     </h3>
                     <div className="text-center">
                       {blog.doctor.profileImageUrl && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img
                           src={blog.doctor.profileImageUrl}
                           alt={blog.doctor.name}

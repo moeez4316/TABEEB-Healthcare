@@ -69,10 +69,10 @@ export const uploadSignatureLimiter = wrapLimiter(rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
+  keyGenerator: (req: Request) => {
     return (req as any).user?.uid || 'anonymous';
   },
-  skip: (req) => !(req as any).user?.uid,
+  skip: (req: Request) => !(req as any).user?.uid,
 }));
 
 // Verification submission rate limiter - prevent spam submissions
@@ -87,10 +87,10 @@ export const verificationLimiter = wrapLimiter(rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
+  keyGenerator: (req: Request) => {
     return (req as any).user?.uid || 'anonymous';
   },
-  skip: (req) => !(req as any).user?.uid,
+  skip: (req: Request) => !(req as any).user?.uid,
 }));
 
 // Appointment booking rate limiter - prevent booking spam
@@ -105,8 +105,8 @@ export const appointmentLimiter = wrapLimiter(rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
+  keyGenerator: (req: Request) => {
     return (req as any).user?.uid || 'anonymous';
   },
-  skip: (req) => !(req as any).user?.uid,
+  skip: (req: Request) => !(req as any).user?.uid,
 }));

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Mail, Edit3, Heart, Activity, Phone, MapPin, Settings, ChevronRight, Star, Calendar, FileText, Stethoscope, MessageSquare, PenSquare, Pill, Clock, TrendingUp } from 'lucide-react';
+import { User, Mail, Edit3, Heart, Activity, Phone, Settings, ChevronRight, Calendar, FileText, Stethoscope, MessageSquare, PenSquare, Pill, TrendingUp } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';

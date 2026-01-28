@@ -3,12 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useAdminBlogs } from '@/lib/hooks/useBlog';
 import { toggleBlogFeatured, adminDeleteBlog } from '@/lib/api/blog-api';
-import { Blog, BlogFilters } from '@/types/blog';
+import { BlogFilters } from '@/types/blog';
 import { 
   Search, 
-  Filter, 
   Eye, 
-  Edit, 
   Trash2, 
   Star, 
   Clock, 
@@ -16,7 +14,6 @@ import {
   AlertCircle,
   Loader2,
   Calendar,
-  User,
   TrendingUp,
   PlusCircle
 } from 'lucide-react';
@@ -194,7 +191,7 @@ export default function AdminBlogsPage() {
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
+            onChange={(e) => setStatusFilter(e.target.value as 'all' | 'PUBLISHED' | 'DRAFT' | 'ARCHIVED')}
             className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
           >
             <option value="all">All Status</option>
@@ -206,7 +203,7 @@ export default function AdminBlogsPage() {
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
+            onChange={(e) => setSortBy(e.target.value as 'publishedAt' | 'createdAt' | 'viewCount')}
             className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
           >
             <option value="publishedAt">Latest Published</option>

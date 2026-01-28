@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { 
   Bold, Italic, List, ListOrdered, Link as LinkIcon, 
-  Heading2, Quote, Code, X
+  Heading2, Quote, X
 } from 'lucide-react';
 
 interface RichTextEditorProps {

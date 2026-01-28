@@ -131,15 +131,6 @@ export default function AdminDoctorsPage() {
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
-  const toggleSort = (field: 'name' | 'experience' | 'createdAt') => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('asc');
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">

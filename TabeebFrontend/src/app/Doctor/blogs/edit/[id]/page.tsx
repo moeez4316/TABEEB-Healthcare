@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { 
-  ArrowLeft, Save, Eye, Upload, X, Tag, AlertCircle, 
+  ArrowLeft, Save, Eye, X, Tag, AlertCircle, 
   Loader2, CheckCircle, Image as ImageIcon 
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
@@ -18,11 +18,19 @@ import { RichTextEditor } from '@/components/blog/doctor/RichTextEditor';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
 
+interface CloudinaryUploadResult {
+  secureUrl?: string;
+  secure_url?: string;
+  url?: string;
+  publicId?: string;
+  public_id?: string;
+}
+
 export default function EditBlogPage() {
   const router = useRouter();
   const params = useParams();
   const blogId = params?.id as string;
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
@@ -72,7 +80,7 @@ export default function EditBlogPage() {
           contentHtml: blog.contentHtml || '',
           coverImageUrl: blog.coverImageUrl || '',
           coverImagePublicId: blog.coverImagePublicId || '',
-          tags: blog.tags?.map((t: any) => t.name) || [],
+          tags: blog.tags?.map((t: { name: string }) => t.name) || [],
           status: blog.status || 'DRAFT',
         });
       } catch (error) {
@@ -169,16 +177,17 @@ export default function EditBlogPage() {
         uploadProgress.startUpload();
         const result = await uploadFile(selectedFile, 'blog-image', token!, {
           onProgress: (p: UploadProgress) => uploadProgress.onProgress({ percentage: p.percentage })
-        });
-        uploadedUrl = (result as any).secureUrl || (result as any).secure_url || (result as any).url || uploadedUrl;
-        uploadedPublicId = (result as any).publicId || (result as any).public_id || uploadedPublicId;
+        }) as CloudinaryUploadResult;
+        uploadedUrl = result.secureUrl || result.secure_url || result.url || uploadedUrl;
+        uploadedPublicId = result.publicId || result.public_id || uploadedPublicId;
         setFormData(prev => ({ ...prev, coverImageUrl: uploadedUrl, coverImagePublicId: uploadedPublicId }));
         uploadProgress.complete();
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Upload failed:', err);
-      uploadProgress.fail(err?.message || 'Upload failed');
-      setErrorMessage(err?.message || 'Failed to upload cover image');
+      const errorMessage = err instanceof Error ? err.message : 'Upload failed';
+      uploadProgress.fail(errorMessage);
+      setErrorMessage(errorMessage || 'Failed to upload cover image');
       setIsSubmitting(false);
       return;
     }
@@ -208,10 +217,10 @@ export default function EditBlogPage() {
         const responseText = await response.text();
         console.error('Server error response text:', responseText);
         
-        let error: any = {};
+        let error: Record<string, string> = {};
         try {
           error = JSON.parse(responseText);
-        } catch (e) {
+        } catch {
           console.error('Failed to parse error response as JSON');
           throw new Error(`Server error (${response.status}): ${responseText || 'Unknown error'}`);
         }
@@ -229,14 +238,16 @@ export default function EditBlogPage() {
         // If slug changed, invalidate old/new detail keys; we don't have old slug here, so invalidate lists
         queryClient.invalidateQueries({ queryKey: blogKeys.myBlogsList({}) });
         queryClient.invalidateQueries({ queryKey: blogKeys.list({}) });
-      } catch (e) {}
+      } catch {
+        // Ignore cache invalidation errors
+      }
 
       setTimeout(() => {
         router.push('/Doctor/blogs/my-blogs');
       }, 2000);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Blog update error:', error);
-      setErrorMessage(error.message || 'Failed to update blog. Please try again.');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to update blog. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -336,6 +347,7 @@ export default function EditBlogPage() {
               {formData.title || 'Untitled Blog'}
             </h1>
             {formData.coverImageUrl && (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={formData.coverImageUrl}
                 alt="Cover"
@@ -455,6 +467,7 @@ export default function EditBlogPage() {
                 </label>
                 {formData.coverImageUrl || localPreview ? (
                   <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={localPreview || formData.coverImageUrl}
                       alt="Cover"

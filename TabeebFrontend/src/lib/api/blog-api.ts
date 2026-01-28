@@ -4,7 +4,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
 const BLOG_API_URL = `${API_BASE_URL}/api/blogs`;
 
 // Helper function to build query string
-const buildQueryString = (params: Record<string, any>): string => {
+const buildQueryString = (params: BlogFilters | Record<string, string | number | boolean | string[] | undefined>): string => {
   const queryParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -239,8 +239,27 @@ export const adminDeleteBlog = async (blogId: string, adminToken: string): Promi
   return response.json();
 };
 
+interface AdminBlogData {
+  title: string;
+  contentHtml: string;
+  excerpt?: string;
+  coverImageUrl: string;
+  coverImagePublicId?: string;
+  tags: string[];
+  status: 'DRAFT' | 'PUBLISHED';
+  authorType: 'ADMIN' | 'EXTERNAL' | 'DOCTOR';
+  isFeatured: boolean;
+  externalAuthorName?: string;
+  externalAuthorBio?: string;
+  authorImageUrl?: string;
+  authorImagePublicId?: string;
+  externalSourceName?: string;
+  externalSourceUrl?: string;
+  doctorUid?: string;
+}
+
 // Admin create blog (can create as ADMIN, EXTERNAL, or impersonate DOCTOR)
-export const adminCreateBlog = async (blogData: any, adminToken: string): Promise<{ message: string; blog: any }> => {
+export const adminCreateBlog = async (blogData: AdminBlogData, adminToken: string): Promise<{ message: string; blog: Blog }> => {
   const response = await fetch(`${BLOG_API_URL}/create`, {
     method: 'POST',
     headers: {
@@ -259,7 +278,7 @@ export const adminCreateBlog = async (blogData: any, adminToken: string): Promis
 };
 
 // Admin update blog (can update any blog)
-export const adminUpdateBlog = async (blogId: string, blogData: any, adminToken: string): Promise<{ message: string; blog: any }> => {
+export const adminUpdateBlog = async (blogId: string, blogData: Partial<AdminBlogData>, adminToken: string): Promise<{ message: string; blog: Blog }> => {
   const response = await fetch(`${BLOG_API_URL}/${blogId}`, {
     method: 'PUT',
     headers: {

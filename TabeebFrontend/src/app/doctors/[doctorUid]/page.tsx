@@ -39,9 +39,9 @@ export default function PublicDoctorProfilePage({ params }: { params: Promise<{ 
 
         setProfile(profileData);
         setAvailability(availabilityData);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error loading doctor profile:', err);
-        setError(err.message || 'Failed to load doctor profile');
+        setError(err instanceof Error ? err.message : 'Failed to load doctor profile');
       } finally {
         setLoading(false);
       }

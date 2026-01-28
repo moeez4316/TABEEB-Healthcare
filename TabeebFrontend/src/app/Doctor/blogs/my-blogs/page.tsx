@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useMyBlogs } from '@/lib/hooks/useBlog';
 import { 
   ArrowLeft, Plus, Eye, Edit, Trash2, Calendar, 
-  Clock, TrendingUp, Filter, Loader2, AlertCircle,
+  Clock, TrendingUp, Loader2, AlertCircle,
   FileText, CheckCircle, Search
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
 
 export default function MyBlogsPage() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -198,7 +198,7 @@ export default function MyBlogsPage() {
               {['ALL', 'PUBLISHED', 'DRAFT'].map((status) => (
                 <button
                   key={status}
-                  onClick={() => setStatusFilter(status as any)}
+                  onClick={() => setStatusFilter(status as 'ALL' | 'PUBLISHED' | 'DRAFT')}
                   className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                     statusFilter === status
                       ? 'bg-teal-600 text-white'
@@ -249,6 +249,7 @@ export default function MyBlogsPage() {
                 <div className="flex flex-col sm:flex-row gap-4 p-6">
                   {/* Cover Image */}
                   <div className="w-full sm:w-48 h-32 flex-shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={blog.coverImageUrl}
                       alt={blog.title}

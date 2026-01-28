@@ -15,12 +15,8 @@ import {
   Settings,
   Calendar,
   ArrowUp,
-  ArrowDown,
   Flag,
   PenSquare,
-  TrendingUp,
-  UserCheck,
-  XCircle,
   ChevronRight,
   Stethoscope
 } from 'lucide-react';

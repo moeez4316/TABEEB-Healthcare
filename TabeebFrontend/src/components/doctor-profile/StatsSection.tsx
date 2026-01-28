@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaUserMd, FaCheckCircle, FaCalendarCheck, FaStar } from 'react-icons/fa';
+import { FaUserMd, FaCalendarCheck, FaStar } from 'react-icons/fa';
 import { MdPeople } from 'react-icons/md';
 import { PublicDoctorProfile } from '@/types/doctor-profile';
 

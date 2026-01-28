@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { 
   ArrowLeft, Save, Eye, Upload, X, Tag, AlertCircle, 
-  Loader2, CheckCircle, Image as ImageIcon 
+  Loader2, CheckCircle
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 import { uploadFile, UploadProgress } from '@/lib/cloudinary-upload';
@@ -17,6 +17,14 @@ import { blogKeys } from '@/lib/hooks/useBlog';
 import { RichTextEditor } from '@/components/blog/doctor/RichTextEditor';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
+
+interface CloudinaryUploadResult {
+  secureUrl?: string;
+  secure_url?: string;
+  url?: string;
+  publicId?: string;
+  public_id?: string;
+}
 
 export default function WriteBlogPage() {
   const router = useRouter();
@@ -126,18 +134,19 @@ export default function WriteBlogPage() {
         uploadProgress.startUpload();
         const result = await uploadFile(selectedFile, 'blog-image', token!, {
           onProgress: (p: UploadProgress) => uploadProgress.onProgress({ percentage: p.percentage })
-        });
+        }) as CloudinaryUploadResult;
         // normalize possible keys from upload helper
-        uploadedUrl = (result as any).secureUrl || (result as any).secure_url || (result as any).url || uploadedUrl;
-        uploadedPublicId = (result as any).publicId || (result as any).public_id || uploadedPublicId;
+        uploadedUrl = result.secureUrl || result.secure_url || result.url || uploadedUrl;
+        uploadedPublicId = result.publicId || result.public_id || uploadedPublicId;
         // persist to state for UI consistency
         setFormData(prev => ({ ...prev, coverImageUrl: uploadedUrl, coverImagePublicId: uploadedPublicId }));
         uploadProgress.complete();
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Upload failed:', err);
-      uploadProgress.fail(err?.message || 'Upload failed');
-      setErrorMessage(err?.message || 'Failed to upload cover image');
+      const errorMessage = err instanceof Error ? err.message : 'Upload failed';
+      uploadProgress.fail(errorMessage);
+      setErrorMessage(errorMessage || 'Failed to upload cover image');
       setIsSubmitting(false);
       return;
     }
@@ -173,10 +182,10 @@ export default function WriteBlogPage() {
         const responseText = await response.text();
         console.error('Server error response text:', responseText);
         
-        let error: any = {};
+        let error: Record<string, string> = {};
         try {
           error = JSON.parse(responseText);
-        } catch (e) {
+        } catch {
           console.error('Failed to parse error response as JSON');
           throw new Error(`Server error (${response.status}): ${responseText || 'Unknown error'}`);
         }
@@ -193,14 +202,16 @@ export default function WriteBlogPage() {
       try {
         queryClient.invalidateQueries({ queryKey: blogKeys.myBlogsList({}) });
         queryClient.invalidateQueries({ queryKey: blogKeys.list({}) });
-      } catch (e) {}
+      } catch {
+        // Ignore cache invalidation errors
+      }
 
       setTimeout(() => {
         router.push('/Doctor/blogs/my-blogs');
       }, 2000);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Blog creation error:', error);
-      setErrorMessage(error.message || 'Failed to create blog. Please try again.');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to create blog. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -372,6 +383,7 @@ export default function WriteBlogPage() {
                 </label>
                 {formData.coverImageUrl || localPreview ? (
                   <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={localPreview || formData.coverImageUrl}
                       alt="Cover"
@@ -485,6 +497,7 @@ export default function WriteBlogPage() {
           /* Preview */
           <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 md:p-12 border border-gray-200 dark:border-slate-700">
             {formData.coverImageUrl && (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={formData.coverImageUrl}
                 alt="Cover"

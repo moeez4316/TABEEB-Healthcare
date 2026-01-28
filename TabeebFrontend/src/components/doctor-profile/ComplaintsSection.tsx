@@ -19,9 +19,7 @@ interface ComplaintsSectionProps {
 }
 
 export const ComplaintsSection: React.FC<ComplaintsSectionProps> = ({
-  complaints,
-  doctorUid,
-  onUpdateComplaint
+  complaints
 }) => {
   const [showAll, setShowAll] = useState(false);
   const [expandedComplaint, setExpandedComplaint] = useState<string | null>(null);

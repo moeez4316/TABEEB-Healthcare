@@ -4,8 +4,7 @@ import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   fetchPublicDoctorProfile,
-  fetchDoctorAvailabilitySummary,
-  fetchDoctorPublicReviews
+  fetchDoctorAvailabilitySummary
 } from '@/lib/api/doctor-profile-api';
 import { PublicDoctorProfile, DoctorAvailabilitySummary } from '@/types/doctor-profile';
 import {
@@ -27,6 +26,19 @@ interface Complaint {
   patientName: string;
   adminNotes?: string | null;
   adminActionTaken?: string | null;
+}
+
+interface ComplaintReview {
+  id: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  adminNotes?: string | null;
+  adminActionTaken?: string | null;
+  appointment: {
+    doctor: { uid: string };
+    patient: { firstName: string; lastName: string };
+  };
 }
 
 export default function AdminDoctorProfilePage({ params }: { params: Promise<{ doctorUid: string }> }) {
@@ -72,9 +84,9 @@ export default function AdminDoctorProfilePage({ params }: { params: Promise<{ d
         if (complaintsResponse.ok) {
           const complaintsData = await complaintsResponse.json();
           // Filter complaints for this specific doctor
-          const doctorComplaints = complaintsData.reviews
-            .filter((review: any) => review.appointment.doctor.uid === doctorUid)
-            .map((review: any) => ({
+          const doctorComplaints = (complaintsData.reviews as ComplaintReview[])
+            .filter((review) => review.appointment.doctor.uid === doctorUid)
+            .map((review) => ({
               id: review.id,
               rating: review.rating,
               comment: review.comment,
@@ -87,9 +99,9 @@ export default function AdminDoctorProfilePage({ params }: { params: Promise<{ d
         } else {
           console.error('Failed to fetch complaints:', complaintsResponse.status, await complaintsResponse.text());
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error loading doctor data:', err);
-        setError(err.message || 'Failed to load doctor data');
+        setError(err instanceof Error ? err.message : 'Failed to load doctor data');
       } finally {
         setLoading(false);
       }

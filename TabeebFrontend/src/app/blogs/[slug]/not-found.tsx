@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import Link from 'next/link';
 
 export default function NotFound() {
   return (
@@ -10,14 +10,14 @@ export default function NotFound() {
           Article Not Found
         </h2>
         <p className="text-gray-600 dark:text-gray-400 mb-8">
-          The blog article you're looking for doesn't exist or has been removed.
+          The blog article you&apos;re looking for doesn&apos;t exist or has been removed.
         </p>
-        <a
+        <Link
           href="/blogs"
           className="inline-block px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors"
         >
           Browse All Articles
-        </a>
+        </Link>
       </div>
     </div>
   );

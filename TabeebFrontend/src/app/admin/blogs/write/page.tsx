@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, Save, Eye, Upload, X, Tag, AlertCircle, 
-  Loader2, CheckCircle, Image as ImageIcon, User, Link as LinkIcon
+  Loader2, CheckCircle, User
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 import { RichTextEditor } from '@/components/blog/doctor/RichTextEditor';
@@ -15,6 +15,37 @@ import { adminCreateBlog } from '@/lib/api/blog-api';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
 
 type AuthorType = 'ADMIN' | 'EXTERNAL' | 'DOCTOR';
+
+interface UploadSignatureResponse {
+  uploadUrl: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  publicId: string;
+}
+
+interface BlogData {
+  title: string;
+  contentHtml: string;
+  excerpt?: string;
+  coverImageUrl: string;
+  coverImagePublicId?: string;
+  tags: string[];
+  status: 'DRAFT' | 'PUBLISHED';
+  authorType: AuthorType;
+  isFeatured: boolean;
+  featuredOrder?: number;
+  seoTitle?: string;
+  seoDescription?: string;
+  canonicalUrl?: string;
+  externalAuthorName?: string;
+  externalAuthorBio?: string;
+  authorImageUrl?: string;
+  authorImagePublicId?: string;
+  externalSourceName?: string;
+  externalSourceUrl?: string;
+  doctorUid?: string;
+}
 
 export default function AdminWriteBlogPage() {
   const router = useRouter();
@@ -110,7 +141,7 @@ export default function AdminWriteBlogPage() {
       });
 
       if (!sigResp.ok) throw new Error('Failed to obtain upload signature');
-      const sigData: any = await sigResp.json();
+      const sigData: UploadSignatureResponse = await sigResp.json();
       const { uploadUrl, apiKey, timestamp, signature, publicId } = sigData;
 
       // 2) Upload to Cloudinary
@@ -133,9 +164,9 @@ export default function AdminWriteBlogPage() {
       } else {
         setFormData(prev => ({ ...prev, coverImageUrl: uploadResult.secure_url, coverImagePublicId: uploadResult.public_id }));
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Image upload error:', error);
-      setErrorMessage(error.message || 'Failed to upload image. Please try again.');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to upload image. Please try again.');
     } finally {
       if (isAuthorImage) {
         setUploadingAuthorImage(false);
@@ -203,7 +234,7 @@ export default function AdminWriteBlogPage() {
     const truncatedExcerpt = formData.excerpt.substring(0, 500);
 
     // Build blog data based on author type
-    const blogData: any = {
+    const blogData: BlogData = {
       title: formData.title,
       contentHtml: formData.contentHtml,
       excerpt: truncatedExcerpt || undefined,
@@ -246,9 +277,9 @@ export default function AdminWriteBlogPage() {
       setTimeout(() => {
         router.push('/admin/blogs');
       }, 2000);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Blog creation error:', error);
-      setErrorMessage(error.message || 'Failed to create blog. Please try again.');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to create blog. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -483,6 +514,7 @@ export default function AdminWriteBlogPage() {
                       </label>
                       {formData.authorImageUrl ? (
                         <div className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={formData.authorImageUrl}
                             alt="Author"
@@ -575,6 +607,7 @@ export default function AdminWriteBlogPage() {
                 </label>
                 {formData.coverImageUrl ? (
                   <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={formData.coverImageUrl}
                       alt="Cover"
@@ -704,6 +737,7 @@ export default function AdminWriteBlogPage() {
           /* Preview */
           <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 md:p-12 border border-gray-200 dark:border-slate-700">
             {formData.coverImageUrl && (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={formData.coverImageUrl}
                 alt="Cover"
