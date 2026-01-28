@@ -13,6 +13,7 @@ import availabilityRoutes from './routes/availabilityRoutes';
 import prescriptionRoutes from './routes/prescriptionRoutes';
 import videoCallRoutes from './routes/videoCallRoutes';
 import reviewRoutes from './routes/reviewRoutes';
+import blogRoutes from './routes/blogRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import { scheduleAutoGeneration } from './utils/autoGenerateSlots';
 import { generalLimiter } from './middleware/rateLimiter';
@@ -42,6 +43,7 @@ app.use('/api/availability', availabilityRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/video-calls', videoCallRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/blogs', blogRoutes);
 app.use('/api/upload', uploadRoutes);
 
 

@@ -52,8 +52,39 @@ const AnimatedSection = ({ children, className = '', ...rest }: AnimatedSectionP
 };
 
 
+interface FeaturedDoctor {
+  uid: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  specialization: string;
+  profileImageUrl: string | null;
+  experience: string | null;
+  verification: {
+    isVerified: boolean;
+  };
+}
+
 const LandingPage = () => {
   const [showContactModal, setShowContactModal] = useState(false);
+  const [featuredDoctors, setFeaturedDoctors] = useState<FeaturedDoctor[]>([]);
+
+  // Fetch featured doctors (sorted by experience)
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
+        const response = await fetch(`${API_URL}/api/doctor/verified?sortBy=experience&order=desc`);
+        if (response.ok) {
+          const data = await response.json();
+          setFeaturedDoctors(data.doctors.slice(0, 4));
+        }
+      } catch (error) {
+        console.error('Error fetching doctors:', error);
+      }
+    };
+    fetchDoctors();
+  }, []);
 
   // Close contact modal when clicking outside
   useEffect(() => {
@@ -102,6 +133,9 @@ const LandingPage = () => {
               <a href="#how-it-works" className="text-slate-600 dark:text-slate-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors font-medium">
                 How It Works
               </a>
+              <Link href="/blogs" className="text-slate-600 dark:text-slate-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors font-medium">
+                Health Blog
+              </Link>
               <button 
                 onClick={() => setShowContactModal(true)}
                 className="text-slate-600 dark:text-slate-300 hover:text-teal-500 dark:hover:text-teal-400 transition-colors font-medium"
@@ -260,9 +294,103 @@ const LandingPage = () => {
           </div>
         </div>
       </AnimatedSection>
+
+      {/* Featured Doctors Section */}
+      <AnimatedSection className="py-24 bg-slate-50 dark:bg-slate-900/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
+              Meet Our Verified Doctors
+            </h2>
+            <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+              Connect with certified healthcare professionals. All our doctors are verified and ready to help you.
+            </p>
+          </div>
+          
+          {featuredDoctors.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+              {featuredDoctors.map((doctor, i) => (
+                <motion.div
+                  key={doctor.uid}
+                  className="group bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-xl hover:border-teal-500/50 transition-all duration-300"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.1 }}
+                >
+                  {/* Doctor Image Header */}
+                  <div className="relative bg-gradient-to-br from-teal-500 to-cyan-500 p-6 text-center">
+                    <div className="relative w-24 h-24 mx-auto mb-3">
+                      {doctor.profileImageUrl ? (
+                        <Image
+                          src={doctor.profileImageUrl}
+                          alt={doctor.name}
+                          fill
+                          className="rounded-full object-cover border-4 border-white shadow-lg"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-teal-600 font-bold text-3xl border-4 border-white shadow-lg">
+                          {doctor.firstName.charAt(0)}{doctor.lastName.charAt(0)}
+                        </div>
+                      )}
+                      {doctor.verification.isVerified && (
+                        <div className="absolute bottom-0 right-0 bg-green-500 rounded-full p-1.5 border-2 border-white">
+                          <ShieldCheck className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-bold text-white">
+                      Dr. {doctor.firstName} {doctor.lastName}
+                    </h3>
+                  </div>
+
+                  {/* Doctor Info */}
+                  <div className="p-5">
+                    <div className="space-y-3 mb-4">
+                      <div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Specialization</p>
+                        <p className="font-semibold text-slate-900 dark:text-slate-100">{doctor.specialization}</p>
+                      </div>
+                      {doctor.experience && (
+                        <div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Experience</p>
+                          <p className="font-semibold text-slate-900 dark:text-slate-100">{doctor.experience} years</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* View Profile Button */}
+                    <Link
+                      href={`/doctors/${doctor.uid}`}
+                      className="block w-full text-center bg-gradient-to-r from-teal-500 to-cyan-500 text-white py-2.5 rounded-lg font-semibold hover:shadow-lg hover:shadow-teal-500/20 transition-all duration-300 group-hover:scale-105"
+                    >
+                      View Profile
+                    </Link>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-slate-500 dark:text-slate-400">Loading doctors...</p>
+            </div>
+          )}
+
+          {/* Browse All Doctors CTA */}
+          <div className="text-center">
+            <Link
+              href="/auth"
+              className="inline-flex items-center justify-center bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 border-2 border-teal-500 px-8 py-3 rounded-xl font-semibold hover:bg-teal-50 dark:hover:bg-slate-700 transition-all duration-300"
+            >
+              Sign Up to Browse All Doctors
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Link>
+          </div>
+        </div>
+      </AnimatedSection>
       
       {/* Testimonials Section */}
-      <AnimatedSection className="py-24 bg-slate-50 dark:bg-slate-900/50">
+      <AnimatedSection className="py-24 bg-white dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
@@ -343,8 +471,8 @@ const LandingPage = () => {
               <h3 className="text-lg font-semibold text-white mb-4">Services</h3>
               <ul className="space-y-2">
                 <li><a href="#" className="hover:text-white transition-colors">AI Consultation</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Health Records</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Doctor Network</a></li>
+                <li><Link href="/auth" className="hover:text-white transition-colors">Health Records</Link></li>
+                <li><a href="#features" className="hover:text-white transition-colors">Our Doctors</a></li>
               </ul>
             </div>
             <div>

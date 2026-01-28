@@ -236,6 +236,7 @@ model doctor {
   weeklyTemplate          WeeklyAvailabilityTemplate[]
   prescriptions           Prescription[]
   verification            verification?
+  blogs                   Blog[]
 }
 
 model patient {
@@ -320,4 +321,81 @@ enum VideoCallStatus {
   CANCELLED
   FAILED
   NO_SHOW
+}
+
+// Blog Models
+model Blog {
+  id                  String          @id @default(cuid())
+  title               String          @db.VarChar(500)
+  slug                String          @unique @db.VarChar(255)
+  contentHtml         String          @db.LongText
+  excerpt             String?         @db.VarChar(500)
+  
+  // Images
+  coverImageUrl       String          @db.VarChar(500)
+  coverImagePublicId  String?         @db.VarChar(255)
+  
+  // SEO
+  seoTitle            String?         @db.VarChar(70)
+  seoDescription      String?         @db.VarChar(160)
+  
+  // Metrics
+  readTime            Int             @default(5)
+  viewCount           Int             @default(0)
+  
+  // Author Information
+  authorType          BlogAuthorType
+  doctorUid           String?         @db.VarChar(255)
+  externalAuthorName  String?         @db.VarChar(200)
+  externalAuthorBio   String?         @db.Text
+  authorImageUrl      String?         @db.VarChar(500)
+  authorImagePublicId String?         @db.VarChar(255)
+  
+  // External Source
+  externalSourceName  String?         @db.VarChar(200)
+  externalSourceUrl   String?         @db.VarChar(500)
+  canonicalUrl        String?         @db.VarChar(500)
+  
+  // Status & Visibility
+  status              BlogStatus      @default(DRAFT)
+  isFeatured          Boolean         @default(false)
+  featuredOrder       Int?
+  
+  // Timestamps
+  publishedAt         DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  
+  // Relations
+  doctor              doctor?         @relation(fields: [doctorUid], references: [uid], onDelete: SetNull)
+  tags                BlogTag[]
+  
+  @@index([status])
+  @@index([doctorUid])
+  @@index([publishedAt])
+  @@index([isFeatured])
+  @@index([authorType])
+  @@map("blogs")
+}
+
+model BlogTag {
+  id        String   @id @default(cuid())
+  name      String   @unique @db.VarChar(100)
+  slug      String   @unique @db.VarChar(110)
+  blogs     Blog[]
+  createdAt DateTime @default(now())
+  
+  @@map("blog_tags")
+}
+
+enum BlogAuthorType {
+  DOCTOR
+  EXTERNAL
+  ADMIN
+}
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }

@@ -12,7 +12,7 @@ cloudinary.config({
 // SIGNED UPLOAD - Client-side upload support
 // ============================================
 
-export type UploadType = 'profile-image' | 'medical-record' | 'verification-doc' | 'chat-media';
+export type UploadType = 'profile-image' | 'medical-record' | 'verification-doc' | 'chat-media' | 'blog-image';
 
 interface UploadSignatureParams {
   type: UploadType;
@@ -78,6 +78,12 @@ export const generateUploadSignature = ({ type, userId, docType, mimeType }: Upl
       resourceType = 'auto'; // Could be image, audio, or file
       break;
       
+    case 'blog-image':
+      folder = 'tabeeb/blogs';
+      publicId = `tabeeb/blogs/${userId}/${timestamp}`;
+      resourceType = 'image';
+      break;
+      
     default:
       folder = 'tabeeb/uploads';
       publicId = `tabeeb/uploads/${userId}/${timestamp}`;
@@ -131,6 +137,7 @@ export const verifyPublicIdOwnership = (publicId: string, userId: string, type: 
     'medical-record': `tabeeb/medical-records/${userId}/`,
     'verification-doc': `tabeeb/verification/${userId}/`,
     'chat-media': `tabeeb/chat/${userId}/`,
+    'blog-image': `tabeeb/blogs/${userId}/`,
   };
   
   return publicId.startsWith(expectedPrefixes[type]);
@@ -211,6 +218,36 @@ export const uploadProfileImage = (buffer: Buffer, userId: string) => {
       (error, result) => {
         if (error) {
           console.error('Cloudinary profile image upload error:', error);
+          return reject(error);
+        }
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+};
+
+// Upload blog images
+export const uploadBlogImage = (buffer: Buffer, userId: string, folder: string) => {
+  return new Promise((resolve, reject) => {
+    const timestamp = Date.now();
+    const filename = `${folder}/${userId}/image_${timestamp}`;
+    
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'image',
+        public_id: filename,
+        folder: 'tabeeb/blogs',
+        type: 'upload',
+        access_mode: 'public',
+        tags: ['blog', folder, userId],
+        transformation: [
+          { quality: 'auto', format: 'auto', width: 1200, crop: 'limit' }
+        ]
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Cloudinary blog image upload error:', error);
           return reject(error);
         }
         resolve(result);

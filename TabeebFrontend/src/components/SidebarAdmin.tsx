@@ -15,7 +15,9 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
-  Flag
+  Flag,
+  PenSquare,
+  Stethoscope
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 
@@ -64,10 +66,22 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       description: 'Review Applications'
     },
     {
+      name: 'Doctors',
+      href: '/admin/doctors',
+      icon: Stethoscope,
+      description: 'View All Doctors'
+    },
+    {
       name: 'User Management',
       href: '/admin/users',
       icon: Users,
       description: 'Manage Accounts'
+    },
+    {
+      name: 'Blog Management',
+      href: '/admin/blogs',
+      icon: PenSquare,
+      description: 'Manage Articles'
     },
     {
       name: 'Complaints',

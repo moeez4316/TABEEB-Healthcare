@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { FaTachometerAlt, FaCalendarAlt, FaFileMedical, FaRobot, FaSignOutAlt, FaUserMd, FaBars, FaTimes, FaChevronLeft, FaChevronRight, FaPrescriptionBottleAlt } from "react-icons/fa";
+import { FaTachometerAlt, FaCalendarAlt, FaFileMedical, FaRobot, FaSignOutAlt, FaUserMd, FaBars, FaTimes, FaChevronLeft, FaChevronRight, FaPrescriptionBottleAlt, FaNewspaper } from "react-icons/fa";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -16,6 +16,7 @@ const navItems = [
   { label: "My Appointments", href: "/Patient/appointments", icon: <FaCalendarAlt /> },
   { label: "My Prescriptions", href: "/Patient/prescriptions", icon: <FaPrescriptionBottleAlt /> },
   { label: "Medical Records", href: "/Patient/medical-records", icon: <FaFileMedical /> },
+  { label: "Health Blog", href: "/blogs", icon: <FaNewspaper /> },
   //{ label: "Medication", href: "/Patient/medication", icon: <FaPills /> },
   { label: "AI Chat", href: "/Patient/ai-chat", icon: <FaRobot /> },
   //{ label: "Image Analysis", href: "/Patient/image-analysis", icon: <FaImage /> },

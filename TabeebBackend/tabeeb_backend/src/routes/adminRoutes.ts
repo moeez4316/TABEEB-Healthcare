@@ -1,5 +1,5 @@
 import express from 'express';
-import { loginAdmin, verifyAdminCredentials, getDashboardStats, getAllUsers, suspendUser, activateUser } from '../controllers/adminController';
+import { loginAdmin, verifyAdminCredentials, getDashboardStats, getAllUsers, suspendUser, activateUser, getAllDoctors } from '../controllers/adminController';
 import { authenticateAdminFromHeaders } from '../middleware/adminAuth';
 
 const router = express.Router();
@@ -12,6 +12,9 @@ router.get('/dashboard/stats', authenticateAdminFromHeaders, getDashboardStats);
 router.get('/users', authenticateAdminFromHeaders, getAllUsers);
 router.post('/users/suspend', authenticateAdminFromHeaders, suspendUser);
 router.post('/users/activate', authenticateAdminFromHeaders, activateUser);
+
+// Doctor management routes
+router.get('/doctors', authenticateAdminFromHeaders, getAllDoctors);
 
 router.get('/protected-route', authenticateAdminFromHeaders, (req, res) => {
   res.json({ message: 'Access granted to admin area' });

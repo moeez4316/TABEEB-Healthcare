@@ -429,3 +429,65 @@ export const activateUser = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to activate user account' });
   }
 };
+
+// Get all doctors for admin
+export const getAllDoctors = async (req: Request, res: Response) => {
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+
+    // Fetch all doctors with their profile information
+    const doctors = await prisma.doctor.findMany({
+      select: {
+        uid: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        specialization: true,
+        experience: true,
+        addressCity: true,
+        addressProvince: true,
+        qualification: true,
+        profileImageUrl: true,
+        isActive: true,
+        createdAt: true,
+        verification: {
+          select: {
+            isVerified: true,
+            status: true,
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Map the fields to match frontend expectations
+    const mappedDoctors = doctors.map((doctor: any) => ({
+      uid: doctor.uid,
+      firstName: doctor.firstName,
+      lastName: doctor.lastName,
+      email: doctor.email,
+      phone: doctor.phone,
+      specialization: doctor.specialization,
+      experience: doctor.experience,
+      city: doctor.addressCity,
+      province: doctor.addressProvince,
+      pmdc: doctor.qualification,
+      profileImage: doctor.profileImageUrl,
+      isVerified: doctor.verification?.isVerified || false,
+      isActive: doctor.isActive,
+      createdAt: doctor.createdAt,
+    }));
+
+    await prisma.$disconnect();
+
+    res.json({
+      doctors: mappedDoctors,
+      total: mappedDoctors.length
+    });
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+    res.status(500).json({ error: 'Failed to fetch doctors' });
+  }
+};
