@@ -7,9 +7,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies with cache mount
+# Install ALL dependencies (including dev) for building
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --prefer-offline --no-audit --progress=false
+    npm ci --prefer-offline --no-audit --progress=false
 
 # Copy source code
 COPY . .
