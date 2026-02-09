@@ -130,6 +130,7 @@ export const initiateVideoCall = async (req: Request, res: Response) => {
         },
         meetingLink, // Simple link without JWT
         jitsiToken: null, // No token for patients
+        patientName: userName, // Send patient name so frontend can auto-fill display name
         userRole: 'patient',
         isModerator: false,
         lobbyBypass: false,

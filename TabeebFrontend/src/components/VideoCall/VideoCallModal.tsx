@@ -156,7 +156,7 @@ export default function VideoCallModal({
         }
 
         const data = await response.json();
-        const { jitsiToken, videoCall, note } = data;
+        const { jitsiToken, videoCall, note, patientName } = data;
 
         // Ensure container is available
         if (!jitsiContainer.current) {
@@ -178,6 +178,7 @@ export default function VideoCallModal({
             enableWelcomePage: false,
             prejoinPageEnabled: false,
             disableDeepLinking: true,
+            requireDisplayName: false,
             disableInviteFunctions: true,
             doNotStoreRoom: true,
             enableClosePage: false,
@@ -220,6 +221,9 @@ export default function VideoCallModal({
         } 
         // PATIENT: No JWT (will be placed in lobby automatically)
         else if (userRole === 'patient') {
+          options.userInfo = {
+            displayName: patientName || 'Patient',
+          };
           console.log('Patient joining without JWT - will be placed in lobby');
           if (note) {
             console.log('Note:', note);

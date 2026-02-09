@@ -150,7 +150,7 @@ export default function PatientVideoCallModal({
         }
 
         const data = await response.json();
-        const { videoCall } = data;
+        const { videoCall, patientName } = data;
 
         if (!jitsiContainer.current) {
           throw new Error('Video container not ready');
@@ -167,12 +167,16 @@ export default function PatientVideoCallModal({
           width: '100%',
           height: '100%',
           parentNode: jitsiContainer.current,
+          userInfo: {
+            displayName: patientName || 'Patient', // ✅ Auto-fill patient name from backend
+          },
           configOverwrite: {
             startWithAudioMuted: true,          // ✅ Start muted for privacy
             startWithVideoMuted: true,          // ✅ Start with camera off
             enableWelcomePage: false,
             prejoinPageEnabled: true,           // ✅ Show prejoin for device testing
             disableDeepLinking: true,
+            requireDisplayName: false,          // ✅ Don't require manual name entry
             // ❌ NO lobby_bypass setting - patient goes to lobby automatically
             disableInviteFunctions: true,
             doNotStoreRoom: true,

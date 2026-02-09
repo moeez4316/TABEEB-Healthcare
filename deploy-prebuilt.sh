@@ -25,18 +25,21 @@ docker-compose -f docker-compose.prebuilt.yml down 2>/dev/null || true
 echo "⬇️  Pulling pre-built images from Docker Hub..."
 docker-compose -f docker-compose.prebuilt.yml pull
 
-# Step 4: Run migrations (if needed)
-echo "🗄️  Running database migrations..."
-docker run --rm --network tabeeb-healthcare_tabeeb_network \
-  -e DATABASE_URL="$DATABASE_URL" \
-  hammadhafeez1100/tabeeb-backend:latest \
-  npx prisma migrate deploy || echo "⚠️  Migration skipped"
+# Step 4: Wait for MySQL to be ready
+echo "⏳ Waiting for MySQL to be ready..."
+sleep 10
 
-# Step 5: Start services
+# Step 5: Run database sync
+echo "🗄️  Syncing database schema..."
+docker-compose -f docker-compose.prebuilt.yml run --rm \
+  -e DATABASE_URL="${DATABASE_URL}" \
+  backend npx prisma db push --accept-data-loss || echo "⚠️  DB sync skipped (run manually if needed)"
+
+# Step 6: Start services
 echo "🚀 Starting services..."
 docker-compose -f docker-compose.prebuilt.yml up -d
 
-# Step 6: Show status
+# Step 7: Show status
 echo ""
 echo "✅ Deployment complete!"
 docker-compose -f docker-compose.prebuilt.yml ps

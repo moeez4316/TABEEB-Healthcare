@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connectDB } from './config/db';
+// MongoDB is not used - using Prisma with MySQL instead
+// import { connectDB } from './config/db';
 import userRoutes from './routes/userRoutes'
 import recordRoutes from './routes/medicalRecords';
 import doctorRoutes from './routes/doctorRoutes';
@@ -20,7 +21,8 @@ import { scheduleAutoGeneration } from './utils/autoGenerateSlots';
 import { generalLimiter } from './middleware/rateLimiter';
 
 dotenv.config();
-connectDB();
+// MongoDB connection removed - using Prisma with MySQL
+// connectDB();
 
 const app = express();
 app.use(cors());
