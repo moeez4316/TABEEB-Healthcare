@@ -1,0 +1,51 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Docker volumes and data
+mysql_data/
+caddy_data/
+caddy_config/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+
+# Database backups
+backups/
+*.sql
+*.sql.gz
+
+# Certificates (if generated locally)
+*.pem
+*.key
+*.crt
+
+# Documentation (internal setup/status files - exclude from git)
+ENV-SETUP-COMPLETE.md
+MIGRATION-GUIDE.md
+BUILD-TEST.md
+TESTING-WINDOWS.md
+test-docker-windows.ps1
+preflight-check.sh

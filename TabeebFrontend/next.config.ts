@@ -9,6 +9,7 @@ const withPWA = require('next-pwa')({
 
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone', // Required for Docker deployment
   images: {
     remotePatterns: [
       {

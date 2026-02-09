@@ -1,0 +1,49 @@
+tabeeb.dpdns.org {
+    # Encode responses for better performance
+    encode gzip zstd
+
+    # Backend API routes
+    handle /api/* {
+        reverse_proxy backend:5002
+    }
+
+    # WebSocket support for video calls and real-time features
+    @websockets {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    handle @websockets {
+        reverse_proxy backend:5002
+    }
+
+    # Frontend Next.js application
+    handle {
+        reverse_proxy frontend:3000
+    }
+
+    # Logging
+    log {
+        output file /data/access.log
+        format json
+    }
+
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Prevent MIME type sniffing
+        X-Content-Type-Options "nosniff"
+        # Prevent clickjacking
+        X-Frame-Options "SAMEORIGIN"
+        # XSS Protection
+        X-XSS-Protection "1; mode=block"
+        # Referrer Policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}
+
+# Optional: HTTP to HTTPS redirect (Caddy does this automatically)
+# Uncomment if you need custom behavior
+# http://tabeeb.dpdns.org {
+#     redir https://tabeeb.dpdns.org{uri} permanent
+# }

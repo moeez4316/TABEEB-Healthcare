@@ -1,0 +1,134 @@
+version: '3.8'
+
+# TABEEB Healthcare Docker Compose Configuration
+# 
+# DATABASE OPTIONS:
+# 1. Use containerized MySQL (default) - Enable mysql service and backend depends_on
+# 2. Use external MySQL - Set DATABASE_URL in .env to external DB and disable mysql service
+#
+# Current setup: Using external MySQL (mysql service is optional)
+
+services:
+  # MySQL Database (OPTIONAL - only needed if not using external database)
+  # To use containerized MySQL:
+  # 1. Uncomment this service
+  # 2. Uncomment depends_on in backend service
+  # 3. Update DATABASE_URL in .env to: mysql://tabeeb_user:tabeeb_secure_user_2026@mysql:3306/tabeeb
+  
+  # mysql:
+  #   image: mysql:8.0
+  #   container_name: tabeeb_mysql
+  #   restart: unless-stopped
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-tabeeb_root_password}
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE:-tabeeb}
+  #     MYSQL_USER: ${MYSQL_USER:-tabeeb_user}
+  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD:-tabeeb_password}
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #   ports:
+  #     - "3306:3306"
+  #   networks:
+  #     - tabeeb_network
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-tabeeb_root_password}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 30s
+
+  # Backend API
+  backend:
+    build:
+      context: ./TabeebBackend/tabeeb_backend
+      dockerfile: Dockerfile
+    container_name: tabeeb_backend
+    restart: unless-stopped
+    # Only depend on mysql if using containerized database
+    # Comment out depends_on if using external DATABASE_URL
+    # depends_on:
+    #   mysql:
+    #     condition: service_healthy
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-5002}
+      - DATABASE_URL=${DATABASE_URL}
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ADMIN_CREDENTIALS=${ADMIN_CREDENTIALS}
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - JITSI_APP_ID=${JITSI_APP_ID}
+      - JITSI_APP_SECRET=${JITSI_APP_SECRET}
+      - JITSI_DOMAIN=${JITSI_DOMAIN}
+    ports:
+      - "5002:5002"
+    networks:
+      - tabeeb_network
+    volumes:
+      - ./TabeebBackend/tabeeb_backend/prisma:/app/prisma
+    command: sh -c "npx prisma migrate deploy && node dist/index.js"
+
+  # Frontend Next.js
+  frontend:
+    build:
+      context: ./TabeebFrontend
+      dockerfile: Dockerfile
+    container_name: tabeeb_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+      - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+      - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+      - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+      - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+      - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
+      - NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}
+      - NEXT_PUBLIC_JITSI_APP_ID=${NEXT_PUBLIC_JITSI_APP_ID}
+      - NEXT_PUBLIC_JITSI_SECRET=${NEXT_PUBLIC_JITSI_SECRET}
+      - NEXT_PUBLIC_JITSI_DOMAIN=${NEXT_PUBLIC_JITSI_DOMAIN}
+    ports:
+      - "3000:3000"
+    networks:
+      - tabeeb_network
+
+  # Caddy Reverse Proxy with Automatic SSL
+  caddy:
+    image: caddy:2-alpine
+    container_name: tabeeb_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - tabeeb_network
+    depends_on:
+      - backend
+      - frontend
+
+networks:
+  tabeeb_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
