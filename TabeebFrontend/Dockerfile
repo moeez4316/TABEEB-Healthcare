@@ -19,11 +19,12 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy source code
 COPY . .
 
-# Set environment variable for build
+# Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=768"
 
-# Build Next.js application
+# Build Next.js application with memory limits
 RUN npm run build
 
 # Production stage

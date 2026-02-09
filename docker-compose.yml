@@ -42,13 +42,10 @@ services:
     build:
       context: ./TabeebBackend/tabeeb_backend
       dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     container_name: tabeeb_backend
     restart: unless-stopped
-    # Only depend on mysql if using containerized database
-    # Comment out depends_on if using external DATABASE_URL
-    # depends_on:
-    #   mysql:
-    #     condition: service_healthy
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-5002}
@@ -73,13 +70,25 @@ services:
       - tabeeb_network
     volumes:
       - ./TabeebBackend/tabeeb_backend/prisma:/app/prisma
-    command: sh -c "npx prisma migrate deploy && node dist/index.js"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 768M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5002/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # Frontend Next.js
   frontend:
     build:
       context: ./TabeebFrontend
       dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     container_name: tabeeb_frontend
     restart: unless-stopped
     depends_on:
@@ -101,6 +110,33 @@ services:
       - "3000:3000"
     networks:
       - tabeeb_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 768M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Migration runner (run separately with: docker-compose run --rm migrate)
+  migrate:
+    build:
+      context: ./TabeebBackend/tabeeb_backend
+      dockerfile: Dockerfile
+    container_name: tabeeb_migrate
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - tabeeb_network
+    volumes:
+      - ./TabeebBackend/tabeeb_backend/prisma:/app/prisma
+    command: npx prisma migrate deploy
+    profiles:
+      - tools
 
   # Caddy Reverse Proxy with Automatic SSL
   caddy:
@@ -120,6 +156,11 @@ services:
     depends_on:
       - backend
       - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 192M
 
 networks:
   tabeeb_network:
