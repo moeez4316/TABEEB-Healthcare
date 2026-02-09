@@ -1,0 +1,97 @@
+version: '3.8'
+
+# Use pre-built images from Docker Hub (no building on Oracle!)
+# Replace 'yourusername' with your Docker Hub username
+
+services:
+  backend:
+    image: hammadhafeez1100/tabeeb-backend:latest
+    container_name: tabeeb_backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-5002}
+      - DATABASE_URL=${DATABASE_URL}
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ADMIN_CREDENTIALS=${ADMIN_CREDENTIALS}
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - JITSI_APP_ID=${JITSI_APP_ID}
+      - JITSI_APP_SECRET=${JITSI_APP_SECRET}
+      - JITSI_DOMAIN=${JITSI_DOMAIN}
+    ports:
+      - "5002:5002"
+    networks:
+      - tabeeb_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 768M
+
+  frontend:
+    image: hammadhafeez1100/tabeeb-frontend:latest
+    container_name: tabeeb_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+      - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+      - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+      - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+      - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+      - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
+      - NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}
+      - NEXT_PUBLIC_JITSI_APP_ID=${NEXT_PUBLIC_JITSI_APP_ID}
+      - NEXT_PUBLIC_JITSI_SECRET=${NEXT_PUBLIC_JITSI_SECRET}
+      - NEXT_PUBLIC_JITSI_DOMAIN=${NEXT_PUBLIC_JITSI_DOMAIN}
+    ports:
+      - "3000:3000"
+    networks:
+      - tabeeb_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 768M
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: tabeeb_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - tabeeb_network
+    depends_on:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 192M
+
+networks:
+  tabeeb_network:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

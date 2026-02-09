@@ -38,12 +38,12 @@ echo "export DOCKER_BUILDKIT=1" >> ~/.bashrc
 echo "export COMPOSE_DOCKER_CLI_BUILD=1" >> ~/.bashrc
 echo "✅ BuildKit enabled"
 
-# Step 3: Clean up old containers/images
+# Step 3: Stop old containers (but keep build cache!)
 echo ""
-echo "🧹 Step 3: Cleaning up old Docker resources..."
+echo "🧹 Step 3: Stopping old containers..."
 docker-compose down 2>/dev/null || true
-docker system prune -f
-echo "✅ Cleanup complete"
+# Note: NOT running 'docker system prune' to preserve build cache
+echo "✅ Old containers stopped (build cache preserved)"
 
 # Step 4: Build backend (smaller, build first)
 echo ""
