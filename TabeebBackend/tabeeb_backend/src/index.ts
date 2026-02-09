@@ -15,6 +15,7 @@ import videoCallRoutes from './routes/videoCallRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import blogRoutes from './routes/blogRoutes';
 import uploadRoutes from './routes/uploadRoutes';
+import healthRoutes from './routes/healthRoutes';
 import { scheduleAutoGeneration } from './utils/autoGenerateSlots';
 import { generalLimiter } from './middleware/rateLimiter';
 
@@ -32,6 +33,7 @@ app.use(express.json({ limit: '1mb' })); // JSON metadata only (files upload dir
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // All routes - multer on specific routes handles file uploads automatically
+app.use('/api', healthRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/patient', patientRoutes);
 app.use('/api/doctor', doctorRoutes);
