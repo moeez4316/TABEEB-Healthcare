@@ -19,11 +19,11 @@ fi
 
 # Step 2: Stop old containers
 echo "🛑 Stopping old containers..."
-docker-compose -f docker-compose.prebuilt.yml down 2>/dev/null || true
+docker compose -f docker-compose.prebuilt.yml down 2>/dev/null || true
 
 # Step 3: Pull latest images (fast!)
 echo "⬇️  Pulling pre-built images from Docker Hub..."
-docker-compose -f docker-compose.prebuilt.yml pull
+docker compose -f docker-compose.prebuilt.yml pull
 
 # Step 4: Wait for MySQL to be ready
 echo "⏳ Waiting for MySQL to be ready..."
@@ -31,17 +31,17 @@ sleep 10
 
 # Step 5: Run database sync
 echo "🗄️  Syncing database schema..."
-docker-compose -f docker-compose.prebuilt.yml run --rm \
-  -e DATABASE_URL="${DATABASE_URL}" \
+# Don't pass -e DATABASE_URL here; docker compose already reads it from .env
+docker compose -f docker-compose.prebuilt.yml run --rm \
   backend npx prisma db push --accept-data-loss || echo "⚠️  DB sync skipped (run manually if needed)"
 
 # Step 6: Start services
 echo "🚀 Starting services..."
-docker-compose -f docker-compose.prebuilt.yml up -d
+docker compose -f docker-compose.prebuilt.yml up -d
 
 # Step 7: Show status
 echo ""
 echo "✅ Deployment complete!"
-docker-compose -f docker-compose.prebuilt.yml ps
+docker compose -f docker-compose.prebuilt.yml ps
 echo ""
 echo "Test: curl http://localhost:5002/api/health"
