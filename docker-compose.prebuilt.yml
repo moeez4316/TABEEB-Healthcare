@@ -1,48 +1,21 @@
-version: '3.8'
-
-# Use pre-built images from Docker Hub (no building on Oracle!)
-# Replace 'yourusername' with your Docker Hub username
+# TABEEB Healthcare — Pre-built images for Oracle Cloud deployment
+# No building required on the VM — just pull and run!
+#
+# Usage:
+#   docker compose -f docker-compose.prebuilt.yml pull
+#   docker compose -f docker-compose.prebuilt.yml up -d
 
 services:
-  # MySQL Database
-  mysql:
-    image: mysql:8.0
-    container_name: tabeeb_mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Moeez4316$}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-tabeeb_db}
-      MYSQL_USER: ${MYSQL_USER:-tabeeb_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Moeez4316$}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    networks:
-      - tabeeb_network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-Moeez4316$}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-
   backend:
     image: hammadhafeez1100/tabeeb-backend:latest
     container_name: tabeeb_backend
     restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-5002}
       - DATABASE_URL=${DATABASE_URL}
+      - MONGO_URI=${MONGO_URI}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
       - ADMIN_USERNAME=${ADMIN_USERNAME}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
@@ -57,6 +30,11 @@ services:
       - JITSI_APP_ID=${JITSI_APP_ID}
       - JITSI_APP_SECRET=${JITSI_APP_SECRET}
       - JITSI_DOMAIN=${JITSI_DOMAIN}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+      - RESEND_REPLY_TO=${RESEND_REPLY_TO}
+      - RESEND_DOMAIN=${RESEND_DOMAIN}
+      - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET}
     ports:
       - "5002:5002"
     networks:
@@ -66,6 +44,12 @@ services:
         limits:
           cpus: '0.8'
           memory: 768M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5002/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   frontend:
     image: hammadhafeez1100/tabeeb-frontend:latest
@@ -75,17 +59,6 @@ services:
       - backend
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-      - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
-      - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
-      - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
-      - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
-      - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
-      - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
-      - NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}
-      - NEXT_PUBLIC_JITSI_APP_ID=${NEXT_PUBLIC_JITSI_APP_ID}
-      - NEXT_PUBLIC_JITSI_SECRET=${NEXT_PUBLIC_JITSI_SECRET}
-      - NEXT_PUBLIC_JITSI_DOMAIN=${NEXT_PUBLIC_JITSI_DOMAIN}
     ports:
       - "3000:3000"
     networks:
@@ -95,6 +68,12 @@ services:
         limits:
           cpus: '0.8'
           memory: 768M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   caddy:
     image: caddy:2-alpine
@@ -124,8 +103,6 @@ networks:
     driver: bridge
 
 volumes:
-  mysql_data:
-    driver: local
   caddy_data:
     driver: local
   caddy_config:
