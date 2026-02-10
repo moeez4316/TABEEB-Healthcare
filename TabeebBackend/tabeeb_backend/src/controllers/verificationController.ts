@@ -7,6 +7,7 @@ import {
   verifyPublicIdOwnership,
   buildCloudinaryUrl
 } from '../services/uploadService';
+import { sendVerificationApproved, sendVerificationRejected } from '../services/emailService';
 
 // Document can be either a string (legacy: just publicId) or an object with publicId and resourceType
 type DocumentInfo = string | { publicId: string; resourceType: string };
@@ -303,6 +304,13 @@ export const approveVerification = async (req: Request, res: Response) => {
       message: 'Doctor verified successfully', 
       verification 
     });
+
+    // Send email notification asynchronously
+    const doctor = await prisma.doctor.findUnique({ where: { uid: doctorUid }, select: { email: true, name: true } });
+    if (doctor?.email) {
+      sendVerificationApproved({ doctorEmail: doctor.email, doctorName: doctor.name })
+        .catch(err => console.error('Failed to send verification approved email:', err));
+    }
   } catch (error) {
     console.error('Error in approveVerification:', error);
     res.status(500).json({ error: 'Failed to approve verification' });
@@ -331,6 +339,13 @@ export const rejectVerification = async (req: Request, res: Response) => {
       message: 'Verification rejected', 
       verification 
     });
+
+    // Send email notification asynchronously
+    const doctor = await prisma.doctor.findUnique({ where: { uid: doctorUid }, select: { email: true, name: true } });
+    if (doctor?.email) {
+      sendVerificationRejected({ doctorEmail: doctor.email, doctorName: doctor.name, reason: adminComments })
+        .catch(err => console.error('Failed to send verification rejected email:', err));
+    }
   } catch (error) {
     console.error('Error in rejectVerification:', error);
     res.status(500).json({ error: 'Failed to reject verification' });

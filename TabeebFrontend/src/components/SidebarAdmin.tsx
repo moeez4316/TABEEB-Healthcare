@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Flag,
   PenSquare,
-  Stethoscope
+  Stethoscope,
+  Inbox
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 
@@ -88,6 +89,12 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       href: '/admin/complaints',
       icon: Flag,
       description: 'Review Complaints'
+    },
+    {
+      name: 'Inbox',
+      href: '/admin/inbox',
+      icon: Inbox,
+      description: 'Contact Messages'
     },
     {
       name: 'Analytics',

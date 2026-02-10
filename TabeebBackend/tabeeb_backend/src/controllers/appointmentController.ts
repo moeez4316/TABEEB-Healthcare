@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { generateAvailableSlots, isSlotAvailable, calculateEndTime, getSlotsStatistics } from '../utils/slotGenerator';
 import MedicalRecord from '../models/MedicalRecord';
+import { sendAppointmentConfirmation, sendAppointmentNotificationToDoctor, sendAppointmentCancellation } from '../services/emailService';
 
 // Book appointment (updated to work without TimeSlot)
 export const bookAppointment = async (req: Request, res: Response) => {
@@ -77,6 +78,7 @@ export const bookAppointment = async (req: Request, res: Response) => {
         where: { uid: doctorUid },
         select: {
           name: true,
+          email: true,
           specialization: true,
           isActive: true,
           hourlyConsultationRate: true
@@ -87,6 +89,7 @@ export const bookAppointment = async (req: Request, res: Response) => {
         select: {
           firstName: true,
           lastName: true,
+          email: true,
           phone: true,
           isActive: true
         }
@@ -176,6 +179,35 @@ export const bookAppointment = async (req: Request, res: Response) => {
       sharedDocumentsCount: sharedDocumentIds?.length || 0,
       message: 'Appointment booked successfully'
     });
+
+    // Send email notifications asynchronously (don't block the response)
+    const formattedDate = appointmentDateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    if (patient?.email) {
+      sendAppointmentConfirmation({
+        patientEmail: patient.email,
+        patientName: `${patient.firstName} ${patient.lastName}`,
+        doctorName: doctor!.name,
+        specialization: doctor!.specialization,
+        date: formattedDate,
+        time: startTime,
+        duration: availability.slotDuration,
+        appointmentId: appointment.id,
+        consultationFees: consultationFees.toString(),
+      }).catch(err => console.error('Failed to send patient confirmation email:', err));
+    }
+
+    if (doctor?.email) {
+      sendAppointmentNotificationToDoctor({
+        doctorEmail: doctor.email,
+        doctorName: doctor.name,
+        patientName: `${patient!.firstName} ${patient!.lastName}`,
+        date: formattedDate,
+        time: startTime,
+        duration: availability.slotDuration,
+        patientNotes,
+      }).catch(err => console.error('Failed to send doctor notification email:', err));
+    }
 
   } catch (error) {
     console.error('Error booking appointment:', error);
@@ -435,6 +467,10 @@ export const cancelAppointment = async (req: Request, res: Response) => {
           { patientUid: userUid },
           { doctorUid: userUid }
         ]
+      },
+      include: {
+        doctor: { select: { name: true, email: true } },
+        patient: { select: { firstName: true, lastName: true, email: true } }
       }
     });
 
@@ -468,10 +504,43 @@ export const cancelAppointment = async (req: Request, res: Response) => {
       }
     });
 
+    const cancelledBy = userUid === appointment.doctorUid ? 'doctor' : 'patient';
+    const formattedDate = appointment.appointmentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
     res.json({
       appointment: updatedAppointment,
       message: 'Appointment cancelled successfully'
     });
+
+    // Send cancellation emails asynchronously
+    const patientName = `${appointment.patient.firstName} ${appointment.patient.lastName}`;
+    const doctorName = appointment.doctor.name;
+
+    if (appointment.patient.email) {
+      sendAppointmentCancellation({
+        email: appointment.patient.email,
+        recipientName: patientName,
+        doctorName,
+        patientName,
+        date: formattedDate,
+        time: appointment.startTime,
+        cancelReason,
+        cancelledBy,
+      }).catch(err => console.error('Failed to send patient cancellation email:', err));
+    }
+
+    if (appointment.doctor.email) {
+      sendAppointmentCancellation({
+        email: appointment.doctor.email,
+        recipientName: `Dr. ${doctorName}`,
+        doctorName,
+        patientName,
+        date: formattedDate,
+        time: appointment.startTime,
+        cancelReason,
+        cancelledBy,
+      }).catch(err => console.error('Failed to send doctor cancellation email:', err));
+    }
 
   } catch (error) {
     console.error('Error cancelling appointment:', error);

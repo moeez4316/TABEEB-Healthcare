@@ -38,42 +38,42 @@ echo "export DOCKER_BUILDKIT=1" >> ~/.bashrc
 echo "export COMPOSE_DOCKER_CLI_BUILD=1" >> ~/.bashrc
 echo "✅ BuildKit enabled"
 
-# Step 3: Stop old containers (but keep build cache!)
+# Step 3: Clean up old containers/images
 echo ""
-echo "🧹 Step 3: Stopping old containers..."
-docker compose down 2>/dev/null || true
-# Note: NOT running 'docker system prune' to preserve build cache
-echo "✅ Old containers stopped (build cache preserved)"
+echo "🧹 Step 3: Cleaning up old Docker resources..."
+docker-compose down 2>/dev/null || true
+docker system prune -f
+echo "✅ Cleanup complete"
 
 # Step 4: Build backend (smaller, build first)
 echo ""
 echo "🏗️  Step 4: Building backend..."
-docker compose build backend --progress=plain
+docker-compose build backend --progress=plain
 echo "✅ Backend built"
 
 # Step 5: Build frontend (larger, build separately to avoid OOM)
 echo ""
 echo "🏗️  Step 5: Building frontend (this will take 5-10 minutes)..."
-docker compose build frontend --progress=plain
+docker-compose build frontend --progress=plain
 echo "✅ Frontend built"
 
 # Step 6: Run database migrations
 echo ""
 echo "🗄️  Step 6: Running database migrations..."
-docker compose run --rm migrate || echo "⚠️  Migration failed, but continuing..."
+docker-compose run --rm migrate || echo "⚠️  Migration failed, but continuing..."
 echo "✅ Migrations attempted"
 
 # Step 7: Start services
 echo ""
 echo "🚀 Step 7: Starting all services..."
-docker compose up -d
+docker-compose up -d
 echo "✅ Services started"
 
 # Step 8: Show status
 echo ""
 echo "📊 Step 8: Checking service status..."
 sleep 5
-docker compose ps
+docker-compose ps
 echo ""
 docker stats --no-stream
 
@@ -82,13 +82,13 @@ echo "=================================================================="
 echo "✅ Deployment complete!"
 echo ""
 echo "📝 Next steps:"
-echo "  1. Check logs: docker compose logs -f"
+echo "  1. Check logs: docker-compose logs -f"
 echo "  2. Monitor resources: docker stats"
 echo "  3. Test backend: curl http://localhost:5002/api/health"
 echo "  4. Test frontend: curl http://localhost:3000"
 echo ""
 echo "⚠️  If services crash due to OOM:"
-echo "  - Restart individual services: docker compose restart backend"
+echo "  - Restart individual services: docker-compose restart backend"
 echo "  - Check swap: free -h"
 echo "  - Reduce resource limits in docker-compose.yml"
 echo "=================================================================="

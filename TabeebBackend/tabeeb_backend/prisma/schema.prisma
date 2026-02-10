@@ -399,3 +399,75 @@ enum BlogStatus {
   PUBLISHED
   ARCHIVED
 }
+
+// ========================================
+// CONTACT / SUPPORT MESSAGES
+// ========================================
+
+model ContactMessage {
+  id          String               @id @default(cuid())
+  type        ContactMessageType   @default(CONTACT)
+  status      ContactMessageStatus @default(NEW)
+  fromEmail   String               @db.VarChar(255)
+  fromName    String?              @db.VarChar(255)
+  subject     String               @db.VarChar(500)
+  message     String               @db.Text
+  htmlContent String?              @db.LongText
+  
+  // Admin response
+  adminNotes  String?              @db.Text
+  adminReply  String?              @db.Text
+  repliedAt   DateTime?
+  repliedBy   String?              @db.VarChar(255)
+  
+  // Metadata
+  attachments Json?                // Array of { filename, contentType, url }
+  metadata    Json?                // Extra info like headers, IP, etc.
+  
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([fromEmail])
+  @@map("contact_messages")
+}
+
+enum ContactMessageType {
+  CONTACT    // From contact form
+  SUPPORT    // Inbound email to support@
+  FEEDBACK   // Inbound email to feedback@
+  INBOUND    // Any other inbound email
+}
+
+// ========================================
+// OTP CODES (Email Verification & Password Reset)
+// ========================================
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  email     String   @db.VarChar(255)
+  code      String   @db.VarChar(6)
+  type      OtpType
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email, type])
+  @@index([expiresAt])
+  @@map("otp_codes")
+}
+
+enum OtpType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+enum ContactMessageStatus {
+  NEW
+  READ
+  IN_PROGRESS
+  REPLIED
+  CLOSED
+}

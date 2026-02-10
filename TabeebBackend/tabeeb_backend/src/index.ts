@@ -17,6 +17,8 @@ import reviewRoutes from './routes/reviewRoutes';
 import blogRoutes from './routes/blogRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import healthRoutes from './routes/healthRoutes';
+import emailRoutes from './routes/emailRoutes';
+import authRoutes from './routes/authRoutes';
 import { scheduleAutoGeneration } from './utils/autoGenerateSlots';
 import { generalLimiter } from './middleware/rateLimiter';
 
@@ -49,6 +51,8 @@ app.use('/api/video-calls', videoCallRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/email', emailRoutes);
+app.use('/api/auth', authRoutes);
 
 
 const PORT = process.env.PORT || 5002;

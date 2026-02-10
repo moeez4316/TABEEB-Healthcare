@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install ALL dependencies (including dev) for building
+# Install ALL dependencies (including devDependencies for TypeScript compilation)
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --prefer-offline --no-audit --progress=false
 
@@ -25,9 +25,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install wget for healthcheck
+RUN apk add --no-cache wget
+
 # Install production dependencies only
 COPY package*.json ./
-RUN npm ci --only=production
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev --prefer-offline --no-audit --progress=false
 
 # Copy Prisma schema and generate client
 COPY prisma ./prisma/
@@ -36,15 +40,12 @@ RUN npx prisma generate
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
 
-# Copy any static assets if needed
-COPY --from=builder /app/src ./src
-
 # Expose port
 EXPOSE 5002
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
-  CMD node -e "require('http').get('http://localhost:5002/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:5002/api/health || exit 1
 
 # Start the application
 CMD ["node", "dist/index.js"]

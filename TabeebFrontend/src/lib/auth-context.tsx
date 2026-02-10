@@ -10,7 +10,6 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile,
-  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { fetchWithRateLimit } from './api-utils';
@@ -35,7 +34,6 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signUpWithPhone: (phone: string, password: string) => Promise<void>;
   signInWithPhonePassword: (phone: string, password: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   fetchUserRole: () => Promise<void>;
   setUserRole: (role: string) => void;
@@ -403,14 +401,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const resetPassword = async (email: string) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (error) {
-      throw error;
-    }
-  };
-
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
@@ -442,7 +432,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithGoogle,
     signUpWithPhone,
     signInWithPhonePassword,
-    resetPassword,
     signOut,
     fetchUserRole,
     setUserRole,
