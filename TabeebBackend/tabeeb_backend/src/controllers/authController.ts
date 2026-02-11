@@ -31,8 +31,8 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
       try {
         await admin.auth().getUserByEmail(normalizedEmail);
       } catch {
-        // Don't reveal if user exists or not — still return success
-        res.json({ message: 'If an account exists with this email, a reset code has been sent.' });
+        // Return error if account doesn't exist
+        res.status(404).json({ error: 'No account found with this email address.' });
         return;
       }
     }
@@ -241,8 +241,8 @@ export const sendPhoneResetOtp = async (req: Request, res: Response): Promise<vo
     try {
       await admin.auth().getUserByEmail(phoneEmail);
     } catch {
-      // Don't reveal if user exists
-      res.json({ message: 'If a phone account exists, a reset code has been sent to the provided email.' });
+      // Return error if phone account doesn't exist
+      res.status(404).json({ error: 'No account found with this phone number.' });
       return;
     }
 
@@ -255,8 +255,8 @@ export const sendPhoneResetOtp = async (req: Request, res: Response): Promise<vo
     });
 
     if (!doctor && !patient) {
-      // Don't reveal if match exists
-      res.json({ message: 'If a phone account exists, a reset code has been sent to the provided email.' });
+      // Return error if no matching phone account with this email
+      res.status(404).json({ error: 'No account found with this phone number and email combination.' });
       return;
     }
 
@@ -278,7 +278,7 @@ export const sendPhoneResetOtp = async (req: Request, res: Response): Promise<vo
       frontendUrl: FRONTEND_URL,
     });
 
-    res.json({ message: 'If a phone account exists, a reset code has been sent to the provided email.' });
+    res.json({ message: 'Reset code has been sent to your email.' });
   } catch (error) {
     console.error('Phone reset OTP error:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });

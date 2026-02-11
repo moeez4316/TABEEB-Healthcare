@@ -1,20 +1,19 @@
-# Dependencies stage
-FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-RUN npm ci
-
 # Builder stage
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Install build dependencies for native modules
+RUN apk add --no-cache libc6-compat python3 make g++
+
+# Set environment for native module compilation
+ENV PYTHON=/usr/bin/python3
+
+# Copy package files for fresh install
+COPY package*.json ./
+
+# Fresh npm install to ensure native modules build correctly for Alpine
+RUN npm ci --force
 
 # Copy source code
 COPY . .

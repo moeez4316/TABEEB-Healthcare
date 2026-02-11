@@ -261,7 +261,7 @@ export default function AuthPage() {
           setError(data.error || 'Failed to send reset code.');
           return;
         }
-        setSuccess('If a matching account exists, a reset code has been sent to your email.');
+        setSuccess('Reset code has been sent to your email.');
         setResetStep('otp');
       }
     } catch {
