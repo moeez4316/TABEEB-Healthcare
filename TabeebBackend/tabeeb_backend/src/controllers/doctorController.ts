@@ -84,6 +84,30 @@ export const createDoctor = async (req: Request, res: Response) => {
       validatedImageUrl = profileImageUrl || buildCloudinaryUrl(profileImagePublicId, 'image');
     }
 
+    // Check if doctor already exists for this UID
+    const existingDoctor = await prisma.doctor.findUnique({ where: { uid } });
+    
+    if (existingDoctor) {
+      return res.status(409).json({ 
+        error: 'Doctor profile already exists for this user',
+        existing: true
+      });
+    }
+
+    // If phone is provided, check if it belongs to another doctor
+    if (cleanPhone) {
+      const phoneConflict = await prisma.doctor.findUnique({ 
+        where: { phone: cleanPhone },
+        select: { uid: true } 
+      });
+      
+      if (phoneConflict && phoneConflict.uid !== uid) {
+        return res.status(409).json({ 
+          error: 'This phone number is already registered with another account' 
+        });
+      }
+    }
+
     // Create database records in a transaction (atomic operation)
     const doctor = await prisma.$transaction(async (tx) => {
       // Check if user already exists, if not create it
@@ -94,7 +118,7 @@ export const createDoctor = async (req: Request, res: Response) => {
         });
       }
       
-      // Create Doctor record
+      // Create Doctor record (now safe since we checked for conflicts)
       const newDoctor = await tx.doctor.create({
         data: {
           uid: uid as string,
@@ -132,6 +156,21 @@ export const createDoctor = async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error(error);
+    
+    // Handle Prisma unique constraint violations more specifically
+    if (error.code === 'P2002') {
+      if (error.meta?.target?.includes('phone')) {
+        return res.status(409).json({ 
+          error: 'This phone number is already registered with another account' 
+        });
+      }
+      if (error.meta?.target?.includes('uid')) {
+        return res.status(409).json({ 
+          error: 'Doctor profile already exists for this user' 
+        });
+      }
+    }
+    
     res.status(500).json({ error: 'Failed to create doctor profile' });
   }
 };

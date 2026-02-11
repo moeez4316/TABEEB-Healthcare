@@ -72,6 +72,30 @@ export const createPatient = async (req: Request, res: Response) => {
       validatedImageUrl = profileImageUrl || buildCloudinaryUrl(profileImagePublicId, 'image');
     }
 
+    // Check if patient already exists for this UID
+    const existingPatient = await prisma.patient.findUnique({ where: { uid } });
+    
+    if (existingPatient) {
+      return res.status(409).json({ 
+        error: 'Patient profile already exists for this user',
+        existing: true
+      });
+    }
+
+    // If phone is provided, check if it belongs to another patient
+    if (cleanPhone) {
+      const phoneConflict = await prisma.patient.findUnique({ 
+        where: { phone: cleanPhone },
+        select: { uid: true } 
+      });
+      
+      if (phoneConflict && phoneConflict.uid !== uid) {
+        return res.status(409).json({ 
+          error: 'This phone number is already registered with another account' 
+        });
+      }
+    }
+
     // Create database records in a transaction (atomic operation)
     const patient = await prisma.$transaction(async (tx) => {
       // Create or update User record
@@ -81,7 +105,7 @@ export const createPatient = async (req: Request, res: Response) => {
         update: { role: 'patient' }
       });
 
-      // Create Patient record
+      // Create Patient record (now safe since we checked for conflicts)
       const newPatient = await tx.patient.create({
         data: {
           uid,
@@ -131,6 +155,21 @@ export const createPatient = async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error('Create patient error:', error);
+    
+    // Handle Prisma unique constraint violations more specifically
+    if (error.code === 'P2002') {
+      if (error.meta?.target?.includes('phone')) {
+        return res.status(409).json({ 
+          error: 'This phone number is already registered with another account' 
+        });
+      }
+      if (error.meta?.target?.includes('uid')) {
+        return res.status(409).json({ 
+          error: 'Patient profile already exists for this user' 
+        });
+      }
+    }
+    
     res.status(500).json({ error: 'Failed to create patient profile' });
   }
 };
