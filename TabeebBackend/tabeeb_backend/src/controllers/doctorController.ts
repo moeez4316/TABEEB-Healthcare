@@ -154,17 +154,18 @@ export const createDoctor = async (req: Request, res: Response) => {
 
     res.status(201).json(doctor);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(error);
     
     // Handle Prisma unique constraint violations more specifically
-    if (error.code === 'P2002') {
-      if (error.meta?.target?.includes('phone')) {
+    const prismaError = error as { code?: string; meta?: { target?: string[] } };
+    if (prismaError.code === 'P2002') {
+      if (prismaError.meta?.target?.includes('phone')) {
         return res.status(409).json({ 
           error: 'This phone number is already registered with another account' 
         });
       }
-      if (error.meta?.target?.includes('uid')) {
+      if (prismaError.meta?.target?.includes('uid')) {
         return res.status(409).json({ 
           error: 'Doctor profile already exists for this user' 
         });
