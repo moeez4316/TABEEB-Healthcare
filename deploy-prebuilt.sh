@@ -7,7 +7,7 @@ set -e
 echo "🚀 Tabeeb Healthcare - Pre-built Image Deploy"
 echo "=============================================="
 
-# Step 1: Setup swap (if needed)
+# Step 1: Setup swap (if needed — only for first run on small VMs)
 if [ ! -f /swapfile ]; then
     echo "📊 Creating swap space..."
     sudo fallocate -l 2G /swapfile
@@ -25,18 +25,19 @@ docker compose -f docker-compose.prebuilt.yml down 2>/dev/null || true
 echo "⬇️  Pulling pre-built images from Docker Hub..."
 docker compose -f docker-compose.prebuilt.yml pull
 
-# Step 4: Wait for MySQL to be ready
-echo "⏳ Waiting for MySQL to be ready..."
-sleep 10
+# Step 4: Start Redis first so backend can connect
+echo "🟢 Starting Redis..."
+docker compose -f docker-compose.prebuilt.yml up -d redis
+echo "⏳ Waiting for Redis to be ready..."
+sleep 5
 
 # Step 5: Run database sync
 echo "🗄️  Syncing database schema..."
-# Don't pass -e DATABASE_URL here; docker compose already reads it from .env
 docker compose -f docker-compose.prebuilt.yml run --rm \
   backend npx prisma db push --accept-data-loss || echo "⚠️  DB sync skipped (run manually if needed)"
 
-# Step 6: Start services
-echo "🚀 Starting services..."
+# Step 6: Start all services
+echo "🚀 Starting all services..."
 docker compose -f docker-compose.prebuilt.yml up -d
 
 # Step 7: Show status
@@ -44,4 +45,5 @@ echo ""
 echo "✅ Deployment complete!"
 docker compose -f docker-compose.prebuilt.yml ps
 echo ""
-echo "Test: curl http://localhost:5002/api/health"
+echo "🌐 Your app should be live at: https://tabeeb.dpdns.org"
+echo "🔧 Health check: curl http://localhost:5002/api/health"

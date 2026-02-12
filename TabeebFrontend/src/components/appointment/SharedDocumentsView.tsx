@@ -30,6 +30,7 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewDocument, setPreviewDocument] = useState<SharedDocument | null>(null);
+  const [unavailableCount, setUnavailableCount] = useState(0);
 
   const fetchSharedDocuments = useCallback(async () => {
     setLoading(true);
@@ -52,7 +53,10 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
       }
 
       const data = await response.json();
-      setDocuments(data.sharedDocuments || []);
+      const rawDocuments = Array.isArray(data.sharedDocuments) ? data.sharedDocuments : [];
+      const validDocuments = rawDocuments.filter((doc: Partial<SharedDocument>) => !!doc.fileUrl && !!doc.fileType);
+      setUnavailableCount(Math.max(0, rawDocuments.length - validDocuments.length));
+      setDocuments(validDocuments as SharedDocument[]);
     } catch (err) {
       console.error('Error fetching shared documents:', err);
       setError('Failed to load shared documents');
@@ -143,10 +147,15 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
               <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
             </svg>
           </div>
-          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">No Shared Documents</h4>
+          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">No Medical Records Shared Yet</h4>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            The patient hasn&apos;t shared any medical records for this appointment.
+            The patient has not shared any medical records for this appointment.
           </p>
+          {unavailableCount > 0 && (
+            <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
+              {unavailableCount} previously shared document{unavailableCount > 1 ? 's are' : ' is'} unavailable.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -167,6 +176,13 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           The patient has shared the following medical documents for this appointment:
         </p>
+        {unavailableCount > 0 && (
+          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              {unavailableCount} shared document{unavailableCount > 1 ? 's are' : ' is'} no longer available.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-3">
           {documents.map((document) => (

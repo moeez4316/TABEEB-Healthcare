@@ -8,6 +8,30 @@ import {
   buildCloudinaryUrl
 } from '../services/uploadService';
 import { sendVerificationApproved, sendVerificationRejected } from '../services/emailService';
+import { publishEvent } from '../realtime/realtime';
+
+const emitVerificationEvent = (params: {
+  doctorUid: string;
+  actorRole: 'doctor' | 'admin' | 'system';
+  actorUid?: string;
+  status: string;
+  action: string;
+}) => {
+  publishEvent({
+    type: 'verification.updated',
+    actor: { role: params.actorRole, uid: params.actorUid },
+    entity: { type: 'verification', id: params.doctorUid },
+    audience: {
+      users: [params.doctorUid],
+      roles: ['admin'],
+      rooms: [`doctor:${params.doctorUid}`]
+    },
+    payload: {
+      status: params.status,
+      action: params.action
+    }
+  });
+};
 
 // Document can be either a string (legacy: just publicId) or an object with publicId and resourceType
 type DocumentInfo = string | { publicId: string; resourceType: string };
@@ -187,6 +211,14 @@ export const submitVerification = async (req: Request, res: Response) => {
       }
     });
 
+    emitVerificationEvent({
+      doctorUid: verification.doctorUid,
+      actorRole: 'doctor',
+      actorUid: doctorUid,
+      status: verification.status,
+      action: existing && existing.status === 'rejected' ? 'resubmitted' : 'submitted'
+    });
+
   } catch (error) {
     console.error('Error in submitVerification:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -305,6 +337,14 @@ export const approveVerification = async (req: Request, res: Response) => {
       verification 
     });
 
+    emitVerificationEvent({
+      doctorUid,
+      actorRole: 'admin',
+      actorUid: adminUsername,
+      status: verification.status,
+      action: 'approved'
+    });
+
     // Send email notification asynchronously
     const doctor = await prisma.doctor.findUnique({ where: { uid: doctorUid }, select: { email: true, name: true } });
     if (doctor?.email) {
@@ -338,6 +378,14 @@ export const rejectVerification = async (req: Request, res: Response) => {
     res.json({ 
       message: 'Verification rejected', 
       verification 
+    });
+
+    emitVerificationEvent({
+      doctorUid,
+      actorRole: 'admin',
+      actorUid: adminUsername,
+      status: verification.status,
+      action: 'rejected'
     });
 
     // Send email notification asynchronously

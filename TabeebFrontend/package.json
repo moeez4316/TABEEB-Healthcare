@@ -27,6 +27,7 @@
     "react-markdown": "^10.1.0",
     "react-phone-number-input": "^3.4.12",
     "react-redux": "^9.2.0",
+    "socket.io-client": "^4.7.5",
     "redux-persist": "^6.0.0"
   },
   "devDependencies": {

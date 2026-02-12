@@ -3,7 +3,7 @@ import { useState } from "react";
 import Image from "next/image";
 
 interface MedicalRecord {
-  _id: string;
+  id: string;
   fileName: string;
   fileUrl: string;
   fileType: string;
@@ -55,7 +55,7 @@ export default function MedicalRecordCard({ record, onDelete }: MedicalRecordCar
             className={`bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow disabled:opacity-50 transition-all duration-200 active:scale-95 ${deleting ? 'animate-pulse' : ''}`}
             onClick={async () => {
               setDeleting(true);
-              await onDelete(record._id);
+              await onDelete(record.id);
               setDeleting(false);
             }}
             disabled={deleting}

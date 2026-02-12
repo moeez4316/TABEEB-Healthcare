@@ -9,7 +9,7 @@ import { deleteMedicalRecord } from '@/lib/deleteMedicalRecord';
 import { CircularProgress, useUploadProgress } from '@/components/shared/UploadProgress';
 
 interface MedicalRecord {
-  _id: string;
+  id: string;
   fileName: string;
   fileUrl: string;
   fileType: string;
@@ -133,7 +133,7 @@ export default function MedicalRecordsPage() {
     if (!token) return;
     try {
       await deleteMedicalRecord(id, token);
-      setRecords(records => records.filter(r => r._id !== id));
+      setRecords(records => records.filter(r => r.id !== id));
     } catch (error) {
       console.error('Delete error:', error);
       alert('Failed to delete record');
@@ -240,7 +240,7 @@ export default function MedicalRecordsPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {records.map(record => (
-                <MedicalRecordCard key={record._id} record={record} onDelete={handleDelete} />
+                <MedicalRecordCard key={record.id} record={record} onDelete={handleDelete} />
               ))}
             </div>
           )}

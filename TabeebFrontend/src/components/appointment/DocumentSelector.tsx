@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { getMedicalRecords } from '@/lib/getMedicalRecords';
 
 interface MedicalRecord {
-  _id: string;
+  id: string;
   fileUrl: string;
   fileType: string;
   tags: string[];
@@ -150,20 +150,20 @@ export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
       <div className="space-y-3 max-h-64 overflow-y-auto">
         {documents.map((document) => (
           <div
-            key={document._id}
+            key={document.id}
             className={`
               flex items-start space-x-3 p-3 rounded-lg border transition-all cursor-pointer
-              ${selectedDocuments.includes(document._id)
+              ${selectedDocuments.includes(document.id)
                 ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-700'
                 : 'bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600'
               }
             `}
-            onClick={() => handleDocumentToggle(document._id)}
+            onClick={() => handleDocumentToggle(document.id)}
           >
             <input
               type="checkbox"
-              checked={selectedDocuments.includes(document._id)}
-              onChange={() => handleDocumentToggle(document._id)}
+              checked={selectedDocuments.includes(document.id)}
+              onChange={() => handleDocumentToggle(document.id)}
               className="mt-1 h-4 w-4 text-teal-600 rounded focus:ring-teal-500 border-gray-300 dark:border-gray-600"
             />
             

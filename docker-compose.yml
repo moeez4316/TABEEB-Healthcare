@@ -35,6 +35,31 @@ services:
   #     retries: 5
   #     start_period: 30s
 
+  # Redis (Realtime Pub/Sub)
+  redis:
+    image: redis:7.2-alpine
+    container_name: tabeeb_redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:-tabeeb_redis_password}
+      - --appendonly
+      - yes
+      - --appendfsync
+      - everysec
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - tabeeb_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-tabeeb_redis_password}", "PING"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Backend API
   backend:
     build:
@@ -53,6 +78,13 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - ADMIN_CREDENTIALS=${ADMIN_CREDENTIALS}
       - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - WS_PATH=${WS_PATH}
+      - WS_CORS_ORIGIN=${WS_CORS_ORIGIN}
+      - WS_PING_INTERVAL_MS=${WS_PING_INTERVAL_MS}
+      - WS_PING_TIMEOUT_MS=${WS_PING_TIMEOUT_MS}
+      - REALTIME_EVENT_SCHEMA_VERSION=${REALTIME_EVENT_SCHEMA_VERSION}
       - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
       - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
       - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
@@ -119,7 +151,7 @@ services:
           cpus: '0.8'
           memory: 768M
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -173,6 +205,8 @@ networks:
 
 volumes:
   mysql_data:
+    driver: local
+  redis_data:
     driver: local
   caddy_data:
     driver: local

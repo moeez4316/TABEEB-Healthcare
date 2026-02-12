@@ -101,6 +101,22 @@ model Appointment {
   @@map("appointments")
 }
 
+model MedicalRecord {
+  id           String   @id @default(cuid())
+  userId       String   @db.VarChar(255)
+  fileUrl      String   @db.Text
+  fileType     String   @default("application/pdf") @db.VarChar(100)
+  publicId     String   @db.VarChar(500)
+  resourceType String   @db.VarChar(50)
+  fileName     String?  @db.VarChar(500)
+  tags         String?  @db.Text         // stored as comma-separated
+  notes        String?  @db.Text
+  uploadedAt   DateTime @default(now())
+
+  @@index([userId])
+  @@map("medical_records")
+}
+
 model AppointmentSharedDocument {
   id            String      @id @default(cuid())
   appointmentId String      @db.VarChar(255)

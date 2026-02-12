@@ -1,8 +1,30 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { generateAvailableSlots, isSlotAvailable, calculateEndTime, getSlotsStatistics } from '../utils/slotGenerator';
-import MedicalRecord from '../models/MedicalRecord';
 import { sendAppointmentConfirmation, sendAppointmentNotificationToDoctor, sendAppointmentCancellation } from '../services/emailService';
+import { publishEvent } from '../realtime/realtime';
+
+const emitAppointmentEvent = (params: {
+  appointmentId: string;
+  doctorUid: string;
+  patientUid: string;
+  actorRole: 'doctor' | 'patient' | 'admin' | 'system';
+  actorUid?: string;
+  payload?: Record<string, unknown>;
+}) => {
+  const users = [params.doctorUid, params.patientUid].filter(Boolean);
+  publishEvent({
+    type: 'appointment.updated',
+    actor: { role: params.actorRole, uid: params.actorUid },
+    entity: { type: 'appointment', id: params.appointmentId },
+    audience: {
+      users,
+      roles: ['admin'],
+      rooms: [`appointment:${params.appointmentId}`]
+    },
+    payload: params.payload ?? {}
+  });
+};
 
 // Book appointment (updated to work without TimeSlot)
 export const bookAppointment = async (req: Request, res: Response) => {
@@ -152,22 +174,21 @@ export const bookAppointment = async (req: Request, res: Response) => {
 
     // Handle document sharing if provided
     if (sharedDocumentIds && Array.isArray(sharedDocumentIds) && sharedDocumentIds.length > 0) {
-      // Validate that documents belong to the patient
-      const patientDocuments = await MedicalRecord.find({
-        _id: { $in: sharedDocumentIds },
-        userId: patientUid
-      }).select('_id');
+      // Validate that documents belong to the patient (Prisma / MySQL)
+      const patientDocuments = await prisma.medicalRecord.findMany({
+        where: { id: { in: sharedDocumentIds }, userId: patientUid },
+        select: { id: true }
+      });
 
-      const validDocumentIds = patientDocuments.map(doc => doc._id.toString());
-      
+      const validDocumentIds = patientDocuments.map(doc => doc.id);
+
       if (validDocumentIds.length > 0) {
-        // Create shared document records
         const sharedDocumentsData = validDocumentIds.map(documentId => ({
           appointmentId: appointment.id,
           documentId,
           sharedBy: patientUid
         }));
-  
+
         await prisma.appointmentSharedDocument.createMany({
           data: sharedDocumentsData
         });
@@ -178,6 +199,18 @@ export const bookAppointment = async (req: Request, res: Response) => {
       appointment,
       sharedDocumentsCount: sharedDocumentIds?.length || 0,
       message: 'Appointment booked successfully'
+    });
+
+    emitAppointmentEvent({
+      appointmentId: appointment.id,
+      doctorUid: appointment.doctorUid,
+      patientUid: appointment.patientUid,
+      actorRole: 'patient',
+      actorUid: patientUid,
+      payload: {
+        status: appointment.status,
+        action: 'created'
+      }
     });
 
     // Send email notifications asynchronously (don't block the response)
@@ -421,6 +454,18 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
       message: `Appointment ${status.toLowerCase()} successfully`
     });
 
+    emitAppointmentEvent({
+      appointmentId: updatedAppointment.id,
+      doctorUid: updatedAppointment.doctorUid,
+      patientUid: updatedAppointment.patientUid,
+      actorRole: 'doctor',
+      actorUid: doctorUid,
+      payload: {
+        status: updatedAppointment.status,
+        action: 'status_updated'
+      }
+    });
+
   } catch (error) {
     console.error('Error updating appointment status:', error);
     res.status(500).json({ error: 'Failed to update appointment status' });
@@ -510,6 +555,18 @@ export const cancelAppointment = async (req: Request, res: Response) => {
     res.json({
       appointment: updatedAppointment,
       message: 'Appointment cancelled successfully'
+    });
+
+    emitAppointmentEvent({
+      appointmentId: updatedAppointment.id,
+      doctorUid: updatedAppointment.doctorUid,
+      patientUid: updatedAppointment.patientUid,
+      actorRole: cancelledBy === 'doctor' ? 'doctor' : 'patient',
+      actorUid: userUid,
+      payload: {
+        status: updatedAppointment.status,
+        action: 'cancelled'
+      }
     });
 
     // Send cancellation emails asynchronously
@@ -696,13 +753,13 @@ export const shareDocumentsWithAppointment = async (req: Request, res: Response)
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    // Validate that documents belong to the patient
-    const patientDocuments = await MedicalRecord.find({
-      _id: { $in: documentIds },
-      userId: patientUid
-    }).select('_id');
+    // Validate that documents belong to the patient (Prisma / MySQL)
+    const patientDocuments = await prisma.medicalRecord.findMany({
+      where: { id: { in: documentIds }, userId: patientUid },
+      select: { id: true }
+    });
 
-    const validDocumentIds = patientDocuments.map(doc => doc._id.toString());
+    const validDocumentIds = patientDocuments.map(doc => doc.id);
     
     if (validDocumentIds.length === 0) {
       return res.status(400).json({ error: 'No valid documents found' });
@@ -724,6 +781,18 @@ export const shareDocumentsWithAppointment = async (req: Request, res: Response)
       message: 'Documents shared successfully',
       sharedCount: result.count,
       validDocumentsCount: validDocumentIds.length
+    });
+
+    emitAppointmentEvent({
+      appointmentId,
+      doctorUid: appointment.doctorUid,
+      patientUid: appointment.patientUid,
+      actorRole: 'patient',
+      actorUid: patientUid,
+      payload: {
+        action: 'documents_shared',
+        sharedCount: result.count
+      }
     });
 
   } catch (error) {
@@ -794,40 +863,46 @@ export const getAppointmentSharedDocuments = async (req: Request, res: Response)
       }
     });
 
-    // Fetch medical record details from MongoDB
+    // Fetch medical record details from MySQL via Prisma
     let documentsWithDetails: any[] = [];
+    let unavailableCount = 0;
     if (sharedDocuments.length > 0) {
       const documentIds = sharedDocuments.map((doc: any) => doc.documentId);
-      
-      const medicalRecords = await MedicalRecord.find({
-        _id: { $in: documentIds }
-      }).select('_id fileUrl fileType tags notes uploadedAt');
+
+      const medicalRecords = await prisma.medicalRecord.findMany({
+        where: { id: { in: documentIds } },
+        select: { id: true, fileUrl: true, fileType: true, tags: true, notes: true, uploadedAt: true }
+      });
 
       documentsWithDetails = sharedDocuments.map((sharedDoc: any) => {
         const medicalRecord = medicalRecords.find(
-          record => record._id.toString() === sharedDoc.documentId
+          (record: any) => record.id === sharedDoc.documentId
         );
-        
+
+        if (!medicalRecord) {
+          unavailableCount += 1;
+          return null;
+        }
+
         return {
           sharedDocumentId: sharedDoc.id,
           documentId: sharedDoc.documentId,
           sharedAt: sharedDoc.sharedAt,
           sharedBy: sharedDoc.sharedBy,
-          ...(medicalRecord && {
-            fileUrl: medicalRecord.fileUrl,
-            fileType: medicalRecord.fileType,
-            tags: medicalRecord.tags,
-            notes: medicalRecord.notes,
-            uploadedAt: medicalRecord.uploadedAt
-          })
+          fileUrl: medicalRecord.fileUrl,
+          fileType: medicalRecord.fileType,
+          tags: medicalRecord.tags ? medicalRecord.tags.split(',').map((t: string) => t.trim()) : [],
+          notes: medicalRecord.notes,
+          uploadedAt: medicalRecord.uploadedAt
         };
-      });
+      }).filter(Boolean) as any[];
     }
 
     res.json({
       appointmentId,
       sharedDocuments: documentsWithDetails,
-      totalCount: documentsWithDetails.length
+      totalCount: documentsWithDetails.length,
+      unavailableCount
     });
 
   } catch (error) {
@@ -869,6 +944,17 @@ export const confirmAppointmentPayment = async (req: Request, res: Response) => 
       message: 'Payment received successfully. Appointment pending doctor approval.',
       appointment: updatedAppointment,
       transactionId
+    });
+
+    emitAppointmentEvent({
+      appointmentId: updatedAppointment.id,
+      doctorUid: appointment.doctorUid,
+      patientUid: appointment.patientUid,
+      actorRole: 'patient',
+      actorUid: req.user?.uid,
+      payload: {
+        action: 'payment_confirmed'
+      }
     });
 
   } catch (error) {
@@ -1130,6 +1216,19 @@ export const bookFollowUpAppointment = async (req: Request, res: Response) => {
       isFollowUp: true,
       discountApplied: doctor.followUpPercentage ?? 50,
       message: `Follow-up appointment booked successfully with ${doctor.followUpPercentage ?? 50}% discount`
+    });
+
+    emitAppointmentEvent({
+      appointmentId: appointment.id,
+      doctorUid: appointment.doctorUid,
+      patientUid: appointment.patientUid,
+      actorRole: 'patient',
+      actorUid: patientUid,
+      payload: {
+        status: appointment.status,
+        action: 'follow_up_created',
+        isFollowUp: true
+      }
     });
 
   } catch (error) {

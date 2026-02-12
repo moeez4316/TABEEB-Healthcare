@@ -1,8 +1,7 @@
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
-// MongoDB is not used - using Prisma with MySQL instead
-// import { connectDB } from './config/db';
 import userRoutes from './routes/userRoutes'
 import recordRoutes from './routes/medicalRecords';
 import doctorRoutes from './routes/doctorRoutes';
@@ -21,10 +20,9 @@ import emailRoutes from './routes/emailRoutes';
 import authRoutes from './routes/authRoutes';
 import { scheduleAutoGeneration } from './utils/autoGenerateSlots';
 import { generalLimiter } from './middleware/rateLimiter';
+import { initRealtime } from './realtime/realtime';
 
 dotenv.config();
-// MongoDB connection removed - using Prisma with MySQL
-// connectDB();
 
 const app = express();
 app.use(cors());
@@ -56,7 +54,13 @@ app.use('/api/auth', authRoutes);
 
 
 const PORT = process.env.PORT || 5002;
-app.listen(PORT, () => {
+const server = http.createServer(app);
+
+initRealtime(server).catch((err) => {
+  console.error('Realtime init failed:', err);
+});
+
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   
   // Start auto-generation scheduler

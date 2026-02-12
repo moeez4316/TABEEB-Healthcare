@@ -13,6 +13,7 @@ import DoctorVideoCallModal from '@/components/VideoCall/DoctorVideoCallModal';
 import { Toast } from '@/components/Toast';
 import { fetchWithRateLimit } from '@/lib/api-utils';
 import AppointmentChat from '@/components/chat/AppointmentChat';
+import { createRealtimeSocket, RealtimeEvent } from '@/lib/realtime';
 
 export default function DoctorAppointmentsPage() {
   const { token, user } = useAuth();
@@ -35,11 +36,13 @@ export default function DoctorAppointmentsPage() {
   const [showChat, setShowChat] = useState(false);
   const [chatAppointment, setChatAppointment] = useState<AppointmentWithDetails | null>(null);
 
-  const fetchAppointments = useCallback(async () => {
+  const fetchAppointments = useCallback(async (silent = false) => {
     if (!token) return;
     
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -59,13 +62,63 @@ export default function DoctorAppointmentsPage() {
     } catch {
       setError('Failed to load appointments. Please try again.');
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [token]);
 
   useEffect(() => {
-    fetchAppointments();
+    fetchAppointments(false);
   }, [fetchAppointments]);
+
+  useEffect(() => {
+    if (!token) return;
+    const socket = createRealtimeSocket(token);
+    let refreshTimer: NodeJS.Timeout | null = null;
+    let isRefreshing = false;
+
+    const safeRefresh = async () => {
+      if (isRefreshing) return;
+      isRefreshing = true;
+      try {
+        await fetchAppointments(true);
+      } finally {
+        isRefreshing = false;
+      }
+    };
+
+    const scheduleRefresh = () => {
+      if (refreshTimer) return;
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        void safeRefresh();
+      }, 300);
+    };
+
+    const onEvent = (evt: RealtimeEvent) => {
+      if (evt?.type === 'appointment.updated') {
+        scheduleRefresh();
+      }
+    };
+
+    socket.on('domain.event', onEvent);
+    socket.on('connect_error', () => {
+      void safeRefresh();
+    });
+
+    // Polling safety net if realtime transport is blocked in some environments.
+    const fallbackInterval = setInterval(() => {
+      void safeRefresh();
+    }, 10000);
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      clearInterval(fallbackInterval);
+      socket.off('domain.event', onEvent);
+      socket.disconnect();
+    };
+  }, [token, fetchAppointments]);
 
   const updateAppointmentStatus = async (appointmentId: string, newStatus: 'CONFIRMED' | 'CANCELLED', cancelReason?: string) => {
     setUpdating(appointmentId);
@@ -89,7 +142,7 @@ export default function DoctorAppointmentsPage() {
       }
 
       // Refresh appointments
-      fetchAppointments();
+      fetchAppointments(true);
     } catch {
       setError('Failed to update appointment. Please try again.');
     } finally {
@@ -362,7 +415,7 @@ export default function DoctorAppointmentsPage() {
           <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 shadow-lg">
             <div className="text-red-800 dark:text-red-400">{error}</div>
             <button
-              onClick={fetchAppointments}
+              onClick={() => fetchAppointments(false)}
               className="mt-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
             >
               Try Again
@@ -750,7 +803,7 @@ export default function DoctorAppointmentsPage() {
             setShowVideoCall(false);
             setSelectedAppointmentId(null);
             // Refresh appointments to update status
-            fetchAppointments();
+            fetchAppointments(true);
           }}
           firebaseToken={token}
         />

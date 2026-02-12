@@ -7,7 +7,15 @@
         reverse_proxy backend:5002
     }
 
-    # WebSocket support for video calls and real-time features
+    # Socket.io / WebSocket — explicit path match
+    handle /ws {
+        reverse_proxy backend:5002
+    }
+    handle /ws/* {
+        reverse_proxy backend:5002
+    }
+
+    # WebSocket upgrade fallback (e.g. video calls on other paths)
     @websockets {
         header Connection *Upgrade*
         header Upgrade websocket
