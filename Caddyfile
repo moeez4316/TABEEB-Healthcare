@@ -1,4 +1,4 @@
-tabeeb.dpdns.org {
+{$SITE_ADDRESS:localhost} {
     # Encode responses for better performance
     encode gzip zstd
 
@@ -41,9 +41,3 @@ tabeeb.dpdns.org {
         Referrer-Policy "strict-origin-when-cross-origin"
     }
 }
-
-# Optional: HTTP to HTTPS redirect (Caddy does this automatically)
-# Uncomment if you need custom behavior
-# http://tabeeb.dpdns.org {
-#     redir https://tabeeb.dpdns.org{uri} permanent
-# }

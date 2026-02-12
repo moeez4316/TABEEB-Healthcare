@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Webhook } from 'svix';
-import { EMAIL_CONFIG } from '../config/resend';
+import { EMAIL_CONFIG, resend } from '../config/resend';
 import prisma from '../lib/prisma';
 import { sendEmail } from '../services/emailService';
 
@@ -21,7 +21,8 @@ interface ResendWebhookEvent {
     // For email.sent / email.delivered / email.bounced / email.complained
     created_at?: string;
     
-    // For inbound emails (email.received)
+    // For inbound emails (email.received) — NOTE: html/text are NOT in webhook payload
+    // You must call resend.emails.receiving.get(email_id) to get the body
     headers?: Array<{ name: string; value: string }>;
     html?: string;
     text?: string;
@@ -40,6 +41,18 @@ interface ResendWebhookEvent {
     // For clicks
     click?: { link: string; timestamp: string };
   };
+}
+
+// Helper: extract email from "Name <email@domain.com>" format
+function extractEmail(raw: string): string {
+  const match = raw.match(/<([^>]+)>/);
+  return match ? match[1] : raw.trim();
+}
+
+// Helper: extract display name from "Name <email@domain.com>" format
+function extractName(raw: string): string | null {
+  const match = raw.match(/^(.+?)\s*<[^>]+>$/);
+  return match ? match[1].trim().replace(/^["']|["']$/g, '') : null;
 }
 
 // ========================================
@@ -139,154 +152,153 @@ export const handleResendWebhook = async (req: Request, res: Response): Promise<
 // ========================================
 
 async function handleInboundEmail(data: ResendWebhookEvent['data']) {
-  const from = data.from || '';
+  const rawFrom = data.from || '';
   const to = data.to || [];
   const subject = data.subject || '(No Subject)';
-  const textBody = data.text || '';
-  const htmlBody = data.html || '';
-  const attachments = data.attachments || [];
+  const emailId = data.email_id || '';
+
+  // Parse sender info
+  const fromEmail = extractEmail(rawFrom);
+  const fromName = extractName(rawFrom);
 
   console.log('📥 Processing inbound email:');
-  console.log(`   From: ${from}`);
+  console.log(`   Email ID: ${emailId}`);
+  console.log(`   From (raw): ${rawFrom}`);
+  console.log(`   From (email): ${fromEmail}`);
+  console.log(`   From (name): ${fromName}`);
   console.log(`   To: ${to.join(', ')}`);
   console.log(`   Subject: ${subject}`);
-  console.log(`   Text length: ${textBody.length}`);
-  console.log(`   HTML length: ${htmlBody.length}`);
-  console.log(`   Attachments: ${attachments.length}`);
 
-  // Route based on the recipient address
+  // Fetch FULL email content from Resend API
+  // (Webhook payloads do NOT include html/text body — you must call the API)
+  let textBody = '';
+  let htmlBody = '';
+  let emailAttachments: Array<{ filename: string; content_type: string }> = [];
+
+  if (emailId) {
+    try {
+      console.log(`📥 Fetching email content from Resend API for ID: ${emailId}`);
+      const { data: fullEmail, error } = await resend.emails.receiving.get(emailId);
+
+      if (error) {
+        console.error('❌ Resend API error fetching email content:', error);
+      } else if (fullEmail) {
+        textBody = (fullEmail as any).text || '';
+        htmlBody = (fullEmail as any).html || '';
+        emailAttachments = ((fullEmail as any).attachments || []).map((a: any) => ({
+          filename: a.filename,
+          content_type: a.content_type,
+        }));
+        console.log(`   ✅ Fetched body — text: ${textBody.length} chars, html: ${htmlBody.length} chars, attachments: ${emailAttachments.length}`);
+      }
+    } catch (err) {
+      console.error('❌ Error fetching email content from Resend API:', err);
+    }
+  } else {
+    console.warn('⚠️  No email_id in webhook payload, cannot fetch body');
+  }
+
+  // Determine message type based on recipient routing
+  let handled = false;
+
   for (const recipient of to) {
-    const localPart = recipient.split('@')[0].toLowerCase();
+    // Handle both "email@domain" and "Name <email@domain>" formats
+    const cleanEmail = extractEmail(recipient);
+    const localPart = cleanEmail.split('@')[0].toLowerCase();
+
+    console.log(`📥 Routing recipient: ${recipient} → local part: ${localPart}`);
 
     switch (localPart) {
       case 'support':
         console.log('📥 Routing to support handler...');
-        await handleSupportEmail(from, subject, textBody, htmlBody, attachments);
+        await saveInboundEmail('SUPPORT', fromEmail, fromName, subject, textBody, htmlBody, emailAttachments, true);
+        handled = true;
         break;
 
       case 'noreply':
         console.log('📥 Auto-reply received on noreply, ignoring.');
+        handled = true;
         break;
 
       case 'contact':
         console.log('📥 Routing to contact handler...');
-        await handleContactEmail(from, subject, textBody, htmlBody);
+        await saveInboundEmail('CONTACT', fromEmail, fromName, subject, textBody, htmlBody, emailAttachments, false);
+        handled = true;
         break;
 
       case 'feedback':
         console.log('📥 Routing to feedback handler...');
-        await handleFeedbackEmail(from, subject, textBody, htmlBody);
+        await saveInboundEmail('FEEDBACK', fromEmail, fromName, subject, textBody, htmlBody, emailAttachments, false);
+        handled = true;
         break;
 
       default:
-        console.log(`📥 Email to ${recipient} - no specific handler, logging.`);
+        console.log(`📥 Email to ${recipient} (${localPart}) - no specific handler.`);
         break;
     }
   }
+
+  // Fallback: if no recipient matched a handler, still save the email as INBOUND
+  if (!handled) {
+    console.log('📥 No handler matched — saving as generic INBOUND message');
+    await saveInboundEmail('INBOUND', fromEmail, fromName, subject, textBody, htmlBody, emailAttachments, false);
+  }
 }
 
 // ========================================
-// INBOUND EMAIL SUB-HANDLERS
+// SAVE INBOUND EMAIL TO DATABASE
 // ========================================
 
-async function handleSupportEmail(
-  from: string,
+async function saveInboundEmail(
+  type: 'SUPPORT' | 'CONTACT' | 'FEEDBACK' | 'INBOUND',
+  fromEmail: string,
+  fromName: string | null,
   subject: string,
   text: string,
   html: string,
-  attachments: Array<{ filename: string; content_type: string; content: string }>
+  attachments: Array<{ filename: string; content_type: string }>,
+  sendAck: boolean
 ) {
-  console.log('🎫 Support request received:');
-  console.log(`   From: ${from}`);
-  console.log(`   Subject: ${subject}`);
-
   try {
-    // Store in database
-    await prisma.contactMessage.create({
+    const message = await prisma.contactMessage.create({
       data: {
-        type: 'SUPPORT',
-        fromEmail: from,
+        type,
+        fromEmail,
+        fromName: fromName || undefined,
         subject,
-        message: text || 'No text content',
+        message: text || html?.replace(/<[^>]*>/g, '').substring(0, 5000) || 'No text content',
         htmlContent: html || undefined,
-        attachments: attachments.length > 0
-          ? attachments.map(a => ({ filename: a.filename, contentType: a.content_type }))
-          : undefined,
+        attachments: attachments.length > 0 ? attachments : undefined,
       },
     });
 
-    // Send auto-acknowledgment
-    await sendEmail({
-      to: from,
-      subject: `Re: ${subject} — We received your message`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #0d9488, #0891b2); padding: 24px; border-radius: 12px 12px 0 0;">
-            <h2 style="color: white; margin: 0;">Tabeeb Healthcare Support</h2>
-          </div>
-          <div style="padding: 24px; background: #f8fffe; border: 1px solid #e0f2f1; border-top: none; border-radius: 0 0 12px 12px;">
-            <p>Thank you for contacting Tabeeb Healthcare support.</p>
-            <p>We have received your message and our team will get back to you within <strong>24-48 hours</strong>.</p>
-            <p style="color: #888; font-size: 13px; margin-top: 20px;">This is an automated response. Please do not reply to this email.</p>
-          </div>
-        </div>
-      `,
-    });
+    console.log(`✅ ${type} message saved to DB with ID: ${message.id}`);
 
-    console.log('✅ Support message saved to DB and acknowledgment sent');
+    // Send auto-acknowledgment for support emails
+    if (sendAck && fromEmail) {
+      try {
+        await sendEmail({
+          to: fromEmail,
+          subject: `Re: ${subject} — We received your message`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #0d9488, #0891b2); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h2 style="color: white; margin: 0;">Tabeeb Healthcare Support</h2>
+              </div>
+              <div style="padding: 24px; background: #f8fffe; border: 1px solid #e0f2f1; border-top: none; border-radius: 0 0 12px 12px;">
+                <p>Thank you for contacting Tabeeb Healthcare support.</p>
+                <p>We have received your message and our team will get back to you within <strong>24-48 hours</strong>.</p>
+                <p style="color: #888; font-size: 13px; margin-top: 20px;">This is an automated response. Please do not reply to this email.</p>
+              </div>
+            </div>
+          `,
+        });
+        console.log('✅ Auto-acknowledgment sent to', fromEmail);
+      } catch (ackError) {
+        console.error('⚠️  Failed to send auto-acknowledgment (message still saved):', ackError);
+      }
+    }
   } catch (error) {
-    console.error('❌ Error saving support email:', error);
-  }
-}
-
-async function handleContactEmail(
-  from: string,
-  subject: string,
-  text: string,
-  html: string
-) {
-  console.log('📬 Contact email received:');
-  console.log(`   From: ${from}`);
-  console.log(`   Subject: ${subject}`);
-
-  try {
-    await prisma.contactMessage.create({
-      data: {
-        type: 'CONTACT',
-        fromEmail: from,
-        subject,
-        message: text || 'No text content',
-        htmlContent: html || undefined,
-      },
-    });
-    console.log('✅ Contact email saved to DB');
-  } catch (error) {
-    console.error('❌ Error saving contact email:', error);
-  }
-}
-
-async function handleFeedbackEmail(
-  from: string,
-  subject: string,
-  text: string,
-  html: string
-) {
-  console.log('💬 Feedback email received:');
-  console.log(`   From: ${from}`);
-  console.log(`   Subject: ${subject}`);
-
-  try {
-    await prisma.contactMessage.create({
-      data: {
-        type: 'FEEDBACK',
-        fromEmail: from,
-        subject,
-        message: text || 'No text content',
-        htmlContent: html || undefined,
-      },
-    });
-    console.log('✅ Feedback email saved to DB');
-  } catch (error) {
-    console.error('❌ Error saving feedback email:', error);
+    console.error(`❌ Error saving ${type} email to DB:`, error);
   }
 }

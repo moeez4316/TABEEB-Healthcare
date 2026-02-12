@@ -299,33 +299,32 @@ export default function SelectRolePage() {
     setUploadProgress(0);
     
     try {
-      let endpoint = "";
       let profileImagePublicId: string | undefined;
       let profileImageUrl: string | undefined;
       
-      // Upload profile image first if exists (for both doctor and patient)
+      // ====== STEP 1: Upload image FIRST if selected (validation already passed) ======
       const imageToUpload = role === "doctor" ? doctorForm.profileImage : patientForm.profileImage;
+      const hasImageToUpload = imageToUpload && imageToUpload.startsWith('data:image') && token;
       
-      if (imageToUpload && imageToUpload.startsWith('data:image') && token) {
+      if (hasImageToUpload) {
         const blob = await fetch(imageToUpload).then(r => r.blob());
         
-        // Validate file size (2MB limit for profile images)
         if (blob.size > 2 * 1024 * 1024) {
           setError("Profile image must be less than 2MB");
           setSubmitting(false);
           return;
         }
         
-        const file = new File([blob], "profile.jpg", { type: blob.type });
+        const file = new File([blob], "profile.jpg", { type: "image/jpeg" });
         
         try {
           setUploadStatus('uploading');
-          const uploadResult = await uploadFile(file, 'profile-image', token, {
+          const uploadResult = await uploadFile(file, 'profile-image', token!, {
             onProgress: (p) => setUploadProgress(p.percentage)
           });
           profileImagePublicId = uploadResult.publicId;
           profileImageUrl = uploadResult.secureUrl;
-          setUploadStatus('processing');
+          setUploadStatus('success');
         } catch (uploadError) {
           console.error('Image upload error:', uploadError);
           setUploadStatus('error');
@@ -335,15 +334,14 @@ export default function SelectRolePage() {
         }
       }
       
+      // ====== STEP 2: Create profile WITH the image URL (so DB is never empty) ======
+      let createRes: Response;
+      
       if (role === "doctor") {
-        endpoint = "/api/doctor";
-        
-        // Use custom specialization if "Other" is selected
         const finalSpecialization = doctorForm.specialization === "Other" ? customSpecialization : doctorForm.specialization;
-        // Use custom qualification if "Other" is selected
         const finalQualification = doctorForm.qualification === "Other" ? customQualification : doctorForm.qualification;
         
-        const res = await fetchWithRateLimit(`${API_URL}${endpoint}`, {
+        createRes = await fetchWithRateLimit(`${API_URL}/api/doctor`, {
           method: "POST",
           headers: {
             'Content-Type': 'application/json',
@@ -363,25 +361,8 @@ export default function SelectRolePage() {
             profileImageUrl,
           }),
         });
-        
-        if (res.ok) {
-          setUploadStatus('success');
-          console.log("Selected role:", role);
-          setUserRole(role);
-          setSuccess("Profile created successfully! Redirecting...");
-          setTimeout(() => {
-            router.replace(getDoctorRedirectPath(null));
-          }, 1500);
-        } else {
-          const errorData = await res.json().catch(() => ({}));
-          setUploadStatus('error');
-          setError(errorData.error || errorData.message || "Failed to create profile. Please try again.");
-        }
-        
-      } else if (role === "patient") {
-        endpoint = "/api/patient";
-        
-        const res = await fetchWithRateLimit(`${API_URL}${endpoint}`, {
+      } else {
+        createRes = await fetchWithRateLimit(`${API_URL}/api/patient`, {
           method: "POST",
           headers: {
             'Content-Type': 'application/json',
@@ -398,23 +379,25 @@ export default function SelectRolePage() {
             profileImageUrl,
           }),
         });
-        
-        if (res.ok) {
-          setUploadStatus('success');
-          console.log("Selected role:", role);
-          setUserRole(role);
-          setSuccess("Profile created successfully! Redirecting...");
-          setTimeout(() => {
-            router.replace("/Patient/dashboard");
-          }, 1500);
-        } else {
-          const errorData = await res.json().catch(() => ({}));
-          setUploadStatus('error');
-          setError(errorData.error || errorData.message || "Failed to create profile. Please try again.");
-        }
       }
+      
+      if (createRes.ok) {
+        console.log("Selected role:", role);
+        setUserRole(role);
+        setSuccess("Profile created successfully! Redirecting...");
+        setTimeout(() => {
+          if (role === "doctor") {
+            router.replace(getDoctorRedirectPath(null));
+          } else {
+            router.replace("/Patient/dashboard");
+          }
+        }, 1500);
+      } else {
+        const errorData = await createRes.json().catch(() => ({}));
+        setError(errorData.error || errorData.message || "Failed to create profile. Please try again.");
+      }
+      
     } catch {
-      setUploadStatus('error');
       setError("Network error. Please check your connection and try again.");
     } finally {
       setSubmitting(false);
@@ -439,8 +422,43 @@ export default function SelectRolePage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
+      {/* Floating Upload Progress Overlay */}
+      {uploadStatus !== 'idle' && uploadStatus !== 'success' && (
+        <div className="fixed top-0 left-0 right-0 z-50 animate-in slide-in-from-top duration-300">
+          <div className={`mx-auto max-w-lg mt-4 px-4`}>
+            <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border backdrop-blur-sm ${
+              uploadStatus === 'error'
+                ? 'bg-red-50/95 dark:bg-red-950/90 border-red-200 dark:border-red-800'
+                : `${role === 'doctor' ? 'bg-blue-50/95 dark:bg-blue-950/90 border-blue-200 dark:border-blue-800' : 'bg-teal-50/95 dark:bg-teal-950/90 border-teal-200 dark:border-teal-800'}`
+            }`}>
+              {uploadStatus === 'uploading' && (
+                <>
+                  <Loader2 className={`h-5 w-5 animate-spin flex-shrink-0 ${role === 'doctor' ? 'text-blue-600 dark:text-blue-400' : 'text-teal-600 dark:text-teal-400'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium ${role === 'doctor' ? 'text-blue-700 dark:text-blue-300' : 'text-teal-700 dark:text-teal-300'}`}>
+                      Uploading profile image... {Math.round(uploadProgress)}%
+                    </p>
+                    <div className="mt-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ease-out ${role === 'doctor' ? 'bg-blue-500' : 'bg-teal-500'}`}
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+              {uploadStatus === 'error' && (
+                <>
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <p className="text-sm font-medium text-red-700 dark:text-red-300">Upload failed — please try again</p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-2xl w-full space-y-8">
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-3 animate-in fade-in duration-500">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
             Complete Your Profile
           </h2>
@@ -471,10 +489,10 @@ export default function SelectRolePage() {
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setRole("doctor")}
-                className={`relative p-6 rounded-xl border-2 transition-all duration-200 ${
+                className={`relative p-6 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
                   role === "doctor"
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                    : "border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-600"
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md shadow-blue-500/10"
+                    : "border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm"
                 }`}
               >
                 <div className="flex flex-col items-center space-y-3">
@@ -494,10 +512,10 @@ export default function SelectRolePage() {
 
               <button
                 onClick={() => setRole("patient")}
-                className={`relative p-6 rounded-xl border-2 transition-all duration-200 ${
+                className={`relative p-6 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${
                   role === "patient"
-                    ? "border-teal-500 bg-teal-50 dark:bg-teal-900/20"
-                    : "border-gray-200 dark:border-slate-600 hover:border-teal-300 dark:hover:border-teal-600"
+                    ? "border-teal-500 bg-teal-50 dark:bg-teal-900/20 shadow-md shadow-teal-500/10"
+                    : "border-gray-200 dark:border-slate-600 hover:border-teal-300 dark:hover:border-teal-600 hover:shadow-sm"
                 }`}
               >
                 <div className="flex flex-col items-center space-y-3">
@@ -538,21 +556,28 @@ export default function SelectRolePage() {
 
           {/* Doctor Form */}
           {role === "doctor" && (
-            <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
-              {/* Profile Image Upload */}
-              <div className="flex flex-col items-center space-y-3">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Profile Picture (Optional)
-                </label>
-                <ProfileImageUpload
-                  currentImage={doctorForm.profileImage}
-                  onImageChange={handleDoctorImageChange}
-                  size="lg"
-                  className="mb-2"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                  Upload a professional profile picture for your medical practice
-                </p>
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-6 stagger-children animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Profile Image Upload — Hero Section */}
+              <div className="relative -mx-8 -mt-8 mb-6 px-8 pt-8 pb-6 bg-gradient-to-b from-blue-50 via-blue-50/50 to-transparent dark:from-blue-950/30 dark:via-blue-950/10 dark:to-transparent rounded-t-xl">
+                <div className="flex flex-col items-center space-y-3">
+                  <div className="relative group">
+                    <div className="absolute -inset-2 rounded-full bg-gradient-to-tr from-blue-400 to-cyan-400 opacity-20 group-hover:opacity-40 blur-md transition-opacity duration-500 animate-glow-pulse" />
+                    <ProfileImageUpload
+                      currentImage={doctorForm.profileImage}
+                      onImageChange={handleDoctorImageChange}
+                      size="lg"
+                      className="relative z-10"
+                    />
+                  </div>
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      Profile Picture
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Upload a professional photo for your medical practice
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -824,27 +849,15 @@ export default function SelectRolePage() {
                 </div>
               )}
 
-              {/* Upload Progress Indicator - Before submit button */}
-              {uploadStatus !== 'idle' && (
-                <div className="py-2">
-                  <LinearProgress
-                    progress={uploadProgress}
-                    status={uploadStatus}
-                    fileName="Profile image"
-                    size="sm"
-                  />
-                </div>
-              )}
-
               <button
                 type="submit"
-                disabled={submitting || uploadStatus === 'uploading' || uploadStatus === 'processing'}
-                className="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={submitting || uploadStatus === 'uploading'}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md active:scale-[0.98]"
               >
-                {submitting || uploadStatus === 'uploading' ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                {submitting ? (
+                  <><Loader2 className="h-5 w-5 animate-spin" /><span>{uploadStatus === 'uploading' ? 'Uploading Image...' : 'Creating Profile...'}</span></>
                 ) : (
-                  'Complete Doctor Profile'
+                  <><Stethoscope className="h-5 w-5" /><span>Complete Doctor Profile</span></>
                 )}
               </button>
             </form>
@@ -852,21 +865,28 @@ export default function SelectRolePage() {
 
           {/* Patient Form */}
           {role === "patient" && (
-            <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
-              {/* Profile Image Upload */}
-              <div className="flex flex-col items-center space-y-3">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Profile Picture (Optional)
-                </label>
-                <ProfileImageUpload
-                  currentImage={patientForm.profileImage}
-                  onImageChange={handlePatientImageChange}
-                  size="lg"
-                  className="mb-2"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                  Upload a profile picture to personalize your account
-                </p>
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-6 stagger-children animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Profile Image Upload — Hero Section */}
+              <div className="relative -mx-8 -mt-8 mb-6 px-8 pt-8 pb-6 bg-gradient-to-b from-teal-50 via-teal-50/50 to-transparent dark:from-teal-950/30 dark:via-teal-950/10 dark:to-transparent rounded-t-xl">
+                <div className="flex flex-col items-center space-y-3">
+                  <div className="relative group">
+                    <div className="absolute -inset-2 rounded-full bg-gradient-to-tr from-teal-400 to-emerald-400 opacity-20 group-hover:opacity-40 blur-md transition-opacity duration-500 animate-glow-pulse" />
+                    <ProfileImageUpload
+                      currentImage={patientForm.profileImage}
+                      onImageChange={handlePatientImageChange}
+                      size="lg"
+                      className="relative z-10"
+                    />
+                  </div>
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-medium text-teal-700 dark:text-teal-300">
+                      Profile Picture
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Upload a profile picture to personalize your account
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1018,34 +1038,22 @@ export default function SelectRolePage() {
                 {formErrors.gender && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.gender}</p>}
               </div>
 
-              {/* Upload Progress Indicator - Before submit button */}
-              {uploadStatus !== 'idle' && (
-                <div className="py-2">
-                  <LinearProgress
-                    progress={uploadProgress}
-                    status={uploadStatus}
-                    fileName="Profile image"
-                    size="sm"
-                  />
-                </div>
-              )}
-
               <button
                 type="submit"
-                disabled={submitting || uploadStatus === 'uploading' || uploadStatus === 'processing'}
-                className="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={submitting || uploadStatus === 'uploading'}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md active:scale-[0.98]"
               >
-                {submitting || uploadStatus === 'uploading' ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                {submitting ? (
+                  <><Loader2 className="h-5 w-5 animate-spin" /><span>{uploadStatus === 'uploading' ? 'Uploading Image...' : 'Creating Profile...'}</span></>
                 ) : (
-                  'Complete Patient Profile'
+                  <><Heart className="h-5 w-5" /><span>Complete Patient Profile</span></>
                 )}
               </button>
             </form>
           )}
 
           {!role && (
-            <div className="text-center py-8">
+            <div className="text-center py-8 animate-in fade-in duration-300">
               <UserCheck className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400">
                 Please select your role to continue

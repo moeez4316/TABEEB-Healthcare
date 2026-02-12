@@ -33,7 +33,9 @@ const createImage = (url: string): Promise<HTMLImageElement> =>
     image.src = url
   })
 
-// Get cropped image from canvas
+// Get cropped image from canvas — resized to max 500x500 for profile pics
+const MAX_PROFILE_SIZE = 500
+
 const getCroppedImg = async (imageSrc: string, pixelCrop: Area): Promise<string> => {
   const image = await createImage(imageSrc)
   const canvas = document.createElement('canvas')
@@ -43,11 +45,19 @@ const getCroppedImg = async (imageSrc: string, pixelCrop: Area): Promise<string>
 
   const { width, height } = pixelCrop
 
-  // Set canvas size to cropped area
-  canvas.width = width
-  canvas.height = height
+  // Determine output size — scale down if larger than MAX_PROFILE_SIZE
+  let outputWidth = width
+  let outputHeight = height
+  if (width > MAX_PROFILE_SIZE || height > MAX_PROFILE_SIZE) {
+    const scale = Math.min(MAX_PROFILE_SIZE / width, MAX_PROFILE_SIZE / height)
+    outputWidth = Math.round(width * scale)
+    outputHeight = Math.round(height * scale)
+  }
 
-  // Draw cropped image
+  canvas.width = outputWidth
+  canvas.height = outputHeight
+
+  // Draw cropped + resized image
   ctx.drawImage(
     image,
     pixelCrop.x,
@@ -56,11 +66,11 @@ const getCroppedImg = async (imageSrc: string, pixelCrop: Area): Promise<string>
     height,
     0,
     0,
-    width,
-    height
+    outputWidth,
+    outputHeight
   )
 
-  return canvas.toDataURL('image/jpeg', 0.9)
+  return canvas.toDataURL('image/jpeg', 0.85)
 }
 
 export default function CropModal({ isOpen, imageSrc, onComplete, onCancel }: CropModalProps) {
