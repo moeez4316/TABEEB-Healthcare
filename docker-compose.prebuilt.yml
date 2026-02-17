@@ -64,6 +64,7 @@ services:
       - RESEND_REPLY_TO=${RESEND_REPLY_TO}
       - RESEND_DOMAIN=${RESEND_DOMAIN}
       - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
       - "5002:5002"
     networks:
