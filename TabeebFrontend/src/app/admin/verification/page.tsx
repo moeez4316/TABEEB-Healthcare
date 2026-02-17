@@ -306,26 +306,67 @@ export default function AdminVerificationPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700">
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-slate-700/50 shadow-lg">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl text-white">
+        <div className="mb-6 lg:mb-8">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-white/20 dark:border-slate-700/50 shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
+              <div className="p-2.5 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl text-white w-fit">
                 <Shield className="w-6 h-6" />
               </div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
-                Doctor Verification Management
-              </h1>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                  Doctor Verification Management
+                </h1>
+                <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">Review and manage doctor verification submissions</p>
+              </div>
             </div>
-            <p className="text-slate-600 dark:text-slate-300 ml-12">Review and manage doctor verification submissions</p>
           </div>
         </div>
 
-        {/* Search and Filters */}
-        <div className="mb-8 space-y-4">
-          {/* Search Bar */}
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-slate-700/50 shadow-lg">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 lg:mb-8">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-white/20 dark:border-slate-700/50 shadow-md">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 dark:text-slate-300" />
+              </div>
+              <span className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Total</span>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white">{counts.all}</p>
+          </div>
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-amber-200/50 dark:border-amber-800/30 shadow-md">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <span className="text-xs sm:text-sm font-medium text-amber-700 dark:text-amber-400">Pending</span>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-amber-700 dark:text-amber-300">{counts.pending}</p>
+          </div>
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-emerald-200/50 dark:border-emerald-800/30 shadow-md">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <span className="text-xs sm:text-sm font-medium text-emerald-700 dark:text-emerald-400">Approved</span>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-emerald-700 dark:text-emerald-300">{counts.approved}</p>
+          </div>
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-red-200/50 dark:border-red-800/30 shadow-md">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <span className="text-xs sm:text-sm font-medium text-red-700 dark:text-red-400">Rejected</span>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-red-700 dark:text-red-300">{counts.rejected}</p>
+          </div>
+        </div>
+
+        {/* Search and Filters Combined */}
+        <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/20 dark:border-slate-700/50 shadow-lg mb-6 lg:mb-8">
+          <div className="flex flex-col gap-4">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-5 h-5" />
               <input
@@ -336,24 +377,20 @@ export default function AdminVerificationPage() {
                 className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
               />
             </div>
-          </div>
-
-          {/* Filter Tabs */}
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-slate-700/50 shadow-lg">
             <div className="flex items-center gap-2 flex-wrap">
-              <Filter className="text-slate-500 dark:text-slate-400 w-5 h-5 mr-2" />
+              <Filter className="text-slate-500 dark:text-slate-400 w-4 h-4 sm:w-5 sm:h-5" />
               {(['all', 'pending', 'approved', 'rejected'] as const).map((filterOption) => (
                 <button
                   key={filterOption}
                   onClick={() => setFilter(filterOption)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                     filter === filterOption
                       ? 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-lg'
                       : 'bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/70'
                   }`}
                 >
                   {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)}
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                  <span className={`ml-1.5 sm:ml-2 px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${
                     filter === filterOption
                       ? 'bg-white/20 text-white'
                       : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300'
@@ -366,119 +403,246 @@ export default function AdminVerificationPage() {
           </div>
         </div>
 
-        {/* Verifications Grid */}
-        <div className="grid gap-6">
+        {/* Verifications List */}
+        <div className="space-y-4 sm:space-y-6">
           {filteredVerifications.map((verification, index) => (
             <div 
               key={`${verification.id}-${verification.doctorUid}-${index}`} 
-              className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-700/50 shadow-lg hover:shadow-xl transition-all duration-300"
+              className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-700/50 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
             >
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
+              {/* Card Header with Status Bar */}
+              <div className={`h-1.5 ${
+                verification.status === 'pending' ? 'bg-gradient-to-r from-amber-400 to-orange-400' :
+                verification.status === 'approved' ? 'bg-gradient-to-r from-emerald-400 to-teal-400' :
+                'bg-gradient-to-r from-red-400 to-rose-400'
+              }`} />
+
+              <div className="p-5 sm:p-6 lg:p-8">
+                {/* Top Section: Doctor Info + Status */}
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                   <div className="flex items-start gap-4">
-                    <div className="p-3 bg-gradient-to-br from-teal-100 to-emerald-100 dark:from-teal-900/30 dark:to-emerald-900/30 rounded-xl border border-teal-200 dark:border-teal-800">
-                      <User className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                    <div className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-teal-100 to-emerald-100 dark:from-teal-900/30 dark:to-emerald-900/30 rounded-2xl border border-teal-200 dark:border-teal-800 flex items-center justify-center">
+                      <User className="w-6 h-6 sm:w-7 sm:h-7 text-teal-600 dark:text-teal-400" />
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1">
+                    <div className="min-w-0">
+                      <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white mb-1 truncate">
                         {verification.doctorName || 'Doctor Name Not Available'}
                       </h3>
-                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 mb-2">
-                        <Mail className="w-4 h-4" />
-                        <span className="text-sm">{verification.doctorEmail || 'Email Not Available'}</span>
+                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 mb-1.5">
+                        <Mail className="w-4 h-4 shrink-0" />
+                        <span className="text-sm truncate">{verification.doctorEmail || 'Email Not Available'}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                        <Shield className="w-4 h-4" />
-                        <span className="text-sm font-mono">PMDC: {verification.pmdcNumber || 'Not Available'}</span>
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                          <Shield className="w-4 h-4 shrink-0" />
+                          <span className="text-sm font-mono">PMDC: {verification.pmdcNumber || 'N/A'}</span>
+                        </div>
+                        {verification.cnicNumber && (
+                          <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                            <FileText className="w-4 h-4 shrink-0" />
+                            <span className="text-sm font-mono">CNIC: {verification.cnicNumber}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-1.5 shrink-0">
                     {getStatusBadge(verification.status)}
-                    <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-2">
+                    <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                       <Calendar className="w-3 h-3" />
                       {formatDate(verification.submittedAt)}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                {/* Additional Details Row */}
+                {(verification.graduationYear || verification.degreeInstitution || verification.pmdcRegistrationDate) && (
+                  <div className="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-3 sm:p-4 mb-6 border border-slate-100 dark:border-slate-700">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {verification.graduationYear && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span className="text-xs text-slate-500 dark:text-slate-400">Graduation:</span>
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{verification.graduationYear}</span>
+                        </div>
+                      )}
+                      {verification.degreeInstitution && (
+                        <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-1">
+                          <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span className="text-xs text-slate-500 dark:text-slate-400">Institution:</span>
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{verification.degreeInstitution}</span>
+                        </div>
+                      )}
+                      {verification.pmdcRegistrationDate && (
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span className="text-xs text-slate-500 dark:text-slate-400">PMDC Reg:</span>
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{formatDate(verification.pmdcRegistrationDate)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Documents Grid */}
+                <div className="mb-6">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Submitted Documents</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+                    {(verification.cnicFrontUrl || verification.cnic) ? (
+                      <button
+                        onClick={() => openImageModal(
+                          verification.cnicFrontUrl || verification.cnic!,
+                          `CNIC Front - ${verification.doctorName || 'Doctor'}`
+                        )}
+                        className="group flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all cursor-pointer"
+                      >
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">CNIC Front</span>
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-dashed border-red-200 dark:border-red-800/40 bg-red-50/30 dark:bg-red-900/5">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                          <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 dark:text-red-500" />
+                        </div>
+                        <span className="text-xs font-medium text-red-400 dark:text-red-500">CNIC Front</span>
+                        <XCircle className="w-3.5 h-3.5 text-red-400" />
+                      </div>
+                    )}
+
+                    {verification.cnicBackUrl ? (
+                      <button
+                        onClick={() => openImageModal(verification.cnicBackUrl!, `CNIC Back - ${verification.doctorName || 'Doctor'}`)}
+                        className="group flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all cursor-pointer"
+                      >
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">CNIC Back</span>
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/20">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center">
+                          <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 dark:text-slate-500" />
+                        </div>
+                        <span className="text-xs font-medium text-slate-400 dark:text-slate-500">CNIC Back</span>
+                        <span className="text-[10px] text-slate-400">Optional</span>
+                      </div>
+                    )}
+
+                    {verification.verificationPhotoUrl ? (
+                      <button
+                        onClick={() => openImageModal(verification.verificationPhotoUrl!, `Verification Photo - ${verification.doctorName || 'Doctor'}`)}
+                        className="group flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-blue-200 dark:border-blue-800/50 bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all cursor-pointer"
+                      >
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <span className="text-xs font-medium text-blue-700 dark:text-blue-400">Photo</span>
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-dashed border-red-200 dark:border-red-800/40 bg-red-50/30 dark:bg-red-900/5">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                          <User className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 dark:text-red-500" />
+                        </div>
+                        <span className="text-xs font-medium text-red-400 dark:text-red-500">Photo</span>
+                        <XCircle className="w-3.5 h-3.5 text-red-400" />
+                      </div>
+                    )}
+
+                    {verification.degreeCertificateUrl ? (
+                      <button
+                        onClick={() => openImageModal(verification.degreeCertificateUrl!, `Degree Certificate - ${verification.doctorName || 'Doctor'}`)}
+                        className="group flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-purple-200 dark:border-purple-800/50 bg-purple-50/50 dark:bg-purple-900/10 hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-all cursor-pointer"
+                      >
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Download className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <span className="text-xs font-medium text-purple-700 dark:text-purple-400">Degree</span>
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-dashed border-red-200 dark:border-red-800/40 bg-red-50/30 dark:bg-red-900/5">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                          <Download className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 dark:text-red-500" />
+                        </div>
+                        <span className="text-xs font-medium text-red-400 dark:text-red-500">Degree</span>
+                        <XCircle className="w-3.5 h-3.5 text-red-400" />
+                      </div>
+                    )}
+
+                    {(verification.pmdcCertificateUrl || verification.certificate) ? (
+                      <button
+                        onClick={() => openImageModal(
+                          verification.pmdcCertificateUrl || verification.certificate!,
+                          `PMDC Certificate - ${verification.doctorName || 'Doctor'}`
+                        )}
+                        className="group flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-orange-200 dark:border-orange-800/50 bg-orange-50/50 dark:bg-orange-900/10 hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all cursor-pointer"
+                      >
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <span className="text-xs font-medium text-orange-700 dark:text-orange-400">PMDC</span>
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-dashed border-red-200 dark:border-red-800/40 bg-red-50/30 dark:bg-red-900/5">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                          <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 dark:text-red-500" />
+                        </div>
+                        <span className="text-xs font-medium text-red-400 dark:text-red-500">PMDC</span>
+                        <XCircle className="w-3.5 h-3.5 text-red-400" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-5 border-t border-slate-100 dark:border-slate-700/50">
                   <button
                     onClick={() => openReviewModal(verification)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl font-medium"
                   >
                     <Eye className="w-4 h-4" />
-                    Review
+                    Review Application
                   </button>
-                  
-                  {/* CNIC Front */}
-                  {(verification.cnicFrontUrl || verification.cnic) && (
-                    <button
-                      onClick={() => openImageModal(
-                        verification.cnicFrontUrl || verification.cnic!, 
-                        `CNIC Front - ${verification.doctorName || 'Doctor'}`
-                      )}
-                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl text-sm"
-                    >
-                      <FileText className="w-4 h-4" />
-                      CNIC Front
-                    </button>
+                  {verification.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setSelectedVerification(verification);
+                          setReviewData({ action: 'approve', comments: '' });
+                          setReviewModal(true);
+                          document.body.style.overflow = 'hidden';
+                        }}
+                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-md hover:shadow-lg font-medium"
+                      >
+                        <Check className="w-4 h-4" />
+                        Quick Approve
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedVerification(verification);
+                          setReviewData({ action: 'reject', comments: '' });
+                          setReviewModal(true);
+                          document.body.style.overflow = 'hidden';
+                        }}
+                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl hover:from-red-600 hover:to-rose-700 transition-all shadow-md hover:shadow-lg font-medium"
+                      >
+                        <X className="w-4 h-4" />
+                        Quick Reject
+                      </button>
+                    </>
                   )}
-
-                  {/* CNIC Back */}
-                  {verification.cnicBackUrl && (
-                    <button
-                      onClick={() => openImageModal(
-                        verification.cnicBackUrl!, 
-                        `CNIC Back - ${verification.doctorName || 'Doctor'}`
-                      )}
-                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-xl hover:from-emerald-500 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl text-sm"
-                    >
-                      <FileText className="w-4 h-4" />
-                      CNIC Back
-                    </button>
-                  )}
-
-                  {/* Verification Photo */}
-                  {verification.verificationPhotoUrl && (
-                    <button
-                      onClick={() => openImageModal(
-                        verification.verificationPhotoUrl!, 
-                        `Verification Photo - ${verification.doctorName || 'Doctor'}`
-                      )}
-                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl text-sm"
-                    >
-                      <User className="w-4 h-4" />
-                      Photo
-                    </button>
-                  )}
-
-                  {/* Degree Certificate */}
-                  {verification.degreeCertificateUrl && (
-                    <button
-                      onClick={() => openImageModal(
-                        verification.degreeCertificateUrl!, 
-                        `Degree Certificate - ${verification.doctorName || 'Doctor'}`
-                      )}
-                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl text-sm"
-                    >
-                      <Download className="w-4 h-4" />
-                      Degree
-                    </button>
-                  )}
-
-                  {/* PMDC Certificate */}
-                  {(verification.pmdcCertificateUrl || verification.certificate) && (
-                    <button
-                      onClick={() => openImageModal(
-                        verification.pmdcCertificateUrl || verification.certificate!, 
-                        `PMDC Certificate - ${verification.doctorName || 'Doctor'}`
-                      )}
-                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl hover:from-orange-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl text-sm"
-                    >
-                      <Shield className="w-4 h-4" />
-                      PMDC
-                    </button>
+                  {verification.adminComments && (
+                    <div className="sm:ml-auto flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/30 rounded-lg px-3 py-2">
+                      <FileText className="w-4 h-4 shrink-0" />
+                      <span className="truncate max-w-[200px]">{verification.adminComments}</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -487,13 +651,13 @@ export default function AdminVerificationPage() {
         </div>
 
         {filteredVerifications.length === 0 && (
-          <div className="text-center py-16">
-            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-12 border border-white/20 dark:border-slate-700/50 shadow-lg max-w-md mx-auto">
-              <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 rounded-2xl flex items-center justify-center">
-                <FileText className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+          <div className="text-center py-12 sm:py-16">
+            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-8 sm:p-12 border border-white/20 dark:border-slate-700/50 shadow-lg max-w-md mx-auto">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-6 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 rounded-2xl flex items-center justify-center">
+                <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-slate-400 dark:text-slate-500" />
               </div>
-              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">No verifications found</h3>
-              <p className="text-slate-600 dark:text-slate-400">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white mb-2">No verifications found</h3>
+              <p className="text-slate-600 dark:text-slate-400 text-sm">
                 {filter === 'pending' 
                   ? 'No pending verifications at the moment.' 
                   : searchTerm 
@@ -507,15 +671,21 @@ export default function AdminVerificationPage() {
 
         {/* Review Modal */}
         {reviewModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-auto border border-white/20 dark:border-slate-700/50">
-              <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto border border-white/20 dark:border-slate-700/50">
+              {/* Modal Header */}
+              <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 p-5 sm:p-6 border-b border-slate-200 dark:border-slate-700 rounded-t-2xl">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl text-white">
+                    <div className="p-2.5 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl text-white">
                       <Eye className="w-5 h-5" />
                     </div>
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Review Verification</h2>
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white">Review Verification</h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {selectedVerification?.doctorName || 'Doctor'}
+                      </p>
+                    </div>
                   </div>
                   <button
                     onClick={closeReviewModal}
@@ -526,147 +696,133 @@ export default function AdminVerificationPage() {
                 </div>
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="p-5 sm:p-6 space-y-6">
                 {selectedVerification && (
-                  <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3 border border-slate-200 dark:border-slate-600">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">Doctor:</span>
-                        <span className="text-slate-800 dark:text-white">{selectedVerification.doctorName || 'Name Not Available'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">Email:</span>
-                        <span className="text-slate-800 dark:text-white text-sm">{selectedVerification.doctorEmail || 'Email Not Available'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">PMDC:</span>
-                        <span className="text-slate-800 dark:text-white font-mono">{selectedVerification.pmdcNumber || 'Not Available'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">CNIC:</span>
-                        <span className="text-slate-800 dark:text-white font-mono">{selectedVerification.cnicNumber || 'Not Available'}</span>
-                      </div>
-                      {selectedVerification.graduationYear && (
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">Graduation:</span>
-                          <span className="text-slate-800 dark:text-white">{selectedVerification.graduationYear}</span>
+                  <>
+                    {/* Doctor Information Section */}
+                    <div>
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Doctor Information</h3>
+                      <div className="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 sm:p-5 border border-slate-100 dark:border-slate-700">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs text-slate-500 dark:text-slate-400">Full Name</label>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5">{selectedVerification.doctorName || 'Not Available'}</p>
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 dark:text-slate-400">Email Address</label>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5 break-all">{selectedVerification.doctorEmail || 'Not Available'}</p>
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 dark:text-slate-400">PMDC Number</label>
+                            <p className="text-sm font-mono font-semibold text-slate-800 dark:text-white mt-0.5">{selectedVerification.pmdcNumber || 'Not Available'}</p>
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 dark:text-slate-400">CNIC Number</label>
+                            <p className="text-sm font-mono font-semibold text-slate-800 dark:text-white mt-0.5">{selectedVerification.cnicNumber || 'Not Available'}</p>
+                          </div>
+                          {selectedVerification.graduationYear && (
+                            <div>
+                              <label className="text-xs text-slate-500 dark:text-slate-400">Graduation Year</label>
+                              <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5">{selectedVerification.graduationYear}</p>
+                            </div>
+                          )}
+                          {selectedVerification.degreeInstitution && (
+                            <div>
+                              <label className="text-xs text-slate-500 dark:text-slate-400">Degree Institution</label>
+                              <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5">{selectedVerification.degreeInstitution}</p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {selectedVerification.degreeInstitution && (
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">Institution:</span>
-                          <span className="text-slate-800 dark:text-white text-sm">{selectedVerification.degreeInstitution}</span>
-                        </div>
-                      )}
+                      </div>
                     </div>
 
-                    {/* Document Status Grid */}
-                    <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-600">
-                      <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Submitted Documents:</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
-                          selectedVerification.cnicFrontUrl || selectedVerification.cnic 
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                        }`}>
-                          <div className={`w-2 h-2 rounded-full ${
-                            selectedVerification.cnicFrontUrl || selectedVerification.cnic ? 'bg-green-500' : 'bg-red-500'
-                          }`}></div>
-                          CNIC Front
-                        </div>
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
-                          selectedVerification.cnicBackUrl 
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-                            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
-                        }`}>
-                          <div className={`w-2 h-2 rounded-full ${selectedVerification.cnicBackUrl ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                          CNIC Back
-                        </div>
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
-                          selectedVerification.verificationPhotoUrl 
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                        }`}>
-                          <div className={`w-2 h-2 rounded-full ${selectedVerification.verificationPhotoUrl ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          Photo
-                        </div>
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
-                          selectedVerification.degreeCertificateUrl 
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                        }`}>
-                          <div className={`w-2 h-2 rounded-full ${selectedVerification.degreeCertificateUrl ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          Degree
-                        </div>
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
-                          selectedVerification.pmdcCertificateUrl || selectedVerification.certificate 
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                        }`}>
-                          <div className={`w-2 h-2 rounded-full ${
-                            selectedVerification.pmdcCertificateUrl || selectedVerification.certificate ? 'bg-green-500' : 'bg-red-500'
-                          }`}></div>
-                          PMDC
-                        </div>
+                    {/* Document Status Section */}
+                    <div>
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Document Checklist</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                        {[
+                          { label: 'CNIC Front', available: !!(selectedVerification.cnicFrontUrl || selectedVerification.cnic), required: true },
+                          { label: 'CNIC Back', available: !!selectedVerification.cnicBackUrl, required: false },
+                          { label: 'Verification Photo', available: !!selectedVerification.verificationPhotoUrl, required: true },
+                          { label: 'Degree Certificate', available: !!selectedVerification.degreeCertificateUrl, required: true },
+                          { label: 'PMDC Certificate', available: !!(selectedVerification.pmdcCertificateUrl || selectedVerification.certificate), required: true },
+                        ].map((doc) => (
+                          <div key={doc.label} className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${
+                            doc.available
+                              ? 'bg-emerald-50 dark:bg-emerald-900/15 border-emerald-200 dark:border-emerald-800/40'
+                              : doc.required
+                              ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/40'
+                              : 'bg-slate-50 dark:bg-slate-700/20 border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              {doc.available ? (
+                                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-red-400" />
+                              )}
+                              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{doc.label}</span>
+                            </div>
+                            {!doc.required && !doc.available && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400">Optional</span>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
+                  </>
                 )}
 
+                {/* Decision Section */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                    Decision
-                  </label>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Your Decision</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setReviewData(prev => ({ ...prev, action: 'approve' }))}
-                      className={`p-3 rounded-xl border-2 transition-all ${
+                      className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
                         reviewData.action === 'approve'
-                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 shadow-md'
                           : 'border-slate-200 dark:border-slate-600 hover:border-emerald-300 dark:hover:border-emerald-700 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      <Check className="w-5 h-5 mx-auto mb-1" />
-                      <span className="text-sm font-semibold">Approve</span>
+                      <Check className="w-6 h-6" />
+                      <span className="text-sm font-bold">Approve</span>
+                      <span className="text-[10px] opacity-70">Doctor is verified</span>
                     </button>
                     <button
                       onClick={() => setReviewData(prev => ({ ...prev, action: 'reject' }))}
-                      className={`p-3 rounded-xl border-2 transition-all ${
+                      className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
                         reviewData.action === 'reject'
-                          ? 'border-red-500 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                          ? 'border-red-500 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 shadow-md'
                           : 'border-slate-200 dark:border-slate-600 hover:border-red-300 dark:hover:border-red-700 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      <X className="w-5 h-5 mx-auto mb-1" />
-                      <span className="text-sm font-semibold">Reject</span>
+                      <X className="w-6 h-6" />
+                      <span className="text-sm font-bold">Reject</span>
+                      <span className="text-[10px] opacity-70">Needs resubmission</span>
                     </button>
                   </div>
                 </div>
 
+                {/* Comments */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                    Comments
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                    Admin Comments
                   </label>
                   <textarea
                     value={reviewData.comments}
                     onChange={(e) => setReviewData(prev => ({ ...prev, comments: e.target.value }))}
                     rows={4}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
-                    placeholder="Add your comments here..."
+                    className="w-full p-3 sm:p-4 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 text-sm"
+                    placeholder="Add your comments for the doctor (visible to them)..."
                   />
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                {/* Submit Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <button
                     onClick={handleReview}
                     disabled={!reviewData.action || submitting}
-                    className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all ${
+                    className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all text-sm sm:text-base ${
                       reviewData.action === 'approve'
                         ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-lg'
                         : reviewData.action === 'reject'
@@ -674,12 +830,12 @@ export default function AdminVerificationPage() {
                         : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                     } ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    {submitting ? 'Processing...' : 'Submit Decision'}
+                    {submitting ? 'Processing...' : reviewData.action === 'approve' ? 'Confirm Approval' : reviewData.action === 'reject' ? 'Confirm Rejection' : 'Select a Decision'}
                   </button>
                   
                   <button
                     onClick={closeReviewModal}
-                    className="px-6 py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 font-semibold transition-all"
+                    className="px-6 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 font-semibold transition-all text-sm sm:text-base"
                   >
                     Cancel
                   </button>
