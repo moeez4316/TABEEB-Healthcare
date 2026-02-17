@@ -9,7 +9,8 @@ interface BlogContentProps {
 export const BlogContent: React.FC<BlogContentProps> = ({ contentHtml }) => {
   return (
     <div
-      className="prose prose-lg dark:prose-invert max-w-none
+      className="prose prose-lg dark:prose-invert max-w-none overflow-hidden break-words
+        [overflow-wrap:anywhere]
         prose-headings:font-bold prose-headings:text-gray-900 dark:prose-headings:text-white
         prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-6
         prose-h3:text-2xl prose-h3:mt-8 prose-h3:mb-4

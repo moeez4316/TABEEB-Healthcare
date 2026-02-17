@@ -49,7 +49,7 @@ export const BlogHeader: React.FC<BlogHeaderProps> = ({ blog }) => {
       )}
 
       {/* Title */}
-      <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6 leading-tight break-words">
         {blog.title}
       </h1>
 

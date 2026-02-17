@@ -102,11 +102,11 @@ export default function BlogDetailPage({ params }: BlogDetailPageProps) {
         </div>
 
         {/* Main Content */}
-        <div className="container mx-auto px-4 py-8 md:py-12">
+        <div className="container mx-auto px-4 py-8 md:py-12 overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Main Article */}
-            <article className="lg:col-span-8 xl:col-span-9">
-              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 md:p-10">
+            <article className="lg:col-span-8 xl:col-span-9 min-w-0">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-4 sm:p-6 md:p-10 overflow-hidden">
                 <BlogHeader blog={blog} />
                 <BlogContent contentHtml={blog.contentHtml} />
 
@@ -150,7 +150,7 @@ export default function BlogDetailPage({ params }: BlogDetailPageProps) {
             </article>
 
             {/* Sidebar */}
-            <aside className="lg:col-span-4 xl:col-span-3">
+            <aside className="lg:col-span-4 xl:col-span-3 min-w-0">
               <div className="sticky top-4 space-y-6">
                 {/* Share Buttons */}
                 <ShareButtons title={blog.title} url={currentUrl} />
