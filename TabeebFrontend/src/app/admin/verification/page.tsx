@@ -18,8 +18,40 @@ import {
   User,
   Shield,
   X,
-  Check
+  Check,
+  RefreshCw,
+  Globe,
+  AlertTriangle,
+  Database,
+  Loader2
 } from 'lucide-react';
+
+interface PmdcQualification {
+  Speciality: string;
+  Degree: string;
+  University: string;
+  PassingYear: string;
+  IsActive: boolean | null;
+}
+
+interface PmdcLookupData {
+  found: boolean;
+  pmdcNumber: string;
+  doctorName?: string;
+  fatherName?: string;
+  registrationType?: string;
+  registrationDate?: string;
+  validUpto?: string;
+  registrationStatus?: string;
+  qualification?: string;
+  institution?: string;
+  qualifications?: PmdcQualification[];
+  rawData?: Record<string, unknown>;
+  source: string;
+  fetchedAt: string;
+  errorMessage?: string;
+  fromCache: boolean;
+}
 
 interface VerificationRecord {
   id: string;
@@ -70,6 +102,20 @@ export default function AdminVerificationPage() {
   // Image popup states
   const [imageModal, setImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; title: string; isPdf: boolean } | null>(null);
+  
+  // PMDC lookup states
+  const [pmdcLookupData, setPmdcLookupData] = useState<Record<string, PmdcLookupData>>({});
+  const [pmdcLookupLoading, setPmdcLookupLoading] = useState<Record<string, boolean>>({});
+
+  // Format a date string to DD/MM/YYYY to match PMDC's format
+  const formatDateDDMMYYYY = (dateString: string): string => {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
 
   useEffect(() => {
     fetchVerifications();
@@ -168,6 +214,83 @@ export default function AdminVerificationPage() {
     setToastMessage(message);
     setToastType(type);
     setShowToast(true);
+  };
+
+  // PMDC Lookup function
+  const fetchPmdcData = async (pmdcNumber: string, forceRefresh = false) => {
+    if (!pmdcNumber) return;
+    
+    setPmdcLookupLoading(prev => ({ ...prev, [pmdcNumber]: true }));
+    
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      if (!adminToken) {
+        showNotification('Authentication error. Please login again.', 'error');
+        return;
+      }
+
+      const endpoint = forceRefresh ? 'pmdc-refresh' : 'pmdc-lookup';
+      const method = forceRefresh ? 'POST' : 'GET';
+      
+      const response = await fetchWithRateLimit(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/verification/${endpoint}/${encodeURIComponent(pmdcNumber)}`,
+        {
+          method,
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch PMDC data');
+      }
+
+      const result = await response.json();
+      if (result.success && result.data) {
+        setPmdcLookupData(prev => ({ ...prev, [pmdcNumber]: result.data }));
+        
+        if (result.data.found) {
+          showNotification('PMDC data fetched successfully!', 'success');
+        } else {
+          showNotification(
+            result.data.errorMessage || 'No data found for this PMDC number on the PMDC website.',
+            'info'
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching PMDC data:', error);
+      showNotification('Failed to fetch PMDC data. Please try again or verify manually.', 'error');
+    } finally {
+      setPmdcLookupLoading(prev => ({ ...prev, [pmdcNumber]: false }));
+    }
+  };
+
+  // Compare submitted info with PMDC data
+  const getComparisonClass = (submitted?: string, pmdc?: string): string => {
+    if (!submitted || !pmdc) return '';
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (normalize(submitted) === normalize(pmdc)) {
+      return 'text-emerald-600 dark:text-emerald-400'; // Match
+    }
+    // Partial match (one contains the other)
+    if (normalize(submitted).includes(normalize(pmdc)) || normalize(pmdc).includes(normalize(submitted))) {
+      return 'text-amber-600 dark:text-amber-400'; // Partial match
+    }
+    return 'text-red-600 dark:text-red-400'; // Mismatch
+  };
+
+  const getComparisonBadge = (submitted?: string, pmdc?: string) => {
+    if (!submitted || !pmdc) return null;
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (normalize(submitted) === normalize(pmdc)) {
+      return <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-medium"><CheckCircle className="w-2.5 h-2.5" />Match</span>;
+    }
+    if (normalize(submitted).includes(normalize(pmdc)) || normalize(pmdc).includes(normalize(submitted))) {
+      return <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium"><AlertTriangle className="w-2.5 h-2.5" />Partial</span>;
+    }
+    return <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-medium"><XCircle className="w-2.5 h-2.5" />Mismatch</span>;
   };
 
   const handleReview = async () => {
@@ -484,6 +607,235 @@ export default function AdminVerificationPage() {
                   </div>
                 )}
 
+                {/* PMDC Verification Section */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5" />
+                      PMDC Website Verification
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      {pmdcLookupData[verification.pmdcNumber] && (
+                        <button
+                          onClick={() => fetchPmdcData(verification.pmdcNumber, true)}
+                          disabled={pmdcLookupLoading[verification.pmdcNumber]}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-all disabled:opacity-50"
+                          title="Force refresh from PMDC website"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${pmdcLookupLoading[verification.pmdcNumber] ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </button>
+                      )}
+                      <button
+                        onClick={() => fetchPmdcData(verification.pmdcNumber)}
+                        disabled={pmdcLookupLoading[verification.pmdcNumber]}
+                        className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg transition-all disabled:opacity-50 ${
+                          pmdcLookupData[verification.pmdcNumber]?.found
+                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/50'
+                            : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow-md'
+                        }`}
+                      >
+                        {pmdcLookupLoading[verification.pmdcNumber] ? (
+                          <><Loader2 className="w-3 h-3 animate-spin" /> Fetching...</>
+                        ) : pmdcLookupData[verification.pmdcNumber] ? (
+                          <><Database className="w-3 h-3" /> PMDC Data Loaded</>
+                        ) : (
+                          <><Globe className="w-3 h-3" /> Fetch PMDC Data</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* PMDC Data Display */}
+                  {pmdcLookupData[verification.pmdcNumber] && (
+                    <div className={`rounded-xl border-2 p-4 sm:p-5 transition-all ${
+                      pmdcLookupData[verification.pmdcNumber].found
+                        ? 'border-blue-200 dark:border-blue-800/50 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10'
+                        : 'border-amber-200 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-900/10'
+                    }`}>
+                      {pmdcLookupData[verification.pmdcNumber].found ? (
+                        <>
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                              <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <span className="text-sm font-bold text-blue-800 dark:text-blue-200">
+                              PMDC Official Record
+                            </span>
+                            {pmdcLookupData[verification.pmdcNumber].fromCache && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400">
+                                Cached
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto">
+                              Fetched: {new Date(pmdcLookupData[verification.pmdcNumber].fetchedAt).toLocaleString()}
+                            </span>
+                          </div>
+
+                          {/* Side-by-side comparison */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                  <th className="text-left py-2 pr-3 font-semibold">Field</th>
+                                  <th className="text-left py-2 px-3 font-semibold">Doctor Submitted</th>
+                                  <th className="text-left py-2 px-3 font-semibold">PMDC Record</th>
+                                  <th className="text-left py-2 pl-3 font-semibold">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-200/60 dark:divide-slate-700/40">
+                                {/* Name comparison */}
+                                <tr>
+                                  <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Name</td>
+                                  <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200 font-medium">{verification.doctorName || '—'}</td>
+                                  <td className={`py-2.5 px-3 font-medium ${getComparisonClass(verification.doctorName, pmdcLookupData[verification.pmdcNumber].doctorName)}`}>
+                                    {pmdcLookupData[verification.pmdcNumber].doctorName || '—'}
+                                  </td>
+                                  <td className="py-2.5 pl-3">{getComparisonBadge(verification.doctorName, pmdcLookupData[verification.pmdcNumber].doctorName)}</td>
+                                </tr>
+                                {/* Father's Name */}
+                                {pmdcLookupData[verification.pmdcNumber].fatherName && (
+                                  <tr>
+                                    <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Father&apos;s Name</td>
+                                    <td className="py-2.5 px-3 text-slate-400 italic">Not collected</td>
+                                    <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200 font-medium">{pmdcLookupData[verification.pmdcNumber].fatherName}</td>
+                                    <td className="py-2.5 pl-3">—</td>
+                                  </tr>
+                                )}
+                                {/* Registration Type */}
+                                {pmdcLookupData[verification.pmdcNumber].registrationType && (
+                                  <tr>
+                                    <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Reg. Type</td>
+                                    <td className="py-2.5 px-3 text-slate-400 italic">—</td>
+                                    <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200 font-medium">{pmdcLookupData[verification.pmdcNumber].registrationType}</td>
+                                    <td className="py-2.5 pl-3">—</td>
+                                  </tr>
+                                )}
+                                {/* Registration Date */}
+                                {pmdcLookupData[verification.pmdcNumber].registrationDate && (
+                                  <tr>
+                                    <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Reg. Date</td>
+                                    <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200 font-medium">{verification.pmdcRegistrationDate ? formatDateDDMMYYYY(verification.pmdcRegistrationDate) : '—'}</td>
+                                    <td className={`py-2.5 px-3 font-medium ${verification.pmdcRegistrationDate ? getComparisonClass(formatDateDDMMYYYY(verification.pmdcRegistrationDate), pmdcLookupData[verification.pmdcNumber].registrationDate) : 'text-slate-800 dark:text-slate-200'}`}>
+                                      {pmdcLookupData[verification.pmdcNumber].registrationDate}
+                                    </td>
+                                    <td className="py-2.5 pl-3">{verification.pmdcRegistrationDate ? getComparisonBadge(formatDateDDMMYYYY(verification.pmdcRegistrationDate), pmdcLookupData[verification.pmdcNumber].registrationDate) : '—'}</td>
+                                  </tr>
+                                )}
+                                {/* License Valid Until */}
+                                {pmdcLookupData[verification.pmdcNumber].validUpto && (
+                                  <tr>
+                                    <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">License Valid Until</td>
+                                    <td className="py-2.5 px-3 text-slate-400 italic">—</td>
+                                    <td className="py-2.5 px-3">
+                                      <span className="text-slate-800 dark:text-slate-200 font-medium">{pmdcLookupData[verification.pmdcNumber].validUpto}</span>
+                                    </td>
+                                    <td className="py-2.5 pl-3">—</td>
+                                  </tr>
+                                )}
+                                {/* Registration Status */}
+                                {pmdcLookupData[verification.pmdcNumber].registrationStatus && (
+                                  <tr>
+                                    <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">PMDC Status</td>
+                                    <td className="py-2.5 px-3 text-slate-400 italic">—</td>
+                                    <td className="py-2.5 px-3">
+                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                        pmdcLookupData[verification.pmdcNumber].registrationStatus?.toUpperCase() === 'ACTIVE'
+                                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                                          : pmdcLookupData[verification.pmdcNumber].registrationStatus?.toUpperCase() === 'EXPIRED' ||
+                                            pmdcLookupData[verification.pmdcNumber].registrationStatus?.toUpperCase() === 'SUSPENDED' ||
+                                            pmdcLookupData[verification.pmdcNumber].registrationStatus?.toUpperCase() === 'CANCELLED'
+                                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                      }`}>
+                                        {pmdcLookupData[verification.pmdcNumber].registrationStatus}
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 pl-3">—</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Qualifications Table */}
+                          {pmdcLookupData[verification.pmdcNumber].qualifications && pmdcLookupData[verification.pmdcNumber].qualifications!.length > 0 && (
+                            <div className="mt-4">
+                              <h5 className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1.5">
+                                <FileText className="w-3 h-3" />
+                                Registered Qualifications ({pmdcLookupData[verification.pmdcNumber].qualifications!.length})
+                              </h5>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm border border-blue-200/50 dark:border-blue-800/30 rounded-lg overflow-hidden">
+                                  <thead>
+                                    <tr className="bg-blue-50/50 dark:bg-blue-900/20 text-xs uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                                      <th className="text-left py-2 px-3 font-semibold">Degree</th>
+                                      <th className="text-left py-2 px-3 font-semibold">Speciality</th>
+                                      <th className="text-left py-2 px-3 font-semibold">University</th>
+                                      <th className="text-left py-2 px-3 font-semibold">Year</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-blue-100/50 dark:divide-blue-800/20">
+                                    {pmdcLookupData[verification.pmdcNumber].qualifications!.map((qual, idx) => (
+                                      <tr key={idx} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10">
+                                        <td className="py-2 px-3 text-slate-800 dark:text-slate-200 font-medium">{qual.Degree}</td>
+                                        <td className="py-2 px-3 text-slate-600 dark:text-slate-300">{qual.Speciality || '—'}</td>
+                                        <td className={`py-2 px-3 font-medium ${getComparisonClass(verification.degreeInstitution, qual.University)}`}>
+                                          {qual.University}
+                                          {verification.degreeInstitution && (
+                                            <span className="ml-2">{getComparisonBadge(verification.degreeInstitution, qual.University)}</span>
+                                          )}
+                                        </td>
+                                        <td className="py-2 px-3 text-slate-600 dark:text-slate-300">{qual.PassingYear}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Raw data toggle (for debugging) */}
+                          {pmdcLookupData[verification.pmdcNumber].rawData && Object.keys(pmdcLookupData[verification.pmdcNumber].rawData!).length > 0 && (
+                            <details className="mt-3">
+                              <summary className="text-[10px] text-slate-400 dark:text-slate-500 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300">
+                                View raw API response
+                              </summary>
+                              <pre className="mt-2 p-2 text-[10px] bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto text-slate-600 dark:text-slate-400">
+                                {JSON.stringify(pmdcLookupData[verification.pmdcNumber].rawData, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg shrink-0">
+                            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">
+                              No PMDC record found
+                            </p>
+                            <p className="text-xs text-amber-700 dark:text-amber-300/80 leading-relaxed">
+                              {pmdcLookupData[verification.pmdcNumber].errorMessage || 
+                                'No matching doctor found for this PMDC registration number.'}
+                            </p>
+                            <a
+                              href="https://pmdc.pk/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              <Globe className="w-3 h-3" />
+                              Verify manually on pmdc.pk
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Documents Grid */}
                 <div className="mb-6">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Submitted Documents</h4>
@@ -768,6 +1120,104 @@ export default function AdminVerificationPage() {
                           </div>
                         ))}
                       </div>
+                    </div>
+
+                    {/* PMDC Verification Section (in modal) */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                          <Globe className="w-3.5 h-3.5" />
+                          PMDC Website Verification
+                        </h3>
+                        <button
+                          onClick={() => fetchPmdcData(selectedVerification.pmdcNumber, !pmdcLookupData[selectedVerification.pmdcNumber])}
+                          disabled={pmdcLookupLoading[selectedVerification.pmdcNumber]}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-sm"
+                        >
+                          {pmdcLookupLoading[selectedVerification.pmdcNumber] ? (
+                            <><Loader2 className="w-3 h-3 animate-spin" /> Fetching...</>
+                          ) : pmdcLookupData[selectedVerification.pmdcNumber] ? (
+                            <><RefreshCw className="w-3 h-3" /> Refresh</>
+                          ) : (
+                            <><Globe className="w-3 h-3" /> Fetch PMDC Data</>
+                          )}
+                        </button>
+                      </div>
+
+                      {pmdcLookupData[selectedVerification.pmdcNumber] ? (
+                        pmdcLookupData[selectedVerification.pmdcNumber].found ? (
+                          <div className="bg-blue-50/50 dark:bg-blue-900/10 border-2 border-blue-200 dark:border-blue-800/50 rounded-xl p-4">
+                            <div className="space-y-2.5">
+                              {[
+                                { label: 'Name', submitted: selectedVerification.doctorName, pmdc: pmdcLookupData[selectedVerification.pmdcNumber].doctorName },
+                                { label: 'Father\'s Name', submitted: undefined, pmdc: pmdcLookupData[selectedVerification.pmdcNumber].fatherName },
+                                { label: 'Registration Type', submitted: undefined, pmdc: pmdcLookupData[selectedVerification.pmdcNumber].registrationType },
+                                { label: 'Registration Date', submitted: selectedVerification.pmdcRegistrationDate ? formatDateDDMMYYYY(selectedVerification.pmdcRegistrationDate) : undefined, pmdc: pmdcLookupData[selectedVerification.pmdcNumber].registrationDate },
+                                { label: 'License Valid Until', submitted: undefined, pmdc: pmdcLookupData[selectedVerification.pmdcNumber].validUpto },
+                                { label: 'Registration Status', submitted: undefined, pmdc: pmdcLookupData[selectedVerification.pmdcNumber].registrationStatus },
+                              ].filter(row => row.pmdc).map((row) => (
+                                <div key={row.label} className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">{row.label}</span>
+                                    <p className={`text-sm font-medium ${
+                                      row.label === 'Registration Status'
+                                        ? (row.pmdc?.toUpperCase() === 'ACTIVE' ? 'text-emerald-600 dark:text-emerald-400' :
+                                           row.pmdc?.toUpperCase() === 'EXPIRED' || row.pmdc?.toUpperCase() === 'SUSPENDED' || row.pmdc?.toUpperCase() === 'CANCELLED'
+                                             ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200')
+                                        : 'text-slate-800 dark:text-slate-200'
+                                    }`}>
+                                      {row.pmdc}
+                                    </p>
+                                  </div>
+                                  <div className="shrink-0">
+                                    {row.submitted ? getComparisonBadge(row.submitted, row.pmdc) : null}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Qualifications in modal */}
+                            {pmdcLookupData[selectedVerification.pmdcNumber].qualifications && pmdcLookupData[selectedVerification.pmdcNumber].qualifications!.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-blue-200/50 dark:border-blue-800/30">
+                                <span className="text-[10px] text-blue-500 dark:text-blue-400 uppercase tracking-wider font-semibold">
+                                  Qualifications ({pmdcLookupData[selectedVerification.pmdcNumber].qualifications!.length})
+                                </span>
+                                <div className="mt-1.5 space-y-1.5">
+                                  {pmdcLookupData[selectedVerification.pmdcNumber].qualifications!.map((qual, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 text-xs">
+                                      <span className="font-semibold text-slate-800 dark:text-slate-200">{qual.Degree}</span>
+                                      {qual.Speciality && <span className="text-slate-500 dark:text-slate-400">({qual.Speciality})</span>}
+                                      <span className="text-slate-400 dark:text-slate-500">—</span>
+                                      <span className="text-slate-600 dark:text-slate-300">{qual.University}</span>
+                                      {qual.PassingYear && <span className="text-slate-400 dark:text-slate-500">({qual.PassingYear})</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3">
+                            <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                              {pmdcLookupData[selectedVerification.pmdcNumber].errorMessage || 'No PMDC record found. Verify manually.'}
+                            </p>
+                            <a
+                              href="https://pmdc.pk/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              <Globe className="w-3 h-3" />
+                              Verify manually on pmdc.pk
+                            </a>
+                          </div>
+                        )
+                      ) : (
+                        <div className="bg-slate-50 dark:bg-slate-700/20 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center">
+                          <p className="text-xs text-slate-400 dark:text-slate-500">Click &quot;Fetch PMDC Data&quot; to verify this doctor&apos;s registration with the PMDC website</p>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

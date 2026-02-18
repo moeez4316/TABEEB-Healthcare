@@ -487,3 +487,29 @@ enum ContactMessageStatus {
   REPLIED
   CLOSED
 }
+
+// ========================================
+// PMDC LOOKUP CACHE
+// ========================================
+
+model PmdcLookupCache {
+  id               String    @id @default(cuid())
+  pmdcNumber       String    @unique @db.VarChar(50)
+  doctorName       String?   @db.VarChar(255)
+  fatherName       String?   @db.VarChar(255)
+  registrationDate String?   @db.VarChar(100)
+  qualification    String?   @db.VarChar(500)
+  institution      String?   @db.VarChar(500)
+  registrationStatus String? @db.VarChar(100)
+  address          String?   @db.Text
+  rawData          Json?     // Store full scraped data for reference
+  source           String    @default("pmdc_website") @db.VarChar(50)
+  found            Boolean   @default(false)
+  errorMessage     String?   @db.Text
+  fetchedAt        DateTime  @default(now())
+  expiresAt        DateTime  // Cache expiry
+
+  @@index([pmdcNumber])
+  @@index([fetchedAt])
+  @@map("pmdc_lookup_cache")
+}
