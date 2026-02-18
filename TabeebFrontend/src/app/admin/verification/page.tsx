@@ -794,18 +794,6 @@ export default function AdminVerificationPage() {
                               </div>
                             </div>
                           )}
-
-                          {/* Raw data toggle (for debugging) */}
-                          {pmdcLookupData[verification.pmdcNumber].rawData && Object.keys(pmdcLookupData[verification.pmdcNumber].rawData!).length > 0 && (
-                            <details className="mt-3">
-                              <summary className="text-[10px] text-slate-400 dark:text-slate-500 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300">
-                                View raw API response
-                              </summary>
-                              <pre className="mt-2 p-2 text-[10px] bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto text-slate-600 dark:text-slate-400">
-                                {JSON.stringify(pmdcLookupData[verification.pmdcNumber].rawData, null, 2)}
-                              </pre>
-                            </details>
-                          )}
                         </>
                       ) : (
                         <div className="flex items-start gap-3">
