@@ -156,6 +156,18 @@ const LandingPage = () => {
         </div>
       </header>
 
+      {/* Beta Notice Banner */}
+      <div className="bg-gradient-to-r from-amber-50 to-teal-50 dark:from-amber-900/20 dark:to-teal-900/20 border-b border-amber-200/60 dark:border-amber-800/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2 text-center">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-400/20 text-amber-700 dark:text-amber-300 border border-amber-300/40 dark:border-amber-600/40">
+            Beta
+          </span>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Currently under testing — available voluntarily for doctors, and consultations are <span className="font-semibold text-teal-600 dark:text-teal-400">free for patients</span> for a limited time.
+          </p>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-white dark:bg-slate-900 pt-20 pb-28">
         <div className="absolute inset-0 bg-grid-slate-200/[0.05] dark:bg-grid-slate-700/[0.1] [mask-image:linear-gradient(to_bottom,white_5%,transparent_90%)]"></div>
