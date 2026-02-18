@@ -173,7 +173,7 @@ const LandingPage = () => {
                 </span>
               </h1>
               <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-xl">
-                TABEEB is a comprehensive health application — book appointments and video visits, get e‑prescriptions, manage medical records, track lab tests, and receive smart reminders — all powered by AI.
+                TABEEB is a complete health app. You can book doctor appointments, do video consultation, get e-prescriptions, keep your medical records, check lab reports, and receive smart reminders — all supported by AI.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
