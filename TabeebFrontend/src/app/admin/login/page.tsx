@@ -170,61 +170,6 @@ export default function AdminLoginPage() {
             </button>
           </div>
         </div>
-
-        {/* Demo Accounts */}
-        <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-white/20 dark:border-slate-700/50 rounded-2xl shadow-xl p-6">
-          <div className="flex items-center mb-4">
-            <div className="w-8 h-8 bg-teal-100 dark:bg-teal-900/50 rounded-lg flex items-center justify-center mr-3">
-              <Shield className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-            </div>
-            <h3 className="font-medium text-slate-900 dark:text-white">Demo Admin Accounts</h3>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400">Username:</span>
-                  <p className="font-mono text-slate-900 dark:text-white">superadmin</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400">Password:</span>
-                  <p className="font-mono text-slate-900 dark:text-white">SuperAdmin123</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400">Username:</span>
-                  <p className="font-mono text-slate-900 dark:text-white">medadmin</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400">Password:</span>
-                  <p className="font-mono text-slate-900 dark:text-white">MedAdmin456</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400">Username:</span>
-                  <p className="font-mono text-slate-900 dark:text-white">verifyadmin</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 dark:text-slate-400">Password:</span>
-                  <p className="font-mono text-slate-900 dark:text-white">VerifyAdmin789</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <p className="mt-4 text-xs text-center text-slate-500 dark:text-slate-400">
-            Development environment test accounts
-          </p>
-        </div>
       </div>
     </div>
   );
