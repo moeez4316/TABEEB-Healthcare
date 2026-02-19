@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Flag,
+  Inbox,
   PenSquare,
   Stethoscope,
   UserCog,
@@ -144,6 +145,12 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       href: '/admin/complaints',
       icon: Flag,
       description: 'Review Complaints'
+    },
+    {
+      name: 'Inbox',
+      href: '/admin/inbox',
+      icon: Inbox,
+      description: 'Support Messages'
     },
     {
       name: 'Analytics',

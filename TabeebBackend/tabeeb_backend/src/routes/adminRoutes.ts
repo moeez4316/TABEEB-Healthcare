@@ -18,9 +18,18 @@ import {
 } from '../controllers/adminController';
 import {
   authenticateAdminFromHeaders,
+  requireAnyAdminPermission,
   requireAdminPermission,
   requireSuperAdmin,
 } from '../middleware/adminAuth';
+import {
+  deleteMessage,
+  getAllContactMessages,
+  getContactMessage,
+  getUnreadCount,
+  replyToMessage,
+  updateMessageStatus,
+} from '../controllers/contactMessageController';
 
 const router = express.Router();
 
@@ -50,6 +59,44 @@ router.patch(
 
 // Doctor management routes
 router.get('/doctors', authenticateAdminFromHeaders, getAllDoctors);
+
+// Admin inbox routes
+router.get(
+  '/inbox/messages',
+  authenticateAdminFromHeaders,
+  requireAdminPermission('mailbox.read'),
+  getAllContactMessages
+);
+router.get(
+  '/inbox/messages/unread-count',
+  authenticateAdminFromHeaders,
+  requireAdminPermission('mailbox.read'),
+  getUnreadCount
+);
+router.get(
+  '/inbox/messages/:id',
+  authenticateAdminFromHeaders,
+  requireAdminPermission('mailbox.read'),
+  getContactMessage
+);
+router.patch(
+  '/inbox/messages/:id/status',
+  authenticateAdminFromHeaders,
+  requireAnyAdminPermission(['mailbox.reply', 'mailbox.manage']),
+  updateMessageStatus
+);
+router.post(
+  '/inbox/messages/:id/reply',
+  authenticateAdminFromHeaders,
+  requireAdminPermission('mailbox.reply'),
+  replyToMessage
+);
+router.delete(
+  '/inbox/messages/:id',
+  authenticateAdminFromHeaders,
+  requireAdminPermission('mailbox.manage'),
+  deleteMessage
+);
 
 router.get('/protected-route', authenticateAdminFromHeaders, (req, res) => {
   res.json({ message: 'Access granted to admin area' });

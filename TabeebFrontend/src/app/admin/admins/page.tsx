@@ -46,6 +46,8 @@ const roleOptions = [
   'CONTENT_TEAM',
 ];
 
+const ADMINS_AUTO_REFRESH_MS = 10000;
+
 export default function AdminManagementPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -194,6 +196,38 @@ export default function AdminManagementPage() {
       })
       .finally(() => setLoading(false));
   }, [loadAdmins, loadSessionUser, router]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const runAutoRefresh = () => {
+      if (document.hidden || submitting || totpSubmitting) return;
+      void loadAdmins().catch(() => {
+        // Silent background refresh.
+      });
+    };
+
+    const intervalId = window.setInterval(runAutoRefresh, ADMINS_AUTO_REFRESH_MS);
+
+    const handleFocus = () => {
+      runAutoRefresh();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        runAutoRefresh();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadAdmins, loading, submitting, totpSubmitting]);
 
   const isSuperAdmin = useMemo(() => sessionUser?.role === 'SUPER_ADMIN', [sessionUser?.role]);
 
