@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE `User` (
+CREATE TABLE `user` (
     `uid` VARCHAR(255) NOT NULL,
     `role` VARCHAR(50) NOT NULL,
 
@@ -7,7 +7,7 @@ CREATE TABLE `User` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `Doctor` (
+CREATE TABLE `doctor` (
     `uid` VARCHAR(255) NOT NULL,
     `name` VARCHAR(255) NOT NULL,
     `email` VARCHAR(255) NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE `Doctor` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `Patient` (
+CREATE TABLE `patient` (
     `uid` VARCHAR(255) NOT NULL,
     `name` VARCHAR(255) NOT NULL,
     `email` VARCHAR(255) NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE `Patient` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `Verification` (
+CREATE TABLE `verification` (
     `doctorUid` VARCHAR(255) NOT NULL,
     `isVerified` BOOLEAN NOT NULL DEFAULT false,
     `status` VARCHAR(20) NOT NULL DEFAULT 'pending',
@@ -53,10 +53,10 @@ CREATE TABLE `Verification` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `Doctor` ADD CONSTRAINT `Doctor_uid_fkey` FOREIGN KEY (`uid`) REFERENCES `User`(`uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `doctor` ADD CONSTRAINT `Doctor_uid_fkey` FOREIGN KEY (`uid`) REFERENCES `user`(`uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Patient` ADD CONSTRAINT `Patient_uid_fkey` FOREIGN KEY (`uid`) REFERENCES `User`(`uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `patient` ADD CONSTRAINT `Patient_uid_fkey` FOREIGN KEY (`uid`) REFERENCES `user`(`uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Verification` ADD CONSTRAINT `Verification_doctorUid_fkey` FOREIGN KEY (`doctorUid`) REFERENCES `Doctor`(`uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `verification` ADD CONSTRAINT `Verification_doctorUid_fkey` FOREIGN KEY (`doctorUid`) REFERENCES `doctor`(`uid`) ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -36,6 +36,7 @@ yarn-error.log*
 backups/
 *.sql
 *.sql.gz
+!TabeebBackend/tabeeb_backend/prisma/migrations/**/migration.sql
 
 # Certificates (if generated locally)
 *.pem

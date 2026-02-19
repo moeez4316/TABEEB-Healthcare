@@ -18,12 +18,18 @@ import {
   Flag,
   PenSquare,
   Stethoscope,
-  Inbox
+  UserCog,
+  KeyRound
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 
 interface SidebarAdminProps {
   className?: string;
+}
+
+interface CachedAdminUser {
+  role?: string;
+  [key: string]: unknown;
 }
 
 interface NavigationItem {
@@ -40,6 +46,7 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [adminRole, setAdminRole] = useState<string>('');
 
   // Check if we're on mobile screen size
   useEffect(() => {
@@ -51,6 +58,54 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
     window.addEventListener('resize', checkScreenSize);
 
     return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  useEffect(() => {
+    const syncAdminRole = async () => {
+      let cachedUser: CachedAdminUser | null = null;
+      try {
+        const raw = localStorage.getItem('adminUser');
+        if (raw) {
+          cachedUser = JSON.parse(raw) as CachedAdminUser;
+          if (cachedUser && typeof cachedUser.role === 'string') {
+            setAdminRole(cachedUser.role);
+          }
+        }
+      } catch {
+        setAdminRole('');
+      }
+
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) return;
+        const payload = await response.json();
+        const role = payload?.admin?.role;
+        if (typeof role !== 'string') return;
+
+        setAdminRole(role);
+
+        const mergedUser = {
+          ...(cachedUser && typeof cachedUser === 'object' ? cachedUser : {}),
+          ...(payload?.admin && typeof payload.admin === 'object' ? payload.admin : {}),
+          role,
+        };
+        localStorage.setItem('adminUser', JSON.stringify(mergedUser));
+      } catch {
+        // keep cached role
+      }
+    };
+
+    void syncAdminRole();
+    window.addEventListener('focus', syncAdminRole);
+    return () => window.removeEventListener('focus', syncAdminRole);
   }, []);
 
   const navigation: NavigationItem[] = [
@@ -91,18 +146,27 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
       description: 'Review Complaints'
     },
     {
-      name: 'Inbox',
-      href: '/admin/inbox',
-      icon: Inbox,
-      description: 'Contact Messages'
-    },
-    {
       name: 'Analytics',
       href: '/admin/analytics',
       icon: BarChart3,
       description: 'Platform Insights'
     },
+    {
+      name: 'Change Password',
+      href: '/admin/change-password',
+      icon: KeyRound,
+      description: 'Update Admin Password'
+    },
   ];
+
+  if (adminRole === 'SUPER_ADMIN') {
+    navigation.splice(4, 0, {
+      name: 'Admin Management',
+      href: '/admin/admins',
+      icon: UserCog,
+      description: 'Create and Manage Admins',
+    });
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');

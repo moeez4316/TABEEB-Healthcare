@@ -31,10 +31,10 @@ docker compose -f docker-compose.prebuilt.yml up -d redis
 echo "⏳ Waiting for Redis to be ready..."
 sleep 5
 
-# Step 5: Run database sync
-echo "🗄️  Syncing database schema..."
+# Step 5: Run database migrations
+echo "Running database migrations..."
 docker compose -f docker-compose.prebuilt.yml run --rm \
-  backend npx prisma db push --accept-data-loss || echo "⚠️  DB sync skipped (run manually if needed)"
+  backend npx prisma migrate deploy
 
 # Step 6: Start all services
 echo "🚀 Starting all services..."

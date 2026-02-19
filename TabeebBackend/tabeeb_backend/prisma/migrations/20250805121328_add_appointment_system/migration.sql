@@ -62,16 +62,16 @@ CREATE TABLE `appointments` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `doctor_availability` ADD CONSTRAINT `doctor_availability_doctorUid_fkey` FOREIGN KEY (`doctorUid`) REFERENCES `Doctor`(`uid`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `doctor_availability` ADD CONSTRAINT `doctor_availability_doctorUid_fkey` FOREIGN KEY (`doctorUid`) REFERENCES `doctor`(`uid`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `time_slots` ADD CONSTRAINT `time_slots_availabilityId_fkey` FOREIGN KEY (`availabilityId`) REFERENCES `doctor_availability`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `appointments` ADD CONSTRAINT `appointments_doctorUid_fkey` FOREIGN KEY (`doctorUid`) REFERENCES `Doctor`(`uid`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `appointments` ADD CONSTRAINT `appointments_doctorUid_fkey` FOREIGN KEY (`doctorUid`) REFERENCES `doctor`(`uid`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `appointments` ADD CONSTRAINT `appointments_patientUid_fkey` FOREIGN KEY (`patientUid`) REFERENCES `Patient`(`uid`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `appointments` ADD CONSTRAINT `appointments_patientUid_fkey` FOREIGN KEY (`patientUid`) REFERENCES `patient`(`uid`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `appointments` ADD CONSTRAINT `appointments_timeSlotId_fkey` FOREIGN KEY (`timeSlotId`) REFERENCES `time_slots`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

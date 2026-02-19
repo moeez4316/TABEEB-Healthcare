@@ -1,8 +1,14 @@
 import { Request, Response } from 'express';
 import { Webhook } from 'svix';
+import { Prisma } from '@prisma/client';
 import { EMAIL_CONFIG, resend } from '../config/resend';
 import prisma from '../lib/prisma';
 import { sendEmail } from '../services/emailService';
+import {
+  buildInboundMailboxMetadata,
+  extractEmailFromMailboxHeader,
+  resolveInboundMailboxRouting,
+} from '../services/adminMailboxService';
 
 // ========================================
 // RESEND WEBHOOK EVENT TYPES
@@ -41,12 +47,6 @@ interface ResendWebhookEvent {
     // For clicks
     click?: { link: string; timestamp: string };
   };
-}
-
-// Helper: extract email from "Name <email@domain.com>" format
-function extractEmail(raw: string): string {
-  const match = raw.match(/<([^>]+)>/);
-  return match ? match[1] : raw.trim();
 }
 
 // Helper: extract display name from "Name <email@domain.com>" format
@@ -158,7 +158,7 @@ async function handleInboundEmail(data: ResendWebhookEvent['data']) {
   const emailId = data.email_id || '';
 
   // Parse sender info
-  const fromEmail = extractEmail(rawFrom);
+  const fromEmail = extractEmailFromMailboxHeader(rawFrom);
   const fromName = extractName(rawFrom);
 
   console.log('📥 Processing inbound email:');
@@ -198,51 +198,20 @@ async function handleInboundEmail(data: ResendWebhookEvent['data']) {
     console.warn('⚠️  No email_id in webhook payload, cannot fetch body');
   }
 
-  // Determine message type based on recipient routing
-  let handled = false;
+  const routing = await resolveInboundMailboxRouting(to);
+  console.log('📥 Mailbox routing result:', routing);
 
-  for (const recipient of to) {
-    // Handle both "email@domain" and "Name <email@domain>" formats
-    const cleanEmail = extractEmail(recipient);
-    const localPart = cleanEmail.split('@')[0].toLowerCase();
-
-    console.log(`📥 Routing recipient: ${recipient} → local part: ${localPart}`);
-
-    switch (localPart) {
-      case 'support':
-        console.log('📥 Routing to support handler...');
-        await saveInboundEmail('SUPPORT', fromEmail, fromName, subject, textBody, htmlBody, emailAttachments, true);
-        handled = true;
-        break;
-
-      case 'noreply':
-        console.log('📥 Auto-reply received on noreply, ignoring.');
-        handled = true;
-        break;
-
-      case 'contact':
-        console.log('📥 Routing to contact handler...');
-        await saveInboundEmail('CONTACT', fromEmail, fromName, subject, textBody, htmlBody, emailAttachments, false);
-        handled = true;
-        break;
-
-      case 'feedback':
-        console.log('📥 Routing to feedback handler...');
-        await saveInboundEmail('FEEDBACK', fromEmail, fromName, subject, textBody, htmlBody, emailAttachments, false);
-        handled = true;
-        break;
-
-      default:
-        console.log(`📥 Email to ${recipient} (${localPart}) - no specific handler.`);
-        break;
-    }
-  }
-
-  // Fallback: if no recipient matched a handler, still save the email as INBOUND
-  if (!handled) {
-    console.log('📥 No handler matched — saving as generic INBOUND message');
-    await saveInboundEmail('INBOUND', fromEmail, fromName, subject, textBody, htmlBody, emailAttachments, false);
-  }
+  await saveInboundEmail(
+    routing.messageType,
+    fromEmail,
+    fromName,
+    subject,
+    textBody,
+    htmlBody,
+    emailAttachments,
+    routing.messageType === 'SUPPORT',
+    buildInboundMailboxMetadata(routing)
+  );
 }
 
 // ========================================
@@ -257,7 +226,8 @@ async function saveInboundEmail(
   text: string,
   html: string,
   attachments: Array<{ filename: string; content_type: string }>,
-  sendAck: boolean
+  sendAck: boolean,
+  metadata: Prisma.InputJsonValue
 ) {
   try {
     const message = await prisma.contactMessage.create({
@@ -269,6 +239,7 @@ async function saveInboundEmail(
         message: text || html?.replace(/<[^>]*>/g, '').substring(0, 5000) || 'No text content',
         htmlContent: html || undefined,
         attachments: attachments.length > 0 ? attachments : undefined,
+        metadata: metadata || undefined,
       },
     });
 

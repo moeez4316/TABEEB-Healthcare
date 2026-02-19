@@ -478,6 +478,7 @@ model OtpCode {
 enum OtpType {
   EMAIL_VERIFY
   PASSWORD_RESET
+  ADMIN_LOGIN
 }
 
 enum ContactMessageStatus {
@@ -493,23 +494,95 @@ enum ContactMessageStatus {
 // ========================================
 
 model PmdcLookupCache {
-  id               String    @id @default(cuid())
-  pmdcNumber       String    @unique @db.VarChar(50)
-  doctorName       String?   @db.VarChar(255)
-  fatherName       String?   @db.VarChar(255)
-  registrationDate String?   @db.VarChar(100)
-  qualification    String?   @db.VarChar(500)
-  institution      String?   @db.VarChar(500)
-  registrationStatus String? @db.VarChar(100)
-  address          String?   @db.Text
-  rawData          Json?     // Store full scraped data for reference
-  source           String    @default("pmdc_website") @db.VarChar(50)
-  found            Boolean   @default(false)
-  errorMessage     String?   @db.Text
-  fetchedAt        DateTime  @default(now())
-  expiresAt        DateTime  // Cache expiry
+  id                 String   @id @default(cuid())
+  pmdcNumber         String   @unique @db.VarChar(50)
+  doctorName         String?  @db.VarChar(255)
+  fatherName         String?  @db.VarChar(255)
+  registrationDate   String?  @db.VarChar(100)
+  qualification      String?  @db.VarChar(500)
+  institution        String?  @db.VarChar(500)
+  registrationStatus String?  @db.VarChar(100)
+  address            String?  @db.Text
+  rawData            Json?
+  source             String   @default("pmdc_website") @db.VarChar(50)
+  found              Boolean  @default(false)
+  errorMessage       String?  @db.Text
+  fetchedAt          DateTime @default(now())
+  expiresAt          DateTime
 
   @@index([pmdcNumber])
   @@index([fetchedAt])
   @@map("pmdc_lookup_cache")
+}
+
+// ========================================
+// ADMIN ACCESS
+// ========================================
+
+model AdminUser {
+  id                String   @id @default(cuid())
+  username          String   @unique @db.VarChar(100)
+  displayName       String   @db.VarChar(200)
+  email             String   @unique @db.VarChar(255)
+  passwordHash      String   @db.VarChar(255)
+  mustChangePassword Boolean  @default(false)
+  role              AdminRole
+  isSeedAdmin       Boolean  @default(false)
+  isApproved        Boolean  @default(false)
+  approvedById      String?  @db.VarChar(191)
+  approvedAt        DateTime?
+  isActive          Boolean  @default(true)
+  isBlocked         Boolean  @default(false)
+  blockedAt         DateTime?
+  blockedReason     String?  @db.Text
+  twoFactorEnabled  Boolean  @default(true) // Legacy flag; TOTP is mandatory for all admins.
+  twoFactorEnforced Boolean  @default(true) // Legacy flag; kept for backward compatibility.
+  totpSecret        String?  @db.VarChar(191)
+  totpConfiguredAt  DateTime?
+  customPermissions Json?
+  lastLoginAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  sessions AdminSession[]
+
+  @@index([role])
+  @@index([isApproved])
+  @@index([approvedById])
+  @@index([isBlocked])
+  @@index([isActive])
+  @@index([mustChangePassword])
+  @@map("admin_users")
+}
+
+model AdminSession {
+  id                  String    @id @default(cuid())
+  adminUserId         String
+  jwtId               String    @unique
+  ipAddress           String?   @db.VarChar(64)
+  userAgent           String?   @db.VarChar(500)
+  requiresTwoFactor   Boolean   @default(true)
+  twoFactorVerifiedAt DateTime?
+  isRevoked           Boolean   @default(false)
+  revokedAt           DateTime?
+  revokedReason       String?   @db.VarChar(255)
+  lastSeenAt          DateTime  @default(now())
+  expiresAt           DateTime
+  createdAt           DateTime  @default(now())
+
+  adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([jwtId])
+  @@index([isRevoked])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  VERIFICATION_TEAM
+  SUPPORT_TEAM
+  OPERATIONS_TEAM
+  CONTENT_TEAM
 }

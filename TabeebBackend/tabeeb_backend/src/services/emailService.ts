@@ -58,9 +58,56 @@ interface SendEmailOptions {
   to: string | string[];
   subject: string;
   html: string;
+  from?: string;
   replyTo?: string;
   tags?: { name: string; value: string }[];
 }
+
+const ensureAbsoluteUrl = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
+const normalizeBaseUrl = (value: string): string => ensureAbsoluteUrl(value).replace(/\/+$/, '');
+
+const isLocalhostUrl = (value: string): boolean => {
+  const lowered = value.toLowerCase();
+  return (
+    lowered.includes('localhost') ||
+    lowered.includes('127.0.0.1') ||
+    lowered.includes('0.0.0.0')
+  );
+};
+
+const resolvePublicWebBaseUrl = (): string => {
+  const explicitBase =
+    process.env.FRONTEND_URL ||
+    process.env.PUBLIC_APP_URL ||
+    process.env.APP_BASE_URL ||
+    process.env.NEXT_PUBLIC_FRONTEND_URL ||
+    '';
+
+  if (explicitBase.trim()) {
+    return normalizeBaseUrl(explicitBase);
+  }
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  if (apiUrl.trim()) {
+    const derived = normalizeBaseUrl(apiUrl).replace(/\/api$/, '');
+    if (!isLocalhostUrl(derived) || process.env.NODE_ENV !== 'production') {
+      return derived;
+    }
+  }
+
+  const siteAddress = process.env.SITE_ADDRESS || '';
+  if (siteAddress.trim() && siteAddress.trim().toLowerCase() !== 'localhost') {
+    return normalizeBaseUrl(siteAddress);
+  }
+
+  return 'https://tabeeb.dpdns.org';
+};
 
 export async function sendEmail(options: SendEmailOptions, retries = 3) {
   if (!process.env.RESEND_API_KEY) {
@@ -71,7 +118,7 @@ export async function sendEmail(options: SendEmailOptions, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const { data, error } = await resend.emails.send({
-        from: EMAIL_CONFIG.fromAddress,
+        from: options.from || EMAIL_CONFIG.fromAddress,
         to: Array.isArray(options.to) ? options.to : [options.to],
         subject: options.subject,
         html: options.html,
@@ -368,6 +415,63 @@ export async function sendWelcomeEmail(params: {
     subject: 'Welcome to Tabeeb Healthcare! 🏥',
     html,
     tags: [{ name: 'type', value: 'welcome' }],
+  });
+}
+
+export async function sendAdminCredentialsEmail(params: {
+  email: string;
+  displayName: string;
+  username: string;
+  temporaryPassword: string;
+  role: string;
+  createdByName?: string;
+}) {
+  const webBaseUrl = resolvePublicWebBaseUrl();
+  const loginUrl = `${webBaseUrl}/admin/login`;
+
+  const html = baseTemplate(`
+    <h2>Your Admin Account is Ready</h2>
+    <p>Dear <strong>${params.displayName}</strong>,</p>
+    <p>An administrator account has been created for you on TABEEB.</p>
+
+    <div class="info-box">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600; color: #475569; width: 45%;">Username</td>
+          <td style="padding: 8px 0; color: #0f172a;">${params.username}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600; color: #475569; border-top: 1px solid #e2e8f0;">Email</td>
+          <td style="padding: 8px 0; color: #0f172a; border-top: 1px solid #e2e8f0;">${params.email}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600; color: #475569; border-top: 1px solid #e2e8f0;">Role</td>
+          <td style="padding: 8px 0; color: #0f172a; border-top: 1px solid #e2e8f0;">${params.role}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600; color: #475569; border-top: 1px solid #e2e8f0;">Temporary Password</td>
+          <td style="padding: 8px 0; color: #0f172a; border-top: 1px solid #e2e8f0;">${params.temporaryPassword}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="info-box" style="background: #fff7ed; border-left-color: #f97316;">
+      <p style="margin: 0;"><strong>Security action required:</strong> after first login, you must change this temporary password immediately.</p>
+      <p style="margin: 8px 0 0;">You will also complete TOTP authenticator verification during sign-in.</p>
+    </div>
+
+    <a href="${loginUrl}" class="btn">Sign In to Admin Panel</a>
+    <p style="font-size: 12px; color: #64748b; margin-top: 16px;">
+      Created by: ${params.createdByName || 'Super Admin'}
+    </p>
+  `);
+
+  return sendEmail({
+    to: params.email,
+    from: 'Tabeeb Healthcare <no-reply@tabeebemail.me>',
+    subject: 'TABEEB Admin Account Credentials',
+    html,
+    tags: [{ name: 'type', value: 'admin-credentials' }],
   });
 }
 

@@ -2,12 +2,15 @@
 
 import SidebarAdmin from '@/components/SidebarAdmin';
 import { useState, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -35,10 +38,60 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const isLoginRoute = pathname === '/admin/login';
+    const isPasswordChangeRoute = pathname === '/admin/change-password';
+
+    if (isLoginRoute) {
+      return;
+    }
+
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
+    const checkAdminState = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.status === 401) {
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.push('/admin/login');
+          return;
+        }
+
+        const payload = await response.json();
+        const mustChangePassword = Boolean(payload?.admin?.mustChangePassword);
+
+        if (mustChangePassword && !isPasswordChangeRoute) {
+          router.push('/admin/change-password');
+        }
+      } catch {
+        // Keep page-level handlers in control on transient failures.
+      }
+    };
+
+    void checkAdminState();
+  }, [pathname, router]);
+
   const getMainMargin = () => {
     if (isMobile) return 'ml-0';
     return sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-80';
   };
+
+  const hideAdminChrome =
+    pathname === '/admin/login' || pathname === '/admin/change-password';
+
+  if (hideAdminChrome) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">

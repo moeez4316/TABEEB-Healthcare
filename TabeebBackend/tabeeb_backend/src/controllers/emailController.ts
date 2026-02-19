@@ -11,6 +11,11 @@ import {
   sendContactEmail,
 } from '../services/emailService';
 import prisma from '../lib/prisma';
+import {
+  buildInboundMailboxMetadata,
+  buildInternalMailboxAddress,
+  resolveInboundMailboxRouting,
+} from '../services/adminMailboxService';
 
 // ========================================
 // SEND TEST EMAIL
@@ -60,7 +65,10 @@ export const handleContactForm = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    // Save to database for admin to see
+    const supportMailbox = buildInternalMailboxAddress('support');
+    const routing = await resolveInboundMailboxRouting([supportMailbox]);
+
+    // Save to database for admin inbox routing
     await prisma.contactMessage.create({
       data: {
         type: 'CONTACT',
@@ -68,6 +76,10 @@ export const handleContactForm = async (req: Request, res: Response): Promise<vo
         fromName: name,
         subject,
         message,
+        metadata: buildInboundMailboxMetadata({
+          ...routing,
+          messageType: 'CONTACT',
+        }),
       },
     });
 

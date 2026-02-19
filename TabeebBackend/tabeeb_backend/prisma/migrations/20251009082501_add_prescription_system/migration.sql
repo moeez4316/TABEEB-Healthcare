@@ -128,10 +128,10 @@ CREATE TABLE `prescription_medicines` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `prescriptions` ADD CONSTRAINT `prescriptions_doctorUid_fkey` FOREIGN KEY (`doctorUid`) REFERENCES `Doctor`(`uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `prescriptions` ADD CONSTRAINT `prescriptions_doctorUid_fkey` FOREIGN KEY (`doctorUid`) REFERENCES `doctor`(`uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `prescriptions` ADD CONSTRAINT `prescriptions_patientUid_fkey` FOREIGN KEY (`patientUid`) REFERENCES `Patient`(`uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `prescriptions` ADD CONSTRAINT `prescriptions_patientUid_fkey` FOREIGN KEY (`patientUid`) REFERENCES `patient`(`uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `prescriptions` ADD CONSTRAINT `prescriptions_appointmentId_fkey` FOREIGN KEY (`appointmentId`) REFERENCES `appointments`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

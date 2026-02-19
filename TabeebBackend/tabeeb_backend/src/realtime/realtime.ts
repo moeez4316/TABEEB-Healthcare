@@ -2,10 +2,10 @@ import { Server as HttpServer } from 'http';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
-import jwt from 'jsonwebtoken';
 import admin from '../config/firebase';
 import prisma from '../lib/prisma';
 import crypto from 'crypto';
+import { validateAdminAccessToken } from '../services/adminAccessService';
 
 export type AppEventType =
   | 'appointment.updated'
@@ -73,10 +73,9 @@ const authenticateSocket = async (token?: string): Promise<SocketUser> => {
     // fall through to admin JWT
   }
 
-  const secret = process.env.ADMIN_JWT_SECRET || 'tabeeb-admin-secret-key-2026';
-  const decoded = jwt.verify(token, secret) as { username: string; role: string };
-  if (decoded.role !== 'admin') throw new Error('invalid admin token');
-  return { uid: decoded.username, role: 'admin' };
+  const adminValidation = await validateAdminAccessToken(token);
+  if (!adminValidation.ok) throw new Error(adminValidation.message);
+  return { uid: adminValidation.admin.username, role: 'admin' };
 };
 
 export const initRealtime = async (server: HttpServer) => {

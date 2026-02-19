@@ -21,6 +21,7 @@ import authRoutes from './routes/authRoutes';
 import { scheduleAutoGeneration } from './utils/autoGenerateSlots';
 import { generalLimiter } from './middleware/rateLimiter';
 import { initRealtime } from './realtime/realtime';
+import { ensureAdminUsersBootstrapped } from './services/adminAccessService';
 
 dotenv.config();
 
@@ -62,7 +63,15 @@ initRealtime(server).catch((err) => {
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  
+
   // Start auto-generation scheduler
   scheduleAutoGeneration();
+
+  ensureAdminUsersBootstrapped()
+    .then(() => {
+      console.log('[Admin Bootstrap] ensured.');
+    })
+    .catch((error) => {
+      console.error('[Admin Bootstrap] failed:', error);
+    });
 });

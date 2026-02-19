@@ -28,10 +28,10 @@ WORKDIR /app
 # Install wget for healthcheck
 RUN apk add --no-cache wget
 
-# Install production dependencies only
+# Install dependencies (including Prisma CLI for runtime migrations)
 COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --prefer-offline --no-audit --progress=false
+    npm ci --prefer-offline --no-audit --progress=false
 
 # Copy Prisma schema and generate client
 COPY prisma ./prisma/
