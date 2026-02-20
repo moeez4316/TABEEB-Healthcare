@@ -146,6 +146,17 @@ export default function AIChat() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  // Measure header height dynamically so the mobile sidebar never overlaps
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setHeaderHeight(entry.contentRect.height + 1));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // ─── Load Sessions on Mount ────────────────────────────────────────────────
 
@@ -449,6 +460,77 @@ export default function AIChat() {
     setError(null);
   };
 
+  // ─── Ask AI About Summarized Report ────────────────────────────────────────
+
+  const [isStartingReportChat, setIsStartingReportChat] = useState(false);
+
+  const handleAskAboutReport = async () => {
+    if (!summaryResult || isStartingReportChat) return;
+
+    const token = await getToken();
+    if (!token) {
+      setError('Authentication expired. Please refresh the page or sign in again.');
+      return;
+    }
+
+    setIsStartingReportChat(true);
+    setError(null);
+
+    try {
+      // 1. Create a new session
+      const sessionRes = await createAISession(token);
+      if (!sessionRes.success || !sessionRes.data) {
+        setError('Failed to create chat session.');
+        return;
+      }
+
+      const newSession = sessionRes.data;
+      setSessions((prev) => [newSession, ...prev]);
+      setActiveSessionId(newSession.id);
+
+      // 2. Send the report summary as context
+      const contextMessage = `I just had a medical report summarized. Here is the summary:\n\n${summaryResult}\n\nI have some questions about this report.`;
+
+      const userMsg: DisplayMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: contextMessage,
+        timestamp: new Date(),
+      };
+
+      const loadingMsg: DisplayMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        content: '',
+        timestamp: new Date(),
+        isLoading: true,
+      };
+
+      setMessages([userMsg, loadingMsg]);
+      setActiveTab('chat');
+
+      const response = await sendSessionChatMessage(token, newSession.id, contextMessage);
+
+      if (response.success && response.data) {
+        const aiMsg: DisplayMessage = {
+          id: (Date.now() + 2).toString(),
+          role: 'model',
+          content: response.data.message,
+          timestamp: new Date(),
+        };
+        setMessages([userMsg, aiMsg]);
+        setTimeout(() => loadSessions(), 3000);
+      } else {
+        setMessages([userMsg]);
+        setError(response.error || 'Failed to get AI response.');
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsStartingReportChat(false);
+    }
+  };
+
   // Format date for sidebar
   const formatSessionDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -467,7 +549,7 @@ export default function AIChat() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex flex-col">
       {/* Header */}
-      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700 flex-shrink-0">
+      <header ref={headerRef} className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700 flex-shrink-0 z-40 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -502,15 +584,16 @@ export default function AIChat() {
             {sidebarOpen && (
               <div
                 className="fixed inset-0 bg-black/40 z-20 lg:hidden"
+                style={{ top: headerHeight }}
                 onClick={() => setSidebarOpen(false)}
               />
             )}
 
             <aside
-              className={`fixed lg:static inset-y-0 left-0 z-30 w-72 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col transition-transform duration-200 ${
+              className={`fixed lg:static bottom-0 left-0 z-30 w-72 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col transition-transform duration-200 lg:!top-auto ${
                 sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
               }`}
-              style={{ top: 0 }}
+              style={{ top: headerHeight }}
             >
               <div className="p-3 border-b border-gray-200 dark:border-slate-700 flex items-center gap-2">
                 <button
@@ -870,6 +953,23 @@ export default function AIChat() {
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-4 pt-3 border-t border-gray-200 dark:border-slate-700">
                       This summary is AI-generated. Always verify with a healthcare professional.
                     </p>
+                    <button
+                      onClick={handleAskAboutReport}
+                      disabled={isStartingReportChat}
+                      className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg font-medium text-sm hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isStartingReportChat ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Starting chat...
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="w-4 h-4" />
+                          Ask questions about this report
+                        </>
+                      )}
+                    </button>
                   </div>
                 )}
               </div>
