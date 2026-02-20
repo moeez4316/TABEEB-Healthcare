@@ -586,3 +586,33 @@ enum AdminRole {
   OPERATIONS_TEAM
   CONTENT_TEAM
 }
+
+// ─── AI Chat Session & Messages ──────────────────────────────────────────────
+
+model AIChatSession {
+  id             String          @id @default(cuid())
+  userUid        String          @db.VarChar(255)
+  title          String          @default("New Chat") @db.VarChar(200)
+  contextSummary String?         @db.Text // Rolling summary of older messages
+  summarizedUpTo Int             @default(0) // How many messages have been summarized
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  messages       AIChatMessage[]
+
+  @@index([userUid])
+  @@index([updatedAt])
+  @@map("ai_chat_sessions")
+}
+
+model AIChatMessage {
+  id        String        @id @default(cuid())
+  sessionId String
+  role      String        @db.VarChar(10) // 'user' or 'model'
+  content   String        @db.LongText
+  createdAt DateTime      @default(now())
+  session   AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("ai_chat_messages")
+}
