@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { FaTachometerAlt, FaCalendarAlt, FaCalendarCheck, FaClock, FaSignOutAlt, FaBars, FaTimes, FaChevronLeft, FaChevronRight, FaStar, FaNewspaper } from "react-icons/fa";
+import { FaTachometerAlt, FaCalendarAlt, FaCalendarCheck, FaClock, FaSignOutAlt, FaBars, FaTimes, FaChevronLeft, FaChevronRight, FaStar, FaNewspaper, FaRobot } from "react-icons/fa";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -16,6 +16,7 @@ const navItems = [
   { label: "Calendar", href: "/Doctor/Calendar", icon: <FaCalendarCheck /> },
   { label: "Blogs", href: "/Doctor/blogs", icon: <FaNewspaper /> },
   { label: "Reviews", href: "/Doctor/Reviews", icon: <FaStar /> },
+  { label: "AI Assistant", href: "/Doctor/ai-chat", icon: <FaRobot /> },
 ];
 
 export default function SidebarDoctor() {
