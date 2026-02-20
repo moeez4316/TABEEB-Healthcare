@@ -16,7 +16,7 @@ const navItems = [
   { label: "Calendar", href: "/Doctor/Calendar", icon: <FaCalendarCheck /> },
   { label: "Blogs", href: "/Doctor/blogs", icon: <FaNewspaper /> },
   { label: "Reviews", href: "/Doctor/Reviews", icon: <FaStar /> },
-  { label: "AI Assistant", href: "/Doctor/ai-chat", icon: <FaRobot /> },
+  { label: "TABEEB AI", href: "/Doctor/ai-chat", icon: <FaRobot /> },
 ];
 
 export default function SidebarDoctor() {

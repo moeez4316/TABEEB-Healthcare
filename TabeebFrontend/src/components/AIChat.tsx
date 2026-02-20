@@ -35,7 +35,60 @@ import {
   ChevronLeft,
   Menu,
 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+/* ── Styled markdown components so tables, lists, headings render nicely ── */
+const mdComponents: Components = {
+  h1: ({ children }) => <h1 className="text-xl font-bold mt-4 mb-2">{children}</h1>,
+  h2: ({ children }) => <h2 className="text-lg font-bold mt-3 mb-2">{children}</h2>,
+  h3: ({ children }) => <h3 className="text-base font-semibold mt-3 mb-1">{children}</h3>,
+  h4: ({ children }) => <h4 className="text-sm font-semibold mt-2 mb-1">{children}</h4>,
+  p: ({ children }) => <p className="my-1.5 leading-relaxed text-sm">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc list-inside my-2 space-y-1 text-sm">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal list-inside my-2 space-y-1 text-sm">{children}</ol>,
+  li: ({ children }) => <li className="ml-2 leading-relaxed">{children}</li>,
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-4 border-teal-400 pl-3 my-2 italic text-gray-600 dark:text-gray-400">
+      {children}
+    </blockquote>
+  ),
+  code: ({ children, className }) => {
+    const isInline = !className;
+    return isInline ? (
+      <code className="bg-gray-200 dark:bg-slate-600 text-teal-700 dark:text-teal-300 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+    ) : (
+      <code className="block bg-gray-900 text-gray-100 p-3 rounded-lg my-2 overflow-x-auto text-xs font-mono whitespace-pre">{children}</code>
+    );
+  },
+  pre: ({ children }) => <pre className="my-2">{children}</pre>,
+  table: ({ children }) => (
+    <div className="overflow-x-auto my-3 rounded-lg border border-gray-200 dark:border-slate-600">
+      <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-slate-600">
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-gray-100 dark:bg-slate-700">{children}</thead>,
+  tbody: ({ children }) => <tbody className="divide-y divide-gray-200 dark:divide-slate-600">{children}</tbody>,
+  tr: ({ children }) => <tr>{children}</tr>,
+  th: ({ children }) => (
+    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{children}</td>
+  ),
+  hr: () => <hr className="my-3 border-gray-300 dark:border-slate-600" />,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-teal-600 dark:text-teal-400 underline hover:text-teal-500">
+      {children}
+    </a>
+  ),
+};
 
 type TabMode = 'chat' | 'summarize';
 
@@ -651,8 +704,8 @@ export default function AIChat() {
                             <span className="text-sm">Thinking...</span>
                           </div>
                         ) : msg.role === 'model' ? (
-                          <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2">
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          <div className="max-w-none text-gray-800 dark:text-gray-200">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{msg.content}</ReactMarkdown>
                           </div>
                         ) : (
                           <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
@@ -811,8 +864,8 @@ export default function AIChat() {
                       <Sparkles className="w-5 h-5 text-teal-500" />
                       Document Summary
                     </h2>
-                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-headings:my-3">
-                      <ReactMarkdown>{summaryResult}</ReactMarkdown>
+                    <div className="max-w-none text-gray-800 dark:text-gray-200">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{summaryResult}</ReactMarkdown>
                     </div>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-4 pt-3 border-t border-gray-200 dark:border-slate-700">
                       This summary is AI-generated. Always verify with a healthcare professional.
