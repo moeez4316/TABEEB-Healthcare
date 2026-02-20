@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { auth } from '@/lib/firebase';
@@ -102,6 +103,7 @@ interface DisplayMessage {
 
 export default function AIChat() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
 
   const getToken = async (): Promise<string | null> => {
     try {
@@ -157,6 +159,76 @@ export default function AIChat() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // ─── Auto-Summarize from Medical Records (URL params) ─────────────────────
+
+  const autoSummarizeTriggered = useRef(false);
+
+  useEffect(() => {
+    if (autoSummarizeTriggered.current) return;
+    const summarizeUrl = searchParams.get('summarizeUrl');
+    const fileType = searchParams.get('fileType') || 'image/jpeg';
+    const fileName = searchParams.get('fileName') || 'Medical Record';
+    if (!summarizeUrl || !user) return;
+
+    autoSummarizeTriggered.current = true;
+    setActiveTab('summarize');
+    setSummarizeText(`Medical record: ${fileName}`);
+    setIsSummarizing(true);
+    setError(null);
+    setSummaryResult(null);
+
+    // Clean URL params without reloading
+    window.history.replaceState({}, '', window.location.pathname);
+
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) {
+          setError('Authentication expired. Please refresh the page.');
+          setIsSummarizing(false);
+          return;
+        }
+
+        // Fetch the file and convert to base64
+        const resp = await fetch(summarizeUrl);
+        const blob = await resp.blob();
+        const mimeType = fileType || blob.type || 'image/jpeg';
+
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            // Strip data URL prefix to get raw base64
+            const base64Data = result.includes(',') ? result.split(',')[1] : result;
+            resolve(base64Data);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+
+        // Set image preview
+        setImagePreview(`data:${mimeType};base64,${base64}`);
+
+        const response = await summarizeMedicalDocument(
+          token,
+          `Please summarize this medical record: ${fileName}`,
+          { mimeType, data: base64 }
+        );
+
+        if (response.success && response.data) {
+          setSummaryResult(response.data.summary);
+        } else {
+          setError(response.error || 'Failed to summarize the document.');
+        }
+      } catch {
+        setError('Failed to fetch and summarize the medical record.');
+      } finally {
+        setIsSummarizing(false);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, searchParams]);
 
   // ─── Load Sessions on Mount ────────────────────────────────────────────────
 

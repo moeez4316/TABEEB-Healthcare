@@ -240,7 +240,10 @@ export default function MedicalRecordsPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {records.map(record => (
-                <MedicalRecordCard key={record.id} record={record} onDelete={handleDelete} />
+                <MedicalRecordCard key={record.id} record={record} onDelete={handleDelete} onSummarize={(rec) => {
+                  const params = new URLSearchParams({ summarizeUrl: rec.fileUrl, fileType: rec.fileType, fileName: rec.fileName || 'Medical Record' });
+                  window.location.href = `/Patient/ai-chat?${params.toString()}`;
+                }} />
               ))}
             </div>
           )}

@@ -15,9 +15,10 @@ interface MedicalRecord {
 interface MedicalRecordCardProps {
   record: MedicalRecord;
   onDelete?: (id: string) => void;
+  onSummarize?: (record: MedicalRecord) => void;
 }
 
-export default function MedicalRecordCard({ record, onDelete }: MedicalRecordCardProps) {
+export default function MedicalRecordCard({ record, onDelete, onSummarize }: MedicalRecordCardProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const isImage = (type: string) => type.startsWith("image/");
@@ -61,6 +62,15 @@ export default function MedicalRecordCard({ record, onDelete }: MedicalRecordCar
             disabled={deleting}
           >
             {deleting ? 'Deleting...' : 'Delete Record'}
+          </button>
+        )}
+        {onSummarize && (isImage(record.fileType) || isPDF(record.fileType)) && (
+          <button
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow transition-all duration-200 active:scale-95 flex items-center gap-1.5"
+            onClick={() => onSummarize(record)}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v2m0 14v2M5.636 5.636l1.414 1.414m9.9 9.9l1.414 1.414M3 12h2m14 0h2M5.636 18.364l1.414-1.414m9.9-9.9l1.414-1.414"/></svg>
+            Summarize with AI
           </button>
         )}
       </div>
