@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI, Content, Part } from '@google/generative-ai';
-import { MEDICAL_CHAT_SYSTEM_PROMPT, MEDICAL_SUMMARIZE_SYSTEM_PROMPT } from './aiPrompts';
+import { MEDICAL_CHAT_SYSTEM_PROMPT, MEDICAL_SUMMARIZE_SYSTEM_PROMPT, MEDICINE_SEARCH_SYSTEM_PROMPT } from './aiPrompts';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -152,4 +152,56 @@ export const summarizeMedicalDocument = async (
   }
 
   return text;
+};
+
+/**
+ * Search for medicine alternatives and pricing in Pakistan.
+ * Uses the same Gemini model with a specialised medicine-search prompt.
+ */
+export const searchMedicineAlternatives = async (
+  medicineName: string
+): Promise<string> => {
+  const model = getModel(MEDICINE_SEARCH_SYSTEM_PROMPT);
+
+  const prompt = `Find alternative medicines and estimated prices in Pakistan for: "${medicineName}"
+
+Please provide:
+1. The generic/active ingredient name
+2. All available alternative brands in Pakistan with the same composition
+3. Estimated prices in PKR (Pakistani Rupees)
+4. Manufacturer / pharmaceutical company for each
+5. Available strengths and dosage forms
+
+Format the results in the structured table format as specified in your instructions.`;
+
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.3,
+      topP: 0.8,
+      topK: 30,
+      maxOutputTokens: 4096,
+    },
+  });
+
+  const response = result.response;
+
+  if (response.promptFeedback?.blockReason) {
+    console.warn('[Medicine Search] Response blocked:', response.promptFeedback.blockReason);
+    return 'The search could not be completed due to content policy. Please try a different medicine name.';
+  }
+
+  const candidates = response.candidates;
+  if (!candidates || candidates.length === 0) {
+    console.warn('[Medicine Search] No candidates in response');
+    return 'Unable to find results. Please try again with a different medicine name.';
+  }
+
+  const resultText = candidates[0]?.content?.parts?.[0]?.text;
+  if (!resultText) {
+    console.warn('[Medicine Search] Empty text in candidate:', JSON.stringify(candidates[0]?.finishReason));
+    return 'Unable to generate results. Please try again.';
+  }
+
+  return resultText;
 };

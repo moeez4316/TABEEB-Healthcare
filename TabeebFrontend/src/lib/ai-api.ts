@@ -24,6 +24,14 @@ export interface AISummarizeResponse {
   error?: string;
 }
 
+export interface AIMedicineSearchResponse {
+  success: boolean;
+  data?: {
+    result: string;
+  };
+  error?: string;
+}
+
 // ─── Session Types ──────────────────────────────────────────────────────────
 
 export interface AISession {
@@ -110,6 +118,25 @@ export const summarizeMedicalDocument = async (
       method: 'POST',
       headers: authHeaders(token),
       body: JSON.stringify({ textContent, imageData }),
+    });
+    return await response.json();
+  } catch {
+    return { success: false, error: 'Network error. Please try again.' };
+  }
+};
+
+/**
+ * Search for medicine alternatives and pricing in Pakistan.
+ */
+export const searchMedicineAlternatives = async (
+  token: string,
+  medicineName: string
+): Promise<AIMedicineSearchResponse> => {
+  try {
+    const response = await fetchWithRetry(`${API_URL}/api/ai/medicine-search`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ medicineName }),
     });
     return await response.json();
   } catch {

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { sendChatMessage, summarizeMedicalDocument, ChatMessage } from '../services/aiService';
+import { sendChatMessage, summarizeMedicalDocument, searchMedicineAlternatives, ChatMessage } from '../services/aiService';
 
 /**
  * POST /api/ai/chat
@@ -191,6 +191,71 @@ export const summarizeDocument = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to summarize document. Please try again.',
+    });
+  }
+};
+
+/**
+ * POST /api/ai/medicine-search
+ * Search for medicine alternatives and pricing in Pakistan.
+ * Body: { medicineName: string }
+ */
+export const searchMedicine = async (req: Request, res: Response) => {
+  try {
+    const { medicineName } = req.body;
+
+    if (!medicineName || typeof medicineName !== 'string' || medicineName.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Medicine name is required and must be a non-empty string.',
+      });
+    }
+
+    if (medicineName.length > 200) {
+      return res.status(400).json({
+        success: false,
+        error: 'Medicine name is too long. Please keep it under 200 characters.',
+      });
+    }
+
+    const result = await searchMedicineAlternatives(medicineName.trim());
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        result,
+      },
+    });
+  } catch (error: any) {
+    console.error('[Medicine Search Error]:', error);
+    console.error('[Medicine Search Error] Message:', error.message);
+
+    if (error.message?.includes('API key')) {
+      return res.status(503).json({
+        success: false,
+        error: 'AI service is not configured. Please contact the administrator.',
+      });
+    }
+
+    if (error.message?.includes('SAFETY')) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          result: 'The search could not be completed due to content safety guidelines. Please try a different medicine name.',
+        },
+      });
+    }
+
+    if (error.status === 429 || error.message?.includes('429') || error.message?.includes('Too Many Requests') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+      return res.status(429).json({
+        success: false,
+        error: 'AI service is temporarily rate-limited. Please wait a moment and try again.',
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to search for medicine alternatives. Please try again.',
     });
   }
 };

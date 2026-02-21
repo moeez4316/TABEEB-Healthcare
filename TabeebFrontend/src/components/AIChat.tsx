@@ -15,6 +15,7 @@ import {
   deleteAISession,
   renameAISession,
   sendSessionChatMessage,
+  searchMedicineAlternatives,
   AISession,
   AISessionMessage,
 } from '@/lib/ai-api';
@@ -35,6 +36,8 @@ import {
   Check,
   ChevronLeft,
   Menu,
+  Search,
+  Pill,
 } from 'lucide-react';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -91,7 +94,7 @@ const mdComponents: Components = {
   ),
 };
 
-type TabMode = 'chat' | 'summarize';
+type TabMode = 'chat' | 'summarize' | 'medicine';
 
 interface DisplayMessage {
   id: string;
@@ -143,6 +146,11 @@ export default function AIChat() {
 
   // Error state
   const [error, setError] = useState<string | null>(null);
+
+  // Medicine search state
+  const [medicineQuery, setMedicineQuery] = useState('');
+  const [medicineResult, setMedicineResult] = useState<string | null>(null);
+  const [isMedicineSearching, setIsMedicineSearching] = useState(false);
 
   // Refs
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -532,6 +540,42 @@ export default function AIChat() {
     setError(null);
   };
 
+  // ─── Medicine Search Handlers ──────────────────────────────────────────────
+
+  const handleMedicineSearch = async () => {
+    if (!medicineQuery.trim() || isMedicineSearching) return;
+
+    const token = await getToken();
+    if (!token) {
+      setError('Authentication expired. Please refresh the page or sign in again.');
+      return;
+    }
+
+    setIsMedicineSearching(true);
+    setError(null);
+    setMedicineResult(null);
+
+    try {
+      const response = await searchMedicineAlternatives(token, medicineQuery.trim());
+
+      if (response.success && response.data) {
+        setMedicineResult(response.data.result);
+      } else {
+        setError(response.error || 'Failed to search for medicine alternatives.');
+      }
+    } catch {
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setIsMedicineSearching(false);
+    }
+  };
+
+  const handleClearMedicine = () => {
+    setMedicineQuery('');
+    setMedicineResult(null);
+    setError(null);
+  };
+
   // ─── Ask AI About Summarized Report ────────────────────────────────────────
 
   const [isStartingReportChat, setIsStartingReportChat] = useState(false);
@@ -642,7 +686,7 @@ export default function AIChat() {
               TABEEB AI Assistant
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Medical information &amp; document summarization
+              Medical information, document summarization &amp; medicine search
             </p>
           </div>
         </div>
@@ -788,6 +832,17 @@ export default function AIChat() {
               >
                 <FileText className="w-4 h-4" />
                 Summarize Report
+              </button>
+              <button
+                onClick={() => { setActiveTab('medicine'); setError(null); }}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
+                  activeTab === 'medicine'
+                    ? 'bg-teal-500 text-white shadow-md'
+                    : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                <Pill className="w-4 h-4" />
+                Medicine Search
               </button>
             </div>
 
@@ -1042,6 +1097,105 @@ export default function AIChat() {
                         </>
                       )}
                     </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ==== MEDICINE SEARCH TAB ==== */}
+            {activeTab === 'medicine' && (
+              <div className="space-y-6 overflow-y-auto flex-1">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-4 sm:p-6">
+                  <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 mb-2">
+                    <Pill className="w-5 h-5 text-teal-500" />
+                    Medicine Alternative Search
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Enter a medicine name to find alternative brands and their latest estimated prices in Pakistan.
+                  </p>
+
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={medicineQuery}
+                        onChange={(e) => setMedicineQuery(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleMedicineSearch(); }}
+                        placeholder="e.g., Panadol, Augmentin, Amlodipine..."
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-gray-800 dark:text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
+                        disabled={isMedicineSearching}
+                      />
+                    </div>
+                    <button
+                      onClick={handleMedicineSearch}
+                      disabled={!medicineQuery.trim() || isMedicineSearching}
+                      className="flex items-center gap-2 px-6 py-3 bg-teal-500 text-white rounded-lg font-medium text-sm hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                    >
+                      {isMedicineSearching ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Searching...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4" />
+                          Search
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {!medicineResult && !isMedicineSearching && (
+                    <div className="mt-4">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Popular searches:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {['Panadol', 'Augmentin', 'Amlodipine', 'Omeprazole', 'Metformin', 'Amoxicillin'].map((name) => (
+                          <button
+                            key={name}
+                            onClick={() => setMedicineQuery(name)}
+                            className="px-3 py-1.5 text-xs rounded-full border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 hover:bg-teal-50 hover:border-teal-300 dark:hover:bg-teal-900/20 dark:hover:border-teal-700 transition-colors"
+                          >
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(medicineResult || medicineQuery) && !isMedicineSearching && (
+                    <button
+                      onClick={handleClearMedicine}
+                      className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300 rounded-lg font-medium text-sm hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors mt-3"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {isMedicineSearching && (
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-6">
+                    <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                      <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Searching for alternatives and prices...</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">This may take a moment as we search across Pakistani pharmacies</p>
+                    </div>
+                  </div>
+                )}
+
+                {medicineResult && (
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-4 sm:p-6">
+                    <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 mb-4">
+                      <Sparkles className="w-5 h-5 text-teal-500" />
+                      Search Results
+                    </h2>
+                    <div className="max-w-none text-gray-800 dark:text-gray-200">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{medicineResult}</ReactMarkdown>
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-4 pt-3 border-t border-gray-200 dark:border-slate-700">
+                      Prices are approximate and sourced from the web. Always verify with your local pharmacy before purchasing.
+                    </p>
                   </div>
                 )}
               </div>

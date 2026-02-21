@@ -1,6 +1,6 @@
 import express from 'express';
 import { verifyToken } from '../middleware/verifyToken';
-import { chatWithAI, summarizeDocument } from '../controllers/aiController';
+import { chatWithAI, summarizeDocument, searchMedicine } from '../controllers/aiController';
 import {
   createSessionCtrl,
   listSessionsCtrl,
@@ -21,6 +21,7 @@ router.use(verifyToken);
 // Legacy stateless endpoints (still available)
 router.post('/chat', chatWithAI);
 router.post('/summarize', summarizeDocument);
+router.post('/medicine-search', searchMedicine);
 
 // Session-based chat endpoints
 router.post('/sessions', createSessionCtrl);
