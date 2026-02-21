@@ -93,7 +93,7 @@ export const sendChatMessage = async (
       temperature: 0.7,
       topP: 0.9,
       topK: 40,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 1024,
     },
   });
 
