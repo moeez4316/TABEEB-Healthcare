@@ -800,26 +800,31 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                             </h4>
                                             <input
                                                 type="number"
-                                                value={profile.followUpPercentage ?? 50}
+                                                value={profile.followUpPercentage ?? ''}
                                                 onChange={(e) => {
                                                     const value = e.target.value;
                                                     if (value === '') {
-                                                        handleInputChange('followUpPercentage', 50);
+                                                        handleInputChange('followUpPercentage', null);
                                                     } else {
-                                                        const numValue = parseInt(value);
-                                                        if (numValue < 0 || numValue > 100) return;
+                                                        const numValue = parseInt(value, 10);
+                                                        if (numValue > 100) return;
                                                         handleInputChange('followUpPercentage', numValue);
                                                     }
                                                 }}
                                                 onKeyDown={(e) => {
-                                                    if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E' || e.key === '.') {
+                                                    if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
                                                         e.preventDefault();
+                                                    }
+                                                }}
+                                                onBlur={() => {
+                                                    // Default to 50 when user leaves the field empty
+                                                    if (profile.followUpPercentage === null || profile.followUpPercentage === undefined) {
+                                                        handleInputChange('followUpPercentage', 50);
                                                     }
                                                 }}
                                                 min="0"
                                                 max="100"
-                                                step="5"
-                                                placeholder="e.g., 50"
+                                                placeholder="50"
                                                 className="w-full md:w-32 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-slate-700 dark:text-white text-lg font-semibold"
                                             />
                                             <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">

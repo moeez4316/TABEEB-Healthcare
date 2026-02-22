@@ -19,6 +19,28 @@
   }
 }
 
+/* Prevent zoom on input focus for mobile */
+input[type="text"],
+input[type="search"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"],
+textarea,
+select {
+  font-size: 16px !important;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Smooth transitions */
+html {
+  transition: none;
+}
+body {
+  transition: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

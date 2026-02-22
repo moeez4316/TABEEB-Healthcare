@@ -116,7 +116,19 @@ const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
         </div>
       )}
       
-      <div className={`${sizeClasses[size]} relative rounded-full overflow-hidden border-2 border-white shadow-lg bg-gray-100`}>
+      <div 
+        className={`${sizeClasses[size]} relative rounded-full overflow-hidden border-2 border-white shadow-lg bg-gray-100 cursor-pointer hover:opacity-90 transition-opacity`}
+        onClick={() => !isUploading && !showCropModal && fileInputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !isUploading && !showCropModal) {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        aria-label={currentImage ? 'Click to change profile photo' : 'Click to upload profile photo'}
+      >
         {displayImage ? (
           <>
             <Image
@@ -142,7 +154,10 @@ const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
       {/* Upload/Change Button */}
       <button
         type="button"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={(e) => {
+          e.stopPropagation();
+          fileInputRef.current?.click();
+        }}
         disabled={isUploading || showCropModal}
         className="absolute -bottom-2 -right-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white p-2 rounded-full shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         title={currentImage ? 'Change photo' : 'Upload photo'}
@@ -155,7 +170,10 @@ const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
       {currentImage && !isUploading && (
         <button
           type="button"
-          onClick={handleRemoveImage}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRemoveImage();
+          }}
           className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full shadow-lg transition-colors"
           title="Remove photo"
         >

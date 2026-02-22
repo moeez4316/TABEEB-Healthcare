@@ -7,7 +7,7 @@ import { motion, useAnimation } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { 
   ArrowRight, BrainCircuit, ShieldCheck, UserCheck, HeartPulse,
-  Stethoscope, X, Mail, Phone, MapPin, MessageSquareQuote 
+  Stethoscope, X, Mail, MapPin, MessageSquareQuote 
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 
@@ -530,9 +530,9 @@ const LandingPage = () => {
             </div>
             <div className="space-y-6">
               {[
-                { icon: Mail, title: 'Email', value: 'support@tabeeb.com', color: 'teal' },
-                { icon: Phone, title: 'Phone', value: '+92 300 1234567', color: 'green' },
-                { icon: MapPin, title: 'Location', value: 'Karachi, Pakistan', color: 'orange' }
+                { icon: Mail, title: 'Email', value: 'support@tabeebemail.me', color: 'teal' },
+                // { icon: Phone, title: 'Phone', value: '+92 300 1234567', color: 'green' },
+                { icon: MapPin, title: 'Location', value: 'Lahore, Pakistan', color: 'orange' }
               ].map(item => (
                 <div key={item.title} className="flex items-center space-x-3">
                   <div className={`w-10 h-10 bg-${item.color}-100 dark:bg-${item.color}-900/30 rounded-lg flex items-center justify-center`}>

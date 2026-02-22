@@ -340,7 +340,7 @@ const AboutPage = () => {
                 Explore Features
               </Link>
               <button
-                onClick={() => window.location.href = 'mailto:support@tabeeb.com'}
+                onClick={() => window.location.href = 'mailto:support@tabeebemail.me'}
                 className="inline-flex items-center justify-center bg-white/20 backdrop-blur-sm text-white border-2 border-white px-8 py-3 rounded-xl font-semibold hover:bg-white/30 transition-all duration-300"
               >
                 Contact Us

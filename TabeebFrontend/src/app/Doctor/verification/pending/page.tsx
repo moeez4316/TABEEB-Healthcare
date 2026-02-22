@@ -243,7 +243,7 @@ export default function VerificationPendingPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <p className="font-semibold text-slate-700 dark:text-slate-300">Email Support</p>
-                    <p className="text-slate-600 dark:text-slate-400">support@tabeeb.com</p>
+                    <p className="text-slate-600 dark:text-slate-400">support@tabeebemail.me</p>
                   </div>
                   <div>
                     <p className="font-semibold text-slate-700 dark:text-slate-300">Review Process</p>

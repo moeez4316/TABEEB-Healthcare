@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import Cropper from 'react-easy-crop'
 import { X, RotateCcw, Check, Loader2 } from 'lucide-react'
 
@@ -117,30 +118,34 @@ export default function CropModal({ isOpen, imageSrc, onComplete, onCancel }: Cr
 
   if (!isOpen) return null
 
-  return (
+  // Ensure we're on the client side
+  if (typeof document === 'undefined') return null
+
+  const modalContent = (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-black z-[100] flex flex-col"
       role="dialog"
       aria-modal="true"
       aria-labelledby="crop-modal-title"
     >
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-          <h2 id="crop-modal-title" className="text-lg font-semibold text-gray-900 dark:text-white">
+      {/* Fullscreen layout - same on mobile and desktop */}
+      <div className="bg-slate-900 dark:bg-slate-950 w-full h-full flex flex-col">
+        {/* Header - Fixed at top */}
+        <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-slate-700 flex-shrink-0">
+          <h2 id="crop-modal-title" className="text-lg md:text-xl font-semibold text-white">
             Crop Profile Picture
           </h2>
           <button
             onClick={handleCancel}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-slate-800"
             aria-label="Close crop modal"
           >
-            <X className="h-5 w-5" />
+            <X className="h-6 w-6" />
           </button>
         </div>
 
-        {/* Crop Area */}
-        <div className="relative h-80 bg-gray-100 dark:bg-slate-700">
+        {/* Crop Area - Takes remaining space, no scrolling needed */}
+        <div className="relative flex-1 bg-black">
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -152,17 +157,17 @@ export default function CropModal({ isOpen, imageSrc, onComplete, onCancel }: Cr
             onCropComplete={onCropComplete}
             onZoomChange={setZoom}
             classes={{
-              containerClassName: 'h-full',
+              containerClassName: 'w-full h-full',
               cropAreaClassName: 'border-2 border-teal-500'
             }}
           />
         </div>
 
-        {/* Controls */}
-        <div className="p-4 space-y-4">
+        {/* Controls - Fixed at bottom, always visible */}
+        <div className="px-4 py-3 md:px-6 md:py-4 space-y-3 flex-shrink-0 bg-slate-900 border-t border-slate-700">
           {/* Zoom Control */}
           <div className="space-y-2">
-            <label htmlFor="zoom-slider" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="zoom-slider" className="block text-sm font-medium text-gray-300">
               Zoom: {Math.round(zoom * 100)}%
             </label>
             <input
@@ -173,60 +178,68 @@ export default function CropModal({ isOpen, imageSrc, onComplete, onCancel }: Cr
               max={3}
               step={0.1}
               onChange={(e) => setZoom(Number(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
               aria-label="Zoom level"
             />
           </div>
 
           {/* Error Display */}
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+            <div className="p-3 bg-red-900/30 border border-red-700 rounded-lg">
+              <p className="text-sm text-red-300">{error}</p>
             </div>
           )}
 
           {/* Instructions */}
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              • Drag to reposition • Pinch or use slider to zoom • Crop will be circular
+          <div className="hidden md:block p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
+            <p className="text-sm text-gray-300">
+              💡 Drag to reposition • Pinch or scroll to zoom • Crop will be circular
             </p>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between p-4 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-750">
-          <button
-            onClick={handleReset}
-            className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-            disabled={isProcessing}
-          >
-            <RotateCcw className="h-4 w-4" />
-            <span>Reset</span>
-          </button>
-
-          <div className="flex items-center space-x-3">
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between pt-2">
             <button
-              onClick={handleCancel}
+              onClick={handleReset}
+              className="flex items-center space-x-2 px-4 py-2.5 text-gray-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
               disabled={isProcessing}
-              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors disabled:opacity-50"
             >
-              Cancel
+              <RotateCcw className="h-4 w-4" />
+              <span className="text-sm md:text-base">Reset</span>
             </button>
-            <button
-              onClick={handleSave}
-              disabled={isProcessing || !croppedAreaPixels}
-              className="flex items-center space-x-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg transition-colors"
-            >
-              {isProcessing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              <span>{isProcessing ? 'Processing...' : 'Apply Crop'}</span>
-            </button>
+
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleCancel}
+                disabled={isProcessing}
+                className="px-4 md:px-5 py-2.5 text-sm md:text-base text-gray-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isProcessing || !croppedAreaPixels}
+                className="flex items-center space-x-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-800 disabled:cursor-not-allowed text-white px-6 md:px-8 py-2.5 rounded-lg transition-colors text-sm md:text-base font-medium shadow-lg"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    <span>Apply Crop</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   )
+
+  // Render modal via portal to document.body to escape any parent container constraints
+  return createPortal(modalContent, document.body)
 }

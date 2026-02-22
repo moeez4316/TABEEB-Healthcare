@@ -811,8 +811,8 @@ export default function DoctorAppointmentsPage() {
 
       {/* Chat Modal */}
       {showChat && chatAppointment && user && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg h-[600px]">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-hidden">
+          <div className="w-full max-w-none sm:max-w-6xl h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)] overflow-hidden">
             <AppointmentChat
               appointmentId={chatAppointment.id}
               doctorUid={chatAppointment.doctorUid}

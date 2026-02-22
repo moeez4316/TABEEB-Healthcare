@@ -323,11 +323,24 @@ export default function DoctorVerificationPage() {
               : file
               ? 'border-teal-300 bg-teal-50 dark:bg-teal-900/20'
               : 'border-slate-300 dark:border-slate-600 hover:border-teal-400 dark:hover:border-teal-500 bg-white dark:bg-slate-800'
-          }`}
+          } ${!file ? 'cursor-pointer' : ''}`}
           onDragEnter={(e) => handleDragEnter(e, fieldName)}
           onDragLeave={(e) => handleDragLeave(e, fieldName)}
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, fieldName)}
+          onClick={() => {
+            if (!file) {
+              document.getElementById(fieldName)?.click();
+            }
+          }}
+          onKeyDown={(e) => {
+            if (!file && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault();
+              document.getElementById(fieldName)?.click();
+            }
+          }}
+          role={!file ? 'button' : undefined}
+          tabIndex={!file ? 0 : undefined}
         >
           {file ? (
             <div className="space-y-3">
@@ -716,11 +729,20 @@ export default function DoctorVerificationPage() {
 
                           {/* Upload Option */}
                           <div 
-                            className="border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-teal-400 dark:hover:border-teal-500 bg-white dark:bg-slate-800 rounded-xl p-8 text-center transition-all duration-200 min-h-[220px] flex flex-col justify-center"
+                            className="border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-teal-400 dark:hover:border-teal-500 bg-white dark:bg-slate-800 rounded-xl p-8 text-center transition-all duration-200 min-h-[220px] flex flex-col justify-center cursor-pointer"
                             onDragEnter={(e) => handleDragEnter(e, 'verificationPhoto')}
                             onDragLeave={(e) => handleDragLeave(e, 'verificationPhoto')}
                             onDragOver={handleDragOver}
                             onDrop={(e) => handleDrop(e, 'verificationPhoto')}
+                            onClick={() => document.getElementById('verificationPhoto')?.click()}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                document.getElementById('verificationPhoto')?.click();
+                              }
+                            }}
+                            role="button"
+                            tabIndex={0}
                           >
                             <div className="space-y-4">
                               <div className="flex justify-center">

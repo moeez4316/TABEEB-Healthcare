@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Mail, Lock, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff, Phone, ArrowLeft } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 import Image from 'next/image';
+import Link from 'next/link';
 
 import { useAuth } from '../../lib/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -148,13 +149,75 @@ export default function AuthPage() {
     }
   }, [user, router]);
 
+  // Secure Firebase error message mapper - follows security best practices
   const getFirebaseErrorMessage = (error: unknown): string => {
-    if (!(error instanceof Error)) return 'An unexpected error occurred';
+    if (!(error instanceof Error)) return 'An unexpected error occurred. Please try again.';
+    
     const errorCode = (error as { code?: string })?.code;
-    if (typeof errorCode === 'string' && errorCode.startsWith('auth/')) {
-      return errorCode;
+    
+    // Map Firebase error codes to user-friendly, secure messages
+    // Security note: Don't reveal whether an account exists or not
+    if (typeof errorCode === 'string') {
+      switch (errorCode) {
+        // Authentication errors
+        case 'auth/invalid-email':
+          return 'Please enter a valid email address.';
+        case 'auth/user-disabled':
+          return 'This account has been disabled. Please contact support.';
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          // Security: Don't reveal if user exists - use generic message
+          return 'Invalid email or password. Please try again.';
+        case 'auth/email-already-in-use':
+          return 'This email is already registered. Please sign in instead.';
+        case 'auth/weak-password':
+          return 'Password is too weak. Please use at least 6 characters.';
+        case 'auth/operation-not-allowed':
+          return 'This sign-in method is not enabled. Please contact support.';
+        case 'auth/account-exists-with-different-credential':
+          return 'An account already exists with this email using a different sign-in method.';
+        case 'auth/invalid-verification-code':
+        case 'auth/invalid-verification-id':
+          return 'Invalid verification code. Please try again.';
+        case 'auth/code-expired':
+          return 'Verification code has expired. Please request a new one.';
+        case 'auth/credential-already-in-use':
+          return 'This credential is already associated with another account.';
+        case 'auth/requires-recent-login':
+          return 'This action requires recent authentication. Please sign in again.';
+        case 'auth/too-many-requests':
+          return 'Too many failed attempts. Please try again later.';
+        case 'auth/network-request-failed':
+          return 'Network error. Please check your connection and try again.';
+        case 'auth/timeout':
+          return 'Request timed out. Please try again.';
+        case 'auth/popup-closed-by-user':
+          return 'Sign-in popup was closed. Please try again.';
+        case 'auth/cancelled-popup-request':
+          return 'Sign-in was cancelled. Please try again.';
+        case 'auth/popup-blocked':
+          return 'Pop-up was blocked by your browser. Please allow pop-ups and try again.';
+        case 'auth/unauthorized-domain':
+          return 'This domain is not authorized. Please contact support.';
+        case 'auth/invalid-action-code':
+          return 'The action code is invalid or has expired.';
+        case 'auth/expired-action-code':
+          return 'The action code has expired. Please request a new one.';
+        case 'auth/missing-password':
+          return 'Please enter your password.';
+        case 'auth/internal-error':
+          return 'An internal error occurred. Please try again later.';
+        default:
+          // Don't expose internal error codes to users
+          if (errorCode.startsWith('auth/')) {
+            return 'Authentication failed. Please try again.';
+          }
+      }
     }
-    return error.message || 'An unexpected error occurred';
+    
+    // Fallback to generic message - don't expose internal details
+    return 'An unexpected error occurred. Please try again.';
   };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
@@ -446,6 +509,16 @@ export default function AuthPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Enter the 6-digit code sent to <strong>{verifyEmail}</strong>
             </p>
+            {/* Back to Landing Page Button */}
+            <div className="flex justify-start pt-2">
+              <Link
+                href="/landing-page"
+                className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
+              >
+                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                <span>Back to Home</span>
+              </Link>
+            </div>
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 space-y-6 border border-gray-200 dark:border-slate-700">
@@ -530,6 +603,16 @@ export default function AuthPage() {
               {resetStep === 'new-password' && 'Set your new password'}
               {resetStep === 'success' && 'Your password has been reset'}
             </p>
+            {/* Back to Landing Page Button */}
+            <div className="flex justify-start pt-2">
+              <Link
+                href="/landing-page"
+                className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
+              >
+                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                <span>Back to Home</span>
+              </Link>
+            </div>
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 space-y-6 border border-gray-200 dark:border-slate-700">
@@ -818,6 +901,16 @@ export default function AuthPage() {
               : 'Sign in to your TABEEB account to continue'
             }
           </p>
+          {/* Back to Landing Page Button */}
+          <div className="flex justify-start pt-2">
+            <Link
+              href="/landing-page"
+              className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
+            >
+              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+              <span>Back to Home</span>
+            </Link>
+          </div>
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 space-y-6 border border-gray-200 dark:border-slate-700">

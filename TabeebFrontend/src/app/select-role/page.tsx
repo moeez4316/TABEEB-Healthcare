@@ -279,11 +279,15 @@ export default function SelectRolePage() {
   };
 
   const handlePatientImageChange = (imageUrl: string) => {
+    // Update both forms so image persists when switching roles
     setPatientForm(prev => ({ ...prev, profileImage: imageUrl }));
+    setDoctorForm(prev => ({ ...prev, profileImage: imageUrl }));
   };
 
   const handleDoctorImageChange = (imageUrl: string) => {
+    // Update both forms so image persists when switching roles
     setDoctorForm(prev => ({ ...prev, profileImage: imageUrl }));
+    setPatientForm(prev => ({ ...prev, profileImage: imageUrl }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

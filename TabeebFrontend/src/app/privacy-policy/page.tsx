@@ -388,7 +388,7 @@ const PrivacyPolicyPage = () => {
             </p>
             <div className="space-y-3 text-teal-50">
               <p><strong>Email:</strong> <a href="mailto:privacy@tabeeb.com" className="underline hover:text-white">privacy@tabeeb.com</a></p>
-              <p><strong>Support:</strong> <a href="mailto:support@tabeeb.com" className="underline hover:text-white">support@tabeeb.com</a></p>
+              <p><strong>Support:</strong> <a href="mailto:support@tabeebemail.me" className="underline hover:text-white">support@tabeebemail.me</a></p>
               <p><strong>Address:</strong> Karachi, Pakistan</p>
             </div>
           </section>

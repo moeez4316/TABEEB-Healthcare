@@ -115,8 +115,8 @@ export default function PaymentSuccessPage() {
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Need help? Contact our support team at{' '}
-            <a href="mailto:support@tabeeb.com" className="text-teal-600 dark:text-teal-400 hover:underline">
-              support@tabeeb.com
+            <a href="mailto:support@tabeebemail.me" className="text-teal-600 dark:text-teal-400 hover:underline">
+              support@tabeebemail.me
             </a>
           </p>
         </div>
