@@ -3,8 +3,9 @@ import admin from '../config/firebase';
 import prisma from '../lib/prisma';
 import { generateOtp, verifyOtp } from '../services/otpService';
 import { sendOtpEmail, sendPasswordChangedEmail } from '../services/emailService';
+import { resolvePublicWebBaseUrl } from '../utils/url';
 
-const FRONTEND_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '').replace(':5002', ':3000') || 'http://localhost:3000';
+const FRONTEND_URL = resolvePublicWebBaseUrl();
 
 // ========================================
 // SEND OTP (for email verification or password reset)

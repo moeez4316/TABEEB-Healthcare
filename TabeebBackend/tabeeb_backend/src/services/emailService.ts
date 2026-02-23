@@ -1,4 +1,5 @@
 import { resend, EMAIL_CONFIG } from '../config/resend';
+import { resolvePublicApiBaseUrl, resolvePublicWebBaseUrl } from '../utils/url';
 
 // ========================================
 // EMAIL TEMPLATES
@@ -62,52 +63,6 @@ interface SendEmailOptions {
   replyTo?: string;
   tags?: { name: string; value: string }[];
 }
-
-const ensureAbsoluteUrl = (value: string): string => {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-};
-
-const normalizeBaseUrl = (value: string): string => ensureAbsoluteUrl(value).replace(/\/+$/, '');
-
-const isLocalhostUrl = (value: string): boolean => {
-  const lowered = value.toLowerCase();
-  return (
-    lowered.includes('localhost') ||
-    lowered.includes('127.0.0.1') ||
-    lowered.includes('0.0.0.0')
-  );
-};
-
-const resolvePublicWebBaseUrl = (): string => {
-  const explicitBase =
-    process.env.FRONTEND_URL ||
-    process.env.PUBLIC_APP_URL ||
-    process.env.APP_BASE_URL ||
-    process.env.NEXT_PUBLIC_FRONTEND_URL ||
-    '';
-
-  if (explicitBase.trim()) {
-    return normalizeBaseUrl(explicitBase);
-  }
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  if (apiUrl.trim()) {
-    const derived = normalizeBaseUrl(apiUrl).replace(/\/api$/, '');
-    if (!isLocalhostUrl(derived) || process.env.NODE_ENV !== 'production') {
-      return derived;
-    }
-  }
-
-  const siteAddress = process.env.SITE_ADDRESS || '';
-  if (siteAddress.trim() && siteAddress.trim().toLowerCase() !== 'localhost') {
-    return normalizeBaseUrl(siteAddress);
-  }
-
-  return 'https://tabeeb.dpdns.org';
-};
 
 export async function sendEmail(options: SendEmailOptions, retries = 3) {
   if (!process.env.RESEND_API_KEY) {
@@ -487,7 +442,7 @@ export async function sendOtpEmail(params: {
   frontendUrl?: string;
 }) {
   const isReset = params.type === 'PASSWORD_RESET';
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
+  const apiUrl = resolvePublicApiBaseUrl();
   const magicLink = `${apiUrl}/api/auth/verify-link?email=${encodeURIComponent(params.email)}&code=${params.code}&type=${params.type}`;
 
   const title = isReset ? 'Reset Your Password' : 'Verify Your Email';

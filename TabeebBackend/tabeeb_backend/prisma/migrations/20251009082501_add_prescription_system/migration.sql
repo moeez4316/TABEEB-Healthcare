@@ -1,37 +1,19 @@
 /*
-  Warnings:
-
-  - You are about to drop the column `consultationFees` on the `doctor` table. All the data in the column will be lost.
-  - You are about to drop the column `dob` on the `patient` table. All the data in the column will be lost.
-  - You are about to drop the column `medicalHistory` on the `patient` table. All the data in the column will be lost.
-  - You are about to drop the column `name` on the `patient` table. All the data in the column will be lost.
-  - You are about to drop the column `certificate` on the `verification` table. All the data in the column will be lost.
-  - You are about to drop the column `cnic` on the `verification` table. All the data in the column will be lost.
-  - Added the required column `firstName` to the `Doctor` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `lastName` to the `Doctor` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `updatedAt` to the `Doctor` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `dateOfBirth` to the `Patient` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `firstName` to the `Patient` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `lastName` to the `Patient` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `updatedAt` to the `Patient` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `cnicFrontUrl` to the `Verification` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `cnicNumber` to the `Verification` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `degreeCertificateUrl` to the `Verification` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `pmdcCertificateUrl` to the `Verification` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `verificationPhotoUrl` to the `Verification` table without a default value. This is not possible if the table is not empty.
-
+  Safe migration (non-destructive):
+  - Preserve legacy columns.
+  - Backfill required fields from existing data.
 */
--- AlterTable
-ALTER TABLE `doctor` DROP COLUMN `consultationFees`,
+-- AlterTable (doctor)
+ALTER TABLE `doctor`
     ADD COLUMN `addressCity` VARCHAR(100) NULL,
     ADD COLUMN `addressPostalCode` VARCHAR(10) NULL,
     ADD COLUMN `addressProvince` VARCHAR(100) NULL,
     ADD COLUMN `addressStreet` VARCHAR(255) NULL,
     ADD COLUMN `dateOfBirth` DATETIME(3) NULL,
-    ADD COLUMN `firstName` VARCHAR(100) NOT NULL,
+    ADD COLUMN `firstName` VARCHAR(100) NULL,
     ADD COLUMN `gender` VARCHAR(10) NULL,
     ADD COLUMN `language` VARCHAR(50) NOT NULL DEFAULT 'English',
-    ADD COLUMN `lastName` VARCHAR(100) NOT NULL,
+    ADD COLUMN `lastName` VARCHAR(100) NULL,
     ADD COLUMN `notificationsEmail` BOOLEAN NOT NULL DEFAULT true,
     ADD COLUMN `notificationsPush` BOOLEAN NOT NULL DEFAULT true,
     ADD COLUMN `notificationsSms` BOOLEAN NOT NULL DEFAULT true,
@@ -39,13 +21,29 @@ ALTER TABLE `doctor` DROP COLUMN `consultationFees`,
     ADD COLUMN `privacyShareData` BOOLEAN NOT NULL DEFAULT false,
     ADD COLUMN `profileImagePublicId` VARCHAR(255) NULL,
     ADD COLUMN `profileImageUrl` VARCHAR(500) NULL,
-    ADD COLUMN `updatedAt` DATETIME(3) NOT NULL,
+    ADD COLUMN `updatedAt` DATETIME(3) NULL,
     MODIFY `experience` VARCHAR(50) NULL;
 
--- AlterTable
-ALTER TABLE `patient` DROP COLUMN `dob`,
-    DROP COLUMN `medicalHistory`,
-    DROP COLUMN `name`,
+-- Backfill doctor required fields
+UPDATE `doctor`
+SET
+  firstName = COALESCE(firstName, NULLIF(TRIM(SUBSTRING_INDEX(name, ' ', 1)), ''), 'Unknown'),
+  lastName = COALESCE(
+    lastName,
+    NULLIF(TRIM(SUBSTRING(name, LENGTH(SUBSTRING_INDEX(name, ' ', 1)) + 2)), ''),
+    'Unknown'
+  ),
+  updatedAt = COALESCE(updatedAt, createdAt, NOW(3))
+WHERE firstName IS NULL OR lastName IS NULL OR updatedAt IS NULL;
+
+-- Enforce NOT NULL after backfill
+ALTER TABLE `doctor`
+    MODIFY `firstName` VARCHAR(100) NOT NULL,
+    MODIFY `lastName` VARCHAR(100) NOT NULL,
+    MODIFY `updatedAt` DATETIME(3) NOT NULL;
+
+-- AlterTable (patient)
+ALTER TABLE `patient`
     ADD COLUMN `addressCity` VARCHAR(100) NULL,
     ADD COLUMN `addressPostalCode` VARCHAR(10) NULL,
     ADD COLUMN `addressProvince` VARCHAR(100) NULL,
@@ -53,14 +51,14 @@ ALTER TABLE `patient` DROP COLUMN `dob`,
     ADD COLUMN `allergies` JSON NULL,
     ADD COLUMN `bloodType` VARCHAR(5) NULL,
     ADD COLUMN `cnic` VARCHAR(15) NULL,
-    ADD COLUMN `dateOfBirth` DATETIME(3) NOT NULL,
+    ADD COLUMN `dateOfBirth` DATETIME(3) NULL,
     ADD COLUMN `emergencyContactName` VARCHAR(255) NULL,
     ADD COLUMN `emergencyContactPhone` VARCHAR(20) NULL,
     ADD COLUMN `emergencyContactRelationship` VARCHAR(100) NULL,
-    ADD COLUMN `firstName` VARCHAR(100) NOT NULL,
+    ADD COLUMN `firstName` VARCHAR(100) NULL,
     ADD COLUMN `height` VARCHAR(10) NULL,
     ADD COLUMN `language` VARCHAR(50) NOT NULL DEFAULT 'English',
-    ADD COLUMN `lastName` VARCHAR(100) NOT NULL,
+    ADD COLUMN `lastName` VARCHAR(100) NULL,
     ADD COLUMN `medicalConditions` JSON NULL,
     ADD COLUMN `medications` JSON NULL,
     ADD COLUMN `notificationsEmail` BOOLEAN NOT NULL DEFAULT true,
@@ -70,21 +68,62 @@ ALTER TABLE `patient` DROP COLUMN `dob`,
     ADD COLUMN `privacyShareData` BOOLEAN NOT NULL DEFAULT false,
     ADD COLUMN `profileImagePublicId` VARCHAR(255) NULL,
     ADD COLUMN `profileImageUrl` VARCHAR(500) NULL,
-    ADD COLUMN `updatedAt` DATETIME(3) NOT NULL,
+    ADD COLUMN `updatedAt` DATETIME(3) NULL,
     ADD COLUMN `weight` VARCHAR(10) NULL;
 
--- AlterTable
-ALTER TABLE `verification` DROP COLUMN `certificate`,
-    DROP COLUMN `cnic`,
+-- Backfill patient required fields
+UPDATE `patient`
+SET
+  firstName = COALESCE(firstName, NULLIF(TRIM(SUBSTRING_INDEX(name, ' ', 1)), ''), 'Unknown'),
+  lastName = COALESCE(
+    lastName,
+    NULLIF(TRIM(SUBSTRING(name, LENGTH(SUBSTRING_INDEX(name, ' ', 1)) + 2)), ''),
+    'Unknown'
+  ),
+  dateOfBirth = COALESCE(dateOfBirth, dob, '1970-01-01'),
+  updatedAt = COALESCE(updatedAt, createdAt, NOW(3))
+WHERE firstName IS NULL OR lastName IS NULL OR dateOfBirth IS NULL OR updatedAt IS NULL;
+
+-- Enforce NOT NULL after backfill
+ALTER TABLE `patient`
+    MODIFY `dateOfBirth` DATETIME(3) NOT NULL,
+    MODIFY `firstName` VARCHAR(100) NOT NULL,
+    MODIFY `lastName` VARCHAR(100) NOT NULL,
+    MODIFY `updatedAt` DATETIME(3) NOT NULL;
+
+-- AlterTable (verification)
+ALTER TABLE `verification`
     ADD COLUMN `cnicBackUrl` TEXT NULL,
-    ADD COLUMN `cnicFrontUrl` TEXT NOT NULL,
-    ADD COLUMN `cnicNumber` VARCHAR(15) NOT NULL,
-    ADD COLUMN `degreeCertificateUrl` TEXT NOT NULL,
+    ADD COLUMN `cnicFrontUrl` TEXT NULL,
+    ADD COLUMN `cnicNumber` VARCHAR(15) NULL,
+    ADD COLUMN `degreeCertificateUrl` TEXT NULL,
     ADD COLUMN `degreeInstitution` VARCHAR(255) NULL,
     ADD COLUMN `graduationYear` VARCHAR(4) NULL,
-    ADD COLUMN `pmdcCertificateUrl` TEXT NOT NULL,
+    ADD COLUMN `pmdcCertificateUrl` TEXT NULL,
     ADD COLUMN `pmdcRegistrationDate` DATETIME(3) NULL,
-    ADD COLUMN `verificationPhotoUrl` TEXT NOT NULL;
+    ADD COLUMN `verificationPhotoUrl` TEXT NULL;
+
+-- Backfill verification required fields
+UPDATE `verification`
+SET
+  cnicNumber = COALESCE(cnicNumber, LEFT(cnic, 15)),
+  cnicFrontUrl = COALESCE(cnicFrontUrl, ''),
+  verificationPhotoUrl = COALESCE(verificationPhotoUrl, ''),
+  degreeCertificateUrl = COALESCE(degreeCertificateUrl, certificate, ''),
+  pmdcCertificateUrl = COALESCE(pmdcCertificateUrl, certificate, '')
+WHERE cnicNumber IS NULL
+   OR cnicFrontUrl IS NULL
+   OR verificationPhotoUrl IS NULL
+   OR degreeCertificateUrl IS NULL
+   OR pmdcCertificateUrl IS NULL;
+
+-- Enforce NOT NULL after backfill
+ALTER TABLE `verification`
+    MODIFY `cnicFrontUrl` TEXT NOT NULL,
+    MODIFY `cnicNumber` VARCHAR(15) NOT NULL,
+    MODIFY `degreeCertificateUrl` TEXT NOT NULL,
+    MODIFY `pmdcCertificateUrl` TEXT NOT NULL,
+    MODIFY `verificationPhotoUrl` TEXT NOT NULL;
 
 -- CreateTable
 CREATE TABLE `prescriptions` (

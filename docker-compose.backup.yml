@@ -1,0 +1,6 @@
+services:
+  mysql-client:
+    image: mysql:8.0
+    entrypoint: ["sh", "-c"]
+    volumes:
+      - ./db-backups:/backup
