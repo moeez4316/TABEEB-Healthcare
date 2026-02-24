@@ -165,9 +165,9 @@ export default function MedicalRecordsPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0 flex flex-col gap-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
-          <h1 className="text-4xl font-extrabold tracking-tight text-[#1e293b] dark:text-[#ededed] drop-shadow-sm">Medical Records</h1>
+          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-[#1e293b] dark:text-[#ededed] drop-shadow-sm">Medical Records</h1>
         </div>
-        <div className="bg-white/80 dark:bg-[#18181b]/80 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-8 backdrop-blur-md transition-all">
+        <div className="bg-white/80 dark:bg-[#18181b]/80 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-4 sm:p-8 backdrop-blur-md transition-all">
           <form onSubmit={handleUpload} className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
@@ -234,11 +234,11 @@ export default function MedicalRecordsPage() {
           </form>
         </div>
         <div>
-          <h2 className="text-2xl font-bold mb-6 text-[#1e293b] dark:text-[#ededed] tracking-tight">Your Uploaded Records</h2>
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-[#1e293b] dark:text-[#ededed] tracking-tight">Your Uploaded Records</h2>
           {records.length === 0 ? (
             <div className="text-center text-gray-400 dark:text-gray-500 py-16 text-lg font-medium">No records uploaded yet.</div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
               {records.map(record => (
                 <MedicalRecordCard key={record.id} record={record} onDelete={handleDelete} onSummarize={(rec) => {
                   const params = new URLSearchParams({ summarizeUrl: rec.fileUrl, fileType: rec.fileType, fileName: rec.fileName || 'Medical Record' });
