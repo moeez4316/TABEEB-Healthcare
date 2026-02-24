@@ -64,7 +64,7 @@ export default function MedicalRecordCard({ record, onDelete, onSummarize }: Med
             {deleting ? 'Deleting...' : 'Delete'}
           </button>
         )}
-        {onSummarize && (isImage(record.fileType) || isPDF(record.fileType)) && (
+        {onSummarize && (
           <button
             className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold shadow transition-all duration-200 active:scale-95 flex items-center gap-1 sm:gap-1.5"
             onClick={() => onSummarize(record)}

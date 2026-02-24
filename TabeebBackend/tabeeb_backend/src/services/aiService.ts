@@ -154,16 +154,32 @@ export const summarizeMedicalDocument = async (
     parts.push({ text: textContent });
   }
 
-  // Add image if provided (for medical report images)
+  // Add file data if provided (images, PDFs, etc.)
   if (imageData) {
-    parts.push({
-      inlineData: {
-        mimeType: imageData.mimeType,
-        data: imageData.data,
-      },
-    });
-    if (!textContent) {
-      parts.push({ text: '\n\nPlease extract and summarize all medical information from this image.' });
+    const mimeType = imageData.mimeType;
+    // Gemini natively supports images and PDFs as inline data
+    if (mimeType.startsWith('image/') || mimeType === 'application/pdf') {
+      parts.push({
+        inlineData: {
+          mimeType: imageData.mimeType,
+          data: imageData.data,
+        },
+      });
+      if (!textContent) {
+        const docType = mimeType === 'application/pdf' ? 'PDF document' : 'image';
+        parts.push({ text: `\n\nPlease extract and summarize all medical information from this ${docType}.` });
+      }
+    } else {
+      // For other file types (text, CSV, Word, Excel, RTF), decode the base64 as text
+      try {
+        const decodedText = Buffer.from(imageData.data, 'base64').toString('utf-8');
+        parts.push({ text: `\n\n[Uploaded document content]:\n${decodedText}` });
+        if (!textContent) {
+          parts.push({ text: '\n\nPlease extract and summarize all medical information from this document.' });
+        }
+      } catch {
+        parts.push({ text: '\n\nThe uploaded document could not be read. Please try a different format.' });
+      }
     }
   }
 

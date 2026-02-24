@@ -139,8 +139,9 @@ export default function AIChat() {
 
   // Summarize state
   const [summarizeText, setSummarizeText] = useState('');
-  const [summarizeImage, setSummarizeImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [summarizeFile, setSummarizeFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [filePreviewType, setFilePreviewType] = useState<'image' | 'pdf' | 'other' | null>(null);
   const [summaryResult, setSummaryResult] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
@@ -215,8 +216,17 @@ export default function AIChat() {
           reader.readAsDataURL(blob);
         });
 
-        // Set image preview
-        setImagePreview(`data:${mimeType};base64,${base64}`);
+        // Set file preview
+        if (mimeType.startsWith('image/')) {
+          setFilePreviewType('image');
+          setFilePreview(`data:${mimeType};base64,${base64}`);
+        } else if (mimeType === 'application/pdf') {
+          setFilePreviewType('pdf');
+          setFilePreview(fileName);
+        } else {
+          setFilePreviewType('other');
+          setFilePreview(fileName);
+        }
 
         const response = await summarizeMedicalDocument(
           token,
@@ -461,37 +471,56 @@ export default function AIChat() {
 
   // ─── Summarize Handlers ───────────────────────────────────────────────────
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif',
+      'application/pdf',
+      'text/plain', 'text/csv', 'text/html', 'text/xml',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/rtf',
+    ];
     if (!allowedTypes.includes(file.type)) {
-      setError('Please upload a JPEG, PNG, or WebP image.');
+      setError('Unsupported file type. Please upload an image, PDF, Word, Excel, text, or CSV file.');
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      setError('Image must be under 10MB.');
+      setError('File must be under 10MB.');
       return;
     }
 
-    setSummarizeImage(file);
+    setSummarizeFile(file);
     setError(null);
 
-    const reader = new FileReader();
-    reader.onload = () => setImagePreview(reader.result as string);
-    reader.readAsDataURL(file);
+    if (file.type.startsWith('image/')) {
+      setFilePreviewType('image');
+      const reader = new FileReader();
+      reader.onload = () => setFilePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } else if (file.type === 'application/pdf') {
+      setFilePreviewType('pdf');
+      setFilePreview(file.name);
+    } else {
+      setFilePreviewType('other');
+      setFilePreview(file.name);
+    }
   };
 
-  const removeImage = () => {
-    setSummarizeImage(null);
-    setImagePreview(null);
+  const removeFile = () => {
+    setSummarizeFile(null);
+    setFilePreview(null);
+    setFilePreviewType(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSummarize = async () => {
-    if ((!summarizeText.trim() && !summarizeImage) || isSummarizing) return;
+    if ((!summarizeText.trim() && !summarizeFile) || isSummarizing) return;
 
     const token = await getToken();
     if (!token) {
@@ -504,15 +533,26 @@ export default function AIChat() {
     setSummaryResult(null);
 
     try {
-      let imageData: { mimeType: string; data: string } | undefined;
-      if (summarizeImage) {
-        imageData = await fileToBase64(summarizeImage);
+      let fileData: { mimeType: string; data: string } | undefined;
+      let textForSummarize = summarizeText.trim() || undefined;
+
+      if (summarizeFile) {
+        const fileType = summarizeFile.type;
+        // For images and PDFs, send as binary data (Gemini supports these natively)
+        if (fileType.startsWith('image/') || fileType === 'application/pdf') {
+          fileData = await fileToBase64(summarizeFile);
+        } else {
+          // For text-based formats, read as text and append to textContent
+          const fileText = await summarizeFile.text();
+          const prefix = textForSummarize ? `${textForSummarize}\n\n` : '';
+          textForSummarize = `${prefix}[Document: ${summarizeFile.name}]\n\n${fileText}`;
+        }
       }
 
       const response = await summarizeMedicalDocument(
         token,
-        summarizeText.trim() || undefined,
-        imageData
+        textForSummarize,
+        fileData
       );
 
       if (response.success && response.data) {
@@ -535,7 +575,7 @@ export default function AIChat() {
 
   const handleClearSummarize = () => {
     setSummarizeText('');
-    removeImage();
+    removeFile();
     setSummaryResult(null);
     setError(null);
   };
@@ -988,7 +1028,7 @@ export default function AIChat() {
                     Upload Medical Document
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Paste the text of a medical report or upload an image of a medical document for AI-powered summarization.
+                    Paste the text of a medical report or upload a document (image, PDF, Word, Excel, text, CSV) for AI-powered summarization.
                   </p>
 
                   <textarea
@@ -1002,32 +1042,42 @@ export default function AIChat() {
 
                   <div className="mb-4">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Or upload an image of a medical report:
+                      Or upload a medical document:
                     </p>
-                    {!imagePreview ? (
+                    {!filePreview ? (
                       <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
                         <Upload className="w-8 h-8 text-gray-400 dark:text-gray-500 mb-2" />
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          Click to upload (JPEG, PNG, WebP — max 10MB)
+                        <span className="text-sm text-gray-500 dark:text-gray-400 text-center px-2">
+                          Click to upload (Image, PDF, Word, Excel, Text, CSV — max 10MB)
                         </span>
                         <input
                           ref={fileInputRef}
                           type="file"
-                          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                          onChange={handleImageUpload}
+                          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,text/plain,text/csv,text/html,text/xml,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/rtf"
+                          onChange={handleFileUpload}
                           className="hidden"
                           disabled={isSummarizing}
                         />
                       </label>
                     ) : (
                       <div className="relative inline-block">
-                        <img
-                          src={imagePreview}
-                          alt="Medical document preview"
-                          className="max-w-xs max-h-48 rounded-lg border border-gray-200 dark:border-slate-600 object-contain"
-                        />
+                        {filePreviewType === 'image' ? (
+                          <img
+                            src={filePreview}
+                            alt="Medical document preview"
+                            className="max-w-xs max-h-48 rounded-lg border border-gray-200 dark:border-slate-600 object-contain"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 px-4 py-3 pr-10">
+                            <FileText className="w-8 h-8 text-teal-500 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate max-w-[200px]" title={filePreview || ''}>{filePreview}</p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500">{filePreviewType === 'pdf' ? 'PDF Document' : 'Document'}</p>
+                            </div>
+                          </div>
+                        )}
                         <button
-                          onClick={removeImage}
+                          onClick={removeFile}
                           className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-md"
                           disabled={isSummarizing}
                         >
@@ -1040,7 +1090,7 @@ export default function AIChat() {
                   <div className="flex gap-3">
                     <button
                       onClick={handleSummarize}
-                      disabled={(!summarizeText.trim() && !summarizeImage) || isSummarizing}
+                      disabled={(!summarizeText.trim() && !summarizeFile) || isSummarizing}
                       className="flex items-center gap-2 px-6 py-2.5 bg-teal-500 text-white rounded-lg font-medium text-sm hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {isSummarizing ? (
@@ -1055,7 +1105,7 @@ export default function AIChat() {
                         </>
                       )}
                     </button>
-                    {(summarizeText || summarizeImage || summaryResult) && (
+                    {(summarizeText || summarizeFile || summaryResult) && (
                       <button
                         onClick={handleClearSummarize}
                         className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300 rounded-lg font-medium text-sm hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"

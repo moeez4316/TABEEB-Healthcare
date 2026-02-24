@@ -122,20 +122,33 @@ export const summarizeDocument = async (req: Request, res: Response) => {
       });
     }
 
-    // Validate image data
+    // Validate file data (images, PDFs, and other document types)
     if (imageData) {
       if (!imageData.mimeType || !imageData.data) {
         return res.status(400).json({
           success: false,
-          error: 'Image data must include mimeType and base64-encoded data.',
+          error: 'File data must include mimeType and base64-encoded data.',
         });
       }
 
-      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+      const allowedMimeTypes = [
+        // Images
+        'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif',
+        // PDF
+        'application/pdf',
+        // Text-based
+        'text/plain', 'text/csv', 'text/html', 'text/xml',
+        // Office documents
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/rtf',
+      ];
       if (!allowedMimeTypes.includes(imageData.mimeType)) {
         return res.status(400).json({
           success: false,
-          error: `Unsupported image type. Allowed types: ${allowedMimeTypes.join(', ')}`,
+          error: `Unsupported file type. Allowed types: images, PDF, Word, Excel, text, CSV, RTF.`,
         });
       }
 
@@ -144,7 +157,7 @@ export const summarizeDocument = async (req: Request, res: Response) => {
       if (base64SizeBytes > 10 * 1024 * 1024) {
         return res.status(400).json({
           success: false,
-          error: 'Image is too large. Please use an image under 10MB.',
+          error: 'File is too large. Please use a file under 10MB.',
         });
       }
     }
