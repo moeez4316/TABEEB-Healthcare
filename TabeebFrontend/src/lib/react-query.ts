@@ -1,5 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 
+export const DEFAULT_REFETCH_INTERVAL_MS = 60 * 1000;
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -13,6 +15,9 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: true,
       // Refetch on reconnect
       refetchOnReconnect: true,
+      // Seamless background refresh
+      refetchInterval: DEFAULT_REFETCH_INTERVAL_MS,
+      refetchIntervalInBackground: true,
     },
     mutations: {
       // Retry failed mutations 2 times

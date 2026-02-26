@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { useAdminDashboardStats } from '@/lib/hooks/useAdminQueries';
+import { ApiError } from '@/lib/api-client';
+import AdminLoading from '@/components/admin/AdminLoading';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminPageShell from '@/components/admin/AdminPageShell';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -19,120 +23,60 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-interface AnalyticsData {
-  totalDoctors: number;
-  totalPatients: number;
-  totalVerifications: number;
-  pendingVerifications: number;
-  approvedVerifications: number;
-  rejectedVerifications: number;
-  recentActivity?: Array<{
-    id: number;
-    type: string;
-    message: string;
-    timestamp: string;
-  }>;
-}
-
 export default function AdminAnalyticsPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchAnalytics = useCallback(async () => {
-    try {
-      const adminToken = localStorage.getItem('adminToken');
-      if (!adminToken) {
-        router.push('/admin/login');
-        return;
-      }
-
-      const response = await fetchWithRateLimit(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/dashboard/stats`, {
-        headers: {
-          'Authorization': `Bearer ${adminToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem('adminToken');
-          router.push('/admin/login');
-          return;
-        }
-        throw new Error('Failed to fetch analytics data');
-      }
-
-      const data = await response.json();
-      setAnalytics(data);
-    } catch (err) {
-      console.error('Error fetching analytics:', err);
-      setError('Failed to load analytics data');
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
+  const { data: analytics, isLoading, error } = useAdminDashboardStats(adminToken, true);
+  const totalVerifications = analytics
+    ? analytics.approvedDoctors + analytics.pendingVerifications + analytics.rejectedApplications
+    : 0;
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
+    if (!adminToken) {
+      router.push('/admin/login');
+    }
+  }, [adminToken, router]);
+
+  useEffect(() => {
+    const status = (error as ApiError | undefined)?.status;
+    if (status === 401) {
+      localStorage.removeItem('adminToken');
+      router.push('/admin/login');
+    }
+  }, [error, router]);
 
   const calculatePercentage = (value: number, total: number) => {
     if (total === 0) return 0;
     return Math.round((value / total) * 100);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative">
-            <div className="w-16 h-16 mx-auto mb-4">
-              <div className="absolute inset-0 rounded-full border-4 border-teal-200 dark:border-teal-800 opacity-20"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin"></div>
-            </div>
-          </div>
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">Loading Analytics</h3>
-          <p className="text-slate-600 dark:text-slate-300">Please wait...</p>
-        </div>
-      </div>
+      <AdminLoading title="Loading Analytics" subtitle="Compiling reports and insights..." />
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700">
-      <div className="p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-slate-700/50 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl text-white">
-                  <BarChart3 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                    Analytics & Reports
-                  </h1>
-                  <p className="text-slate-600 dark:text-slate-300">Comprehensive platform insights</p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push('/admin/dashboard')}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl transition-all"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
+    <AdminPageShell>
+      <AdminPageHeader
+        title="Analytics & Reports"
+        subtitle="Comprehensive platform insights across verification, activity, and growth."
+        actions={
+          <button
+            onClick={() => router.push('/admin/dashboard')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </button>
+        }
+      />
 
         {error && (
           <div className="mb-8 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-4">
             <div className="flex items-center">
               <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
-              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              <p className="text-sm text-red-700 dark:text-red-300">Failed to load analytics data</p>
             </div>
           </div>
         )}
@@ -188,7 +132,7 @@ export default function AdminAnalyticsPage() {
                   </div>
                 </div>
                 <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
-                  {analytics.approvedVerifications}
+                  {analytics.approvedDoctors}
                 </h3>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Approved Doctors</p>
               </div>
@@ -214,13 +158,13 @@ export default function AdminAnalyticsPage() {
                         <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Approved</span>
                       </div>
                       <span className="text-sm font-bold text-slate-900 dark:text-white">
-                        {analytics.approvedVerifications} ({calculatePercentage(analytics.approvedVerifications, analytics.totalVerifications)}%)
+                        {analytics.approvedDoctors} ({calculatePercentage(analytics.approvedDoctors, totalVerifications)}%)
                       </span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3">
                       <div 
                         className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all duration-500"
-                        style={{ width: `${calculatePercentage(analytics.approvedVerifications, analytics.totalVerifications)}%` }}
+                        style={{ width: `${calculatePercentage(analytics.approvedDoctors, totalVerifications)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -233,13 +177,13 @@ export default function AdminAnalyticsPage() {
                         <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Pending</span>
                       </div>
                       <span className="text-sm font-bold text-slate-900 dark:text-white">
-                        {analytics.pendingVerifications} ({calculatePercentage(analytics.pendingVerifications, analytics.totalVerifications)}%)
+                        {analytics.pendingVerifications} ({calculatePercentage(analytics.pendingVerifications, totalVerifications)}%)
                       </span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3">
                       <div 
                         className="bg-gradient-to-r from-amber-500 to-orange-600 h-3 rounded-full transition-all duration-500"
-                        style={{ width: `${calculatePercentage(analytics.pendingVerifications, analytics.totalVerifications)}%` }}
+                        style={{ width: `${calculatePercentage(analytics.pendingVerifications, totalVerifications)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -252,13 +196,13 @@ export default function AdminAnalyticsPage() {
                         <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Rejected</span>
                       </div>
                       <span className="text-sm font-bold text-slate-900 dark:text-white">
-                        {analytics.rejectedVerifications} ({calculatePercentage(analytics.rejectedVerifications, analytics.totalVerifications)}%)
+                        {analytics.rejectedApplications} ({calculatePercentage(analytics.rejectedApplications, totalVerifications)}%)
                       </span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3">
                       <div 
                         className="bg-gradient-to-r from-red-500 to-rose-600 h-3 rounded-full transition-all duration-500"
-                        style={{ width: `${calculatePercentage(analytics.rejectedVerifications, analytics.totalVerifications)}%` }}
+                        style={{ width: `${calculatePercentage(analytics.rejectedApplications, totalVerifications)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -318,12 +262,12 @@ export default function AdminAnalyticsPage() {
                   <ArrowUp className="w-4 h-4 text-green-600 dark:text-green-400" />
                 </div>
                 <p className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
-                  {(analytics.approvedVerifications + analytics.rejectedVerifications) > 0 
-                    ? calculatePercentage(analytics.approvedVerifications, analytics.approvedVerifications + analytics.rejectedVerifications)
+                  {(analytics.approvedDoctors + analytics.rejectedApplications) > 0 
+                    ? calculatePercentage(analytics.approvedDoctors, analytics.approvedDoctors + analytics.rejectedApplications)
                     : 0}%
                 </p>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                  {analytics.approvedVerifications} approved of {analytics.approvedVerifications + analytics.rejectedVerifications} reviewed
+                  {analytics.approvedDoctors} approved of {analytics.approvedDoctors + analytics.rejectedApplications} reviewed
                 </p>
               </div>
 
@@ -334,12 +278,12 @@ export default function AdminAnalyticsPage() {
                   <ArrowDown className="w-4 h-4 text-red-600 dark:text-red-400" />
                 </div>
                 <p className="text-3xl font-bold text-red-600 dark:text-red-400 mb-2">
-                  {(analytics.approvedVerifications + analytics.rejectedVerifications) > 0 
-                    ? calculatePercentage(analytics.rejectedVerifications, analytics.approvedVerifications + analytics.rejectedVerifications)
+                  {(analytics.approvedDoctors + analytics.rejectedApplications) > 0 
+                    ? calculatePercentage(analytics.rejectedApplications, analytics.approvedDoctors + analytics.rejectedApplications)
                     : 0}%
                 </p>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                  {analytics.rejectedVerifications} rejected of {analytics.approvedVerifications + analytics.rejectedVerifications} reviewed
+                  {analytics.rejectedApplications} rejected of {analytics.approvedDoctors + analytics.rejectedApplications} reviewed
                 </p>
               </div>
 
@@ -416,7 +360,6 @@ export default function AdminAnalyticsPage() {
             </div>
           </>
         )}
-      </div>
-    </div>
+    </AdminPageShell>
   );
 }

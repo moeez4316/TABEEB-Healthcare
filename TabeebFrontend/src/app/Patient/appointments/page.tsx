@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
@@ -10,7 +10,8 @@ import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaC
 import PatientVideoCallModal from '@/components/VideoCall/PatientVideoCallModal';
 import PatientReviewModal from '@/components/appointment/PatientReviewModal';
 import { Toast } from '@/components/Toast';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { usePatientAppointments } from '@/lib/hooks/useAppointments';
+import { apiFetchJson } from '@/lib/api-client';
 import AppointmentChat from '@/components/chat/AppointmentChat';
 import { AppointmentWithDetails } from '@/types/appointment';
 import { createRealtimeSocket, RealtimeEvent } from '@/lib/realtime';
@@ -27,9 +28,6 @@ interface FollowUpEligibility {
 export default function PatientAppointmentsPage() {
   const { token, user } = useAuth();
   const router = useRouter();
-  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'pending' | 'completed'>('upcoming');
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
   const [showVideoCall, setShowVideoCall] = useState(false);
@@ -43,67 +41,30 @@ export default function PatientAppointmentsPage() {
   const [showChat, setShowChat] = useState(false);
   const [chatAppointment, setChatAppointment] = useState<AppointmentWithDetails | null>(null);
 
+  const {
+    data: appointmentsData,
+    isLoading,
+    error,
+    refetch,
+  } = usePatientAppointments(token, true);
+
+  const appointments = useMemo(
+    () => (appointmentsData || []) as AppointmentWithDetails[],
+    [appointmentsData]
+  );
+
   const checkFollowUpEligibility = useCallback(async (doctorUid: string) => {
     if (!token || followUpEligibility[doctorUid]) return;
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/follow-up/eligibility/${doctorUid}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setFollowUpEligibility(prev => ({ ...prev, [doctorUid]: data }));
-      }
+      const data = await apiFetchJson<FollowUpEligibility>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/follow-up/eligibility/${doctorUid}`,
+        { token }
+      );
+      setFollowUpEligibility((prev) => ({ ...prev, [doctorUid]: data }));
     } catch {
       // Silent fail
     }
   }, [token, followUpEligibility]);
-
-  const fetchAppointments = useCallback(async (silent = false) => {
-    if (!token) return;
-    
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-    }
-
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/patient`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch appointments');
-      }
-
-      const data = await response.json();
-      
-      // Backend returns the appointments array directly, not wrapped in an object
-      const appointmentsList = Array.isArray(data) ? data : [];
-      setAppointments(appointmentsList);
-      
-      // Check follow-up eligibility for completed appointments
-      const completedAppointments = appointmentsList.filter((a: Appointment) => a.status === 'COMPLETED');
-      for (const apt of completedAppointments) {
-        checkFollowUpEligibility(apt.doctorUid);
-      }
-    } catch {
-      setError('Failed to load appointments. Please try again.');
-    } finally {
-      if (!silent) {
-        setLoading(false);
-      }
-    }
-  }, [token, checkFollowUpEligibility]);
-
-  
 
   const handleBookFollowUp = (doctorUid: string) => {
     const eligibility = followUpEligibility[doctorUid];
@@ -136,8 +97,12 @@ export default function PatientAppointmentsPage() {
   };
 
   useEffect(() => {
-    fetchAppointments(false);
-  }, [fetchAppointments]);
+    if (!appointments.length) return;
+    const completedAppointments = appointments.filter((a: Appointment) => a.status === 'COMPLETED');
+    completedAppointments.forEach((apt) => {
+      void checkFollowUpEligibility(apt.doctorUid);
+    });
+  }, [appointments, checkFollowUpEligibility]);
 
   useEffect(() => {
     if (!token) return;
@@ -149,7 +114,7 @@ export default function PatientAppointmentsPage() {
       if (isRefreshing) return;
       isRefreshing = true;
       try {
-        await fetchAppointments(true);
+        await refetch();
       } finally {
         isRefreshing = false;
       }
@@ -185,7 +150,7 @@ export default function PatientAppointmentsPage() {
       socket.off('domain.event', onEvent);
       socket.disconnect();
     };
-  }, [token, fetchAppointments]);
+  }, [token, refetch]);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToastMessage(message);
@@ -252,7 +217,7 @@ export default function PatientAppointmentsPage() {
 
   const filteredAppointments = filterAppointments();
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -379,9 +344,11 @@ export default function PatientAppointmentsPage() {
         {/* Error Display */}
         {error && (
           <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 shadow-lg">
-            <div className="text-red-800 dark:text-red-400">{error}</div>
+            <div className="text-red-800 dark:text-red-400">
+              {error instanceof Error ? error.message : 'Failed to load appointments. Please try again.'}
+            </div>
             <button
-              onClick={() => fetchAppointments(false)}
+              onClick={() => refetch()}
               className="mt-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
             >
               Try Again
@@ -733,7 +700,7 @@ export default function PatientAppointmentsPage() {
             setShowVideoCall(false);
             setSelectedAppointmentId(null);
             // Refresh appointments to update status
-            fetchAppointments(true);
+            refetch();
           }}
           firebaseToken={token}
         />
@@ -751,7 +718,7 @@ export default function PatientAppointmentsPage() {
           }}
           onSuccess={() => {
             showNotification('Review submitted successfully!', 'success');
-            fetchAppointments(true);
+            refetch();
           }}
         />
       )}

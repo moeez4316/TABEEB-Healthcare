@@ -11,14 +11,19 @@ import DoctorProfileEditModal from '@/components/profile/DoctorProfileEditModal'
 import Link from 'next/link';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 import { getDoctorRating } from '@/lib/review-api';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
 
 export default function DoctorDashboard() {
   const { user, token, verificationStatus } = useAuth();
   const dispatch = useAppDispatch();
   const { profile } = useAppSelector((state) => state.doctor || { profile: null });
   const [showProfileEdit, setShowProfileEdit] = useState<string | boolean>(false);
-  const [rating, setRating] = useState<{ averageRating: number; totalReviews: number } | null>(null);
-  const [loadingRating, setLoadingRating] = useState(true);
+  const { data: rating, isLoading: loadingRating } = useApiQuery({
+    queryKey: ['doctor', 'rating', user?.uid],
+    queryFn: () => getDoctorRating(token as string),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  });
 
   // Load profile data on component mount
   useEffect(() => {
@@ -28,24 +33,7 @@ export default function DoctorDashboard() {
   }, [dispatch, token]);
 
   // Load rating data
-  useEffect(() => {
-    const fetchRating = async () => {
-      if (!token) return;
-      
-      try {
-        setLoadingRating(true);
-        const ratingData = await getDoctorRating(token);
-        setRating(ratingData);
-      } catch (error) {
-        // Rate limit will auto-redirect to /error/rate-limit
-        console.error('Failed to load rating:', error);
-      } finally {
-        setLoadingRating(false);
-      }
-    };
-
-    fetchRating();
-  }, [token]);
+  // Rating handled by React Query
 
   if (!user || !profile) return null;
 

@@ -1,9 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useDeferredValue, useMemo } from 'react';
 import { formatDate } from '@/lib/verification/utils';
 import { Toast } from '@/components/Toast';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAdminApiQuery } from '@/lib/hooks/useAdminApiQuery';
+import { apiFetchJson, ApiError } from '@/lib/api-client';
+import AdminLoading from '@/components/admin/AdminLoading';
+import AdminPageShell from '@/components/admin/AdminPageShell';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import { 
   Search, 
   Eye, 
@@ -58,6 +63,13 @@ interface VerificationRecord {
   doctorUid: string;
   doctorName?: string; // provided by current API
   doctorEmail?: string; // provided by current API
+  doctor?: {
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    [key: string]: unknown;
+  };
   pmdcNumber: string;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
@@ -82,8 +94,6 @@ interface VerificationRecord {
 }
 
 export default function AdminVerificationPage() {
-  const [verifications, setVerifications] = useState<VerificationRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedVerification, setSelectedVerification] = useState<VerificationRecord | null>(null);
   const [reviewModal, setReviewModal] = useState(false);
   const [reviewData, setReviewData] = useState({
@@ -106,6 +116,23 @@ export default function AdminVerificationPage() {
   // PMDC lookup states
   const [pmdcLookupData, setPmdcLookupData] = useState<Record<string, PmdcLookupData>>({});
   const [pmdcLookupLoading, setPmdcLookupLoading] = useState<Record<string, boolean>>({});
+  const queryClient = useQueryClient();
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
+
+  const {
+    data: verificationPayload,
+    isLoading,
+    error: verificationError,
+    refetch,
+  } = useAdminApiQuery<VerificationRecord[]>({
+    queryKey: ['admin', 'verifications'],
+    queryFn: () =>
+      apiFetchJson<VerificationRecord[]>(`${process.env.NEXT_PUBLIC_API_URL}/api/verification/all`, {
+        token: adminToken,
+      }),
+    enabled: !!adminToken,
+    staleTime: 30 * 1000,
+  });
 
   // Format a date string to DD/MM/YYYY to match PMDC's format
   const formatDateDDMMYYYY = (dateString: string): string => {
@@ -118,70 +145,41 @@ export default function AdminVerificationPage() {
   };
 
   useEffect(() => {
-    fetchVerifications();
-  }, []);
-
-  const fetchVerifications = async () => {
-    try {
-      const adminToken = localStorage.getItem('adminToken');
-      if (!adminToken) {
-        window.location.href = '/admin/login';
-        return;
-      }
-
-      const response = await fetchWithRateLimit(`${process.env.NEXT_PUBLIC_API_URL}/api/verification/all`, {
-        headers: {
-          'Authorization': `Bearer ${adminToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem('adminToken');
-          window.location.href = '/admin/login';
-          return;
-        }
-        throw new Error('Failed to fetch verifications');
-      }
-
-      const data = await response.json();
-      
-      // Debug: Log the raw response to see what we're getting
-      console.log('Raw verification data:', data);
-      
-      // Backend returns array directly, not wrapped in object
-      // Process data to handle both new and legacy document formats
-      const processedData = Array.isArray(data) ? data.map(verification => {
-        console.log('Processing verification:', verification.doctorUid, 'Doctor data:', verification.doctor);
-        
-        // Enhanced fallback logic for doctor information
-        const doctorName = verification.doctor?.name || 
-                          (verification.doctor?.firstName && verification.doctor?.lastName 
-                            ? `${verification.doctor.firstName} ${verification.doctor.lastName}`
-                            : null) ||
-                          `Doctor ${verification.doctorUid.substring(0, 8)}...`;
-        
-        const doctorEmail = verification.doctor?.email || 'Email not available';
-        
-        return {
-          ...verification,
-          doctorName,
-          doctorEmail,
-          // Map legacy fields for backward compatibility
-          cnic: verification.cnicFrontUrl || verification.cnic,
-          certificate: verification.pmdcCertificateUrl || verification.certificate
-        };
-      }) : [];
-      
-      console.log('Processed verification data:', processedData);
-      setVerifications(processedData);
-    } catch (error) {
-      console.error('Error fetching verifications:', error);
-      setVerifications([]);
-    } finally {
-      setLoading(false);
+    if (!adminToken) {
+      window.location.href = '/admin/login';
     }
-  };
+  }, [adminToken]);
+
+  useEffect(() => {
+    const status = (verificationError as ApiError | undefined)?.status;
+    if (status === 401) {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/admin/login';
+    }
+  }, [verificationError]);
+
+  const verifications = useMemo(() => {
+    const data = Array.isArray(verificationPayload) ? verificationPayload : [];
+    return data.map((verification) => {
+      const doctorName =
+        verification.doctor?.name ||
+        (verification.doctor?.firstName && verification.doctor?.lastName
+          ? `${verification.doctor.firstName} ${verification.doctor.lastName}`
+          : null) ||
+        `Practitioner ${verification.doctorUid.substring(0, 8)}...`;
+
+      const doctorEmail = verification.doctor?.email || 'Email not available';
+
+      return {
+        ...verification,
+        doctorName,
+        doctorEmail,
+        cnic: verification.cnicFrontUrl || verification.cnic,
+        certificate: verification.pmdcCertificateUrl || verification.certificate,
+      };
+    });
+  }, [verificationPayload]);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const openReviewModal = (verification: VerificationRecord) => {
     setSelectedVerification(verification);
@@ -232,23 +230,16 @@ export default function AdminVerificationPage() {
       const endpoint = forceRefresh ? 'pmdc-refresh' : 'pmdc-lookup';
       const method = forceRefresh ? 'POST' : 'GET';
       
-      const response = await fetchWithRateLimit(
+      const result = await apiFetchJson<{ success: boolean; data?: PmdcLookupData }>(
         `${process.env.NEXT_PUBLIC_API_URL}/api/verification/${endpoint}/${encodeURIComponent(pmdcNumber)}`,
         {
           method,
-          headers: {
-            'Authorization': `Bearer ${adminToken}`,
-          },
+          token: adminToken,
         }
       );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch PMDC data');
-      }
-
-      const result = await response.json();
       if (result.success && result.data) {
-        setPmdcLookupData(prev => ({ ...prev, [pmdcNumber]: result.data }));
+        const lookup = result.data as PmdcLookupData;
+        setPmdcLookupData(prev => ({ ...prev, [pmdcNumber]: lookup }));
         
         if (result.data.found) {
           showNotification('PMDC data fetched successfully!', 'success');
@@ -307,38 +298,26 @@ export default function AdminVerificationPage() {
         return;
       }
 
-      const response = await fetchWithRateLimit(`${process.env.NEXT_PUBLIC_API_URL}/api/verification/${reviewData.action}/${selectedVerification.doctorUid}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`,
-        },
-        body: JSON.stringify({
-          adminComments: reviewData.comments.trim() || (reviewData.action === 'approve' ? 'Approved by admin' : 'Rejected by admin'),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        
-        if (response.status === 401) {
-          showNotification('Session expired. Please login again.', 'error');
-          setTimeout(() => {
-            localStorage.removeItem('adminToken');
-            window.location.href = '/admin/login';
-          }, 2000);
-          return;
+      await apiFetchJson(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/verification/${reviewData.action}/${selectedVerification.doctorUid}`,
+        {
+          method: 'PATCH',
+          token: adminToken,
+          body: JSON.stringify({
+            adminComments:
+              reviewData.comments.trim() ||
+              (reviewData.action === 'approve' ? 'Approved by admin' : 'Rejected by admin'),
+          }),
         }
-        
-        throw new Error(errorData.error || `Failed to ${reviewData.action} verification`);
-      }
+      );
 
       showNotification(
         `Verification ${reviewData.action === 'approve' ? 'approved' : 'rejected'} successfully!`,
         reviewData.action === 'approve' ? 'success' : 'error'
       );
       closeReviewModal();
-      await fetchVerifications();
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ['admin', 'verifications'] });
     } catch (error) {
       console.error('Error updating verification:', error);
       showNotification(
@@ -378,75 +357,66 @@ export default function AdminVerificationPage() {
     }
   };
 
-  const getFilterCounts = () => {
-    return {
-      all: verifications.length,
-      pending: verifications.filter(v => v.status === 'pending').length,
-      approved: verifications.filter(v => v.status === 'approved').length,
-      rejected: verifications.filter(v => v.status === 'rejected').length,
-    };
-  };
+  const counts = useMemo(() => {
+    return verifications.reduce(
+      (acc, verification) => {
+        acc.all += 1;
+        if (verification.status === 'pending') acc.pending += 1;
+        if (verification.status === 'approved') acc.approved += 1;
+        if (verification.status === 'rejected') acc.rejected += 1;
+        return acc;
+      },
+      { all: 0, pending: 0, approved: 0, rejected: 0 }
+    );
+  }, [verifications]);
 
-  const filteredVerifications = verifications.filter(verification => {
-    const matchesFilter = filter === 'all' || verification.status === filter;
-    
-    // Future-proof search functionality:
-    // - Currently works on PMDC number and doctor UID 
-    // - Will automatically work on doctor name and email when API provides them
-    // - No code changes needed when backend is updated
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = searchTerm === '' || 
-      // Search by doctor name (when available in future)
-      (verification.doctorName && verification.doctorName.toLowerCase().includes(searchLower)) ||
-      // Search by doctor email (when available in future)
-      (verification.doctorEmail && verification.doctorEmail.toLowerCase().includes(searchLower)) ||
-      // Search by PMDC number (currently working)
-      (verification.pmdcNumber && verification.pmdcNumber.toLowerCase().includes(searchLower)) ||
-      // Search by doctor UID as fallback
-      (verification.doctorUid && verification.doctorUid.toLowerCase().includes(searchLower));
-    
-    return matchesFilter && matchesSearch;
-  });
+  const filteredVerifications = useMemo(() => {
+    const searchLower = deferredSearchTerm.trim().toLowerCase();
+    const hasSearch = searchLower.length > 0;
 
-  const counts = getFilterCounts();
+    return verifications.filter((verification) => {
+      const matchesFilter = filter === 'all' || verification.status === filter;
+      if (!matchesFilter) return false;
 
-  if (loading) {
+      if (!hasSearch) return true;
+
+      // Future-proof search functionality:
+      // - Currently works on registration number and practitioner UID
+      // - Will automatically work on practitioner name and email when API provides them
+      // - No code changes needed when backend is updated
+      return (
+        (verification.doctorName &&
+          verification.doctorName.toLowerCase().includes(searchLower)) ||
+        (verification.doctorEmail &&
+          verification.doctorEmail.toLowerCase().includes(searchLower)) ||
+        (verification.pmdcNumber &&
+          verification.pmdcNumber.toLowerCase().includes(searchLower)) ||
+        (verification.doctorUid &&
+          verification.doctorUid.toLowerCase().includes(searchLower))
+      );
+    });
+  }, [verifications, filter, deferredSearchTerm]);
+
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative">
-            <div className="w-16 h-16 mx-auto mb-4">
-              <div className="absolute inset-0 rounded-full border-4 border-teal-200 dark:border-teal-800 opacity-20"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin"></div>
-            </div>
-          </div>
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">Loading Verifications</h3>
-          <p className="text-slate-600 dark:text-slate-300">Please wait while we fetch the data...</p>
-        </div>
-      </div>
+      <AdminLoading title="Loading Verifications" subtitle="Fetching the latest verification queue..." />
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700">
-      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 lg:mb-8">
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-white/20 dark:border-slate-700/50 shadow-lg">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
-              <div className="p-2.5 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl text-white w-fit">
-                <Shield className="w-6 h-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
-                  Doctor Verification Management
-                </h1>
-                <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">Review and manage doctor verification submissions</p>
-              </div>
-            </div>
+    <AdminPageShell>
+      <AdminPageHeader
+        title="Doctor Verification"
+        subtitle="Review pending applications and verify clinical credentials."
+        meta={
+          <div className="flex flex-wrap gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>Pending: {counts.pending}</span>
+            <span>Approved: {counts.approved}</span>
+            <span>Rejected: {counts.rejected}</span>
           </div>
-        </div>
-
+        }
+      />
+      <div className="space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 lg:mb-8">
           <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-white/20 dark:border-slate-700/50 shadow-md">
@@ -494,7 +464,7 @@ export default function AdminVerificationPage() {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by PMDC number, doctor name, or email..."
+                placeholder="Search by registration number, practitioner name, or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
@@ -541,7 +511,7 @@ export default function AdminVerificationPage() {
               }`} />
 
               <div className="p-5 sm:p-6 lg:p-8">
-                {/* Top Section: Doctor Info + Status */}
+                {/* Top Section: Practitioner Info + Status */}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                   <div className="flex items-start gap-4">
                     <div className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-teal-100 to-emerald-100 dark:from-teal-900/30 dark:to-emerald-900/30 rounded-2xl border border-teal-200 dark:border-teal-800 flex items-center justify-center">
@@ -549,7 +519,7 @@ export default function AdminVerificationPage() {
                     </div>
                     <div className="min-w-0">
                       <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white mb-1 truncate">
-                        {verification.doctorName || 'Doctor Name Not Available'}
+                        {verification.doctorName || 'Practitioner Name Not Available'}
                       </h3>
                       <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 mb-1.5">
                         <Mail className="w-4 h-4 shrink-0" />
@@ -558,7 +528,7 @@ export default function AdminVerificationPage() {
                       <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
                           <Shield className="w-4 h-4 shrink-0" />
-                          <span className="text-sm font-mono">PMDC: {verification.pmdcNumber || 'N/A'}</span>
+                          <span className="text-sm font-mono">Reg: {verification.pmdcNumber || 'N/A'}</span>
                         </div>
                         {verification.cnicNumber && (
                           <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
@@ -599,7 +569,7 @@ export default function AdminVerificationPage() {
                       {verification.pmdcRegistrationDate && (
                         <div className="flex items-center gap-2">
                           <Shield className="w-4 h-4 text-slate-400 shrink-0" />
-                          <span className="text-xs text-slate-500 dark:text-slate-400">PMDC Reg:</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">Reg. Date:</span>
                           <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{formatDate(verification.pmdcRegistrationDate)}</span>
                         </div>
                       )}
@@ -612,7 +582,7 @@ export default function AdminVerificationPage() {
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                       <Globe className="w-3.5 h-3.5" />
-                      PMDC Website Verification
+                      PMDC Website Verification (Optional)
                     </h4>
                     <div className="flex items-center gap-2">
                       {pmdcLookupData[verification.pmdcNumber] && (
@@ -660,7 +630,7 @@ export default function AdminVerificationPage() {
                               <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
                             <span className="text-sm font-bold text-blue-800 dark:text-blue-200">
-                              PMDC Official Record
+                              PMDC Official Record (If Applicable)
                             </span>
                             {pmdcLookupData[verification.pmdcNumber].fromCache && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400">
@@ -678,7 +648,7 @@ export default function AdminVerificationPage() {
                               <thead>
                                 <tr className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
                                   <th className="text-left py-2 pr-3 font-semibold">Field</th>
-                                  <th className="text-left py-2 px-3 font-semibold">Doctor Submitted</th>
+                                  <th className="text-left py-2 px-3 font-semibold">Submitted</th>
                                   <th className="text-left py-2 px-3 font-semibold">PMDC Record</th>
                                   <th className="text-left py-2 pl-3 font-semibold">Status</th>
                                 </tr>
@@ -736,7 +706,7 @@ export default function AdminVerificationPage() {
                                 {/* Registration Status */}
                                 {pmdcLookupData[verification.pmdcNumber].registrationStatus && (
                                   <tr>
-                                    <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">PMDC Status</td>
+                                    <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Registration Status</td>
                                     <td className="py-2.5 px-3 text-slate-400 italic">—</td>
                                     <td className="py-2.5 px-3">
                                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
@@ -806,7 +776,7 @@ export default function AdminVerificationPage() {
                             </p>
                             <p className="text-xs text-amber-700 dark:text-amber-300/80 leading-relaxed">
                               {pmdcLookupData[verification.pmdcNumber].errorMessage || 
-                                'No matching doctor found for this PMDC registration number.'}
+                                'No matching PMDC record found for this registration number.'}
                             </p>
                             <a
                               href="https://pmdc.pk/"
@@ -832,7 +802,7 @@ export default function AdminVerificationPage() {
                       <button
                         onClick={() => openImageModal(
                           verification.cnicFrontUrl || verification.cnic!,
-                          `CNIC Front - ${verification.doctorName || 'Doctor'}`
+                          `CNIC Front - ${verification.doctorName || 'Practitioner'}`
                         )}
                         className="group flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all cursor-pointer"
                       >
@@ -854,7 +824,7 @@ export default function AdminVerificationPage() {
 
                     {verification.cnicBackUrl ? (
                       <button
-                        onClick={() => openImageModal(verification.cnicBackUrl!, `CNIC Back - ${verification.doctorName || 'Doctor'}`)}
+                        onClick={() => openImageModal(verification.cnicBackUrl!, `CNIC Back - ${verification.doctorName || 'Practitioner'}`)}
                         className="group flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all cursor-pointer"
                       >
                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -875,7 +845,7 @@ export default function AdminVerificationPage() {
 
                     {verification.verificationPhotoUrl ? (
                       <button
-                        onClick={() => openImageModal(verification.verificationPhotoUrl!, `Verification Photo - ${verification.doctorName || 'Doctor'}`)}
+                        onClick={() => openImageModal(verification.verificationPhotoUrl!, `Verification Photo - ${verification.doctorName || 'Practitioner'}`)}
                         className="group flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-blue-200 dark:border-blue-800/50 bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all cursor-pointer"
                       >
                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -896,13 +866,13 @@ export default function AdminVerificationPage() {
 
                     {verification.degreeCertificateUrl ? (
                       <button
-                        onClick={() => openImageModal(verification.degreeCertificateUrl!, `Degree Certificate - ${verification.doctorName || 'Doctor'}`)}
+                        onClick={() => openImageModal(verification.degreeCertificateUrl!, `Qualification/Degree Certificate - ${verification.doctorName || 'Practitioner'}`)}
                         className="group flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-purple-200 dark:border-purple-800/50 bg-purple-50/50 dark:bg-purple-900/10 hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-all cursor-pointer"
                       >
                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                           <Download className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 dark:text-purple-400" />
                         </div>
-                        <span className="text-xs font-medium text-purple-700 dark:text-purple-400">Degree</span>
+                        <span className="text-xs font-medium text-purple-700 dark:text-purple-400">Qualification</span>
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                       </button>
                     ) : (
@@ -910,7 +880,7 @@ export default function AdminVerificationPage() {
                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
                           <Download className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 dark:text-red-500" />
                         </div>
-                        <span className="text-xs font-medium text-red-400 dark:text-red-500">Degree</span>
+                        <span className="text-xs font-medium text-red-400 dark:text-red-500">Qualification</span>
                         <XCircle className="w-3.5 h-3.5 text-red-400" />
                       </div>
                     )}
@@ -919,14 +889,14 @@ export default function AdminVerificationPage() {
                       <button
                         onClick={() => openImageModal(
                           verification.pmdcCertificateUrl || verification.certificate!,
-                          `PMDC Certificate - ${verification.doctorName || 'Doctor'}`
+                          `Registration/Council Certificate - ${verification.doctorName || 'Practitioner'}`
                         )}
                         className="group flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-orange-200 dark:border-orange-800/50 bg-orange-50/50 dark:bg-orange-900/10 hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all cursor-pointer"
                       >
                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                           <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 dark:text-orange-400" />
                         </div>
-                        <span className="text-xs font-medium text-orange-700 dark:text-orange-400">PMDC</span>
+                        <span className="text-xs font-medium text-orange-700 dark:text-orange-400">Registration</span>
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                       </button>
                     ) : (
@@ -934,7 +904,7 @@ export default function AdminVerificationPage() {
                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
                           <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 dark:text-red-500" />
                         </div>
-                        <span className="text-xs font-medium text-red-400 dark:text-red-500">PMDC</span>
+                        <span className="text-xs font-medium text-red-400 dark:text-red-500">Registration</span>
                         <XCircle className="w-3.5 h-3.5 text-red-400" />
                       </div>
                     )}
@@ -1023,7 +993,7 @@ export default function AdminVerificationPage() {
                     <div>
                       <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white">Review Verification</h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {selectedVerification?.doctorName || 'Doctor'}
+                        {selectedVerification?.doctorName || 'Practitioner'}
                       </p>
                     </div>
                   </div>
@@ -1039,9 +1009,9 @@ export default function AdminVerificationPage() {
               <div className="p-5 sm:p-6 space-y-6">
                 {selectedVerification && (
                   <>
-                    {/* Doctor Information Section */}
+                    {/* Practitioner Information Section */}
                     <div>
-                      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Doctor Information</h3>
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Practitioner Information</h3>
                       <div className="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 sm:p-5 border border-slate-100 dark:border-slate-700">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
@@ -1053,7 +1023,7 @@ export default function AdminVerificationPage() {
                             <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5 break-all">{selectedVerification.doctorEmail || 'Not Available'}</p>
                           </div>
                           <div>
-                            <label className="text-xs text-slate-500 dark:text-slate-400">PMDC Number</label>
+                            <label className="text-xs text-slate-500 dark:text-slate-400">Registration / License Number</label>
                             <p className="text-sm font-mono font-semibold text-slate-800 dark:text-white mt-0.5">{selectedVerification.pmdcNumber || 'Not Available'}</p>
                           </div>
                           <div>
@@ -1084,8 +1054,8 @@ export default function AdminVerificationPage() {
                           { label: 'CNIC Front', available: !!(selectedVerification.cnicFrontUrl || selectedVerification.cnic), required: true },
                           { label: 'CNIC Back', available: !!selectedVerification.cnicBackUrl, required: false },
                           { label: 'Verification Photo', available: !!selectedVerification.verificationPhotoUrl, required: true },
-                          { label: 'Degree Certificate', available: !!selectedVerification.degreeCertificateUrl, required: true },
-                          { label: 'PMDC Certificate', available: !!(selectedVerification.pmdcCertificateUrl || selectedVerification.certificate), required: true },
+                          { label: 'Qualification/Degree Certificate', available: !!selectedVerification.degreeCertificateUrl, required: true },
+                          { label: 'Registration/Council Certificate', available: !!(selectedVerification.pmdcCertificateUrl || selectedVerification.certificate), required: true },
                         ].map((doc) => (
                           <div key={doc.label} className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${
                             doc.available
@@ -1115,7 +1085,7 @@ export default function AdminVerificationPage() {
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                           <Globe className="w-3.5 h-3.5" />
-                          PMDC Website Verification
+                          PMDC Website Verification (Optional)
                         </h3>
                         <button
                           onClick={() => fetchPmdcData(selectedVerification.pmdcNumber, !pmdcLookupData[selectedVerification.pmdcNumber])}
@@ -1203,7 +1173,7 @@ export default function AdminVerificationPage() {
                         )
                       ) : (
                         <div className="bg-slate-50 dark:bg-slate-700/20 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center">
-                          <p className="text-xs text-slate-400 dark:text-slate-500">Click &quot;Fetch PMDC Data&quot; to verify this doctor&apos;s registration with the PMDC website</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500">Use &quot;Fetch PMDC Data&quot; for PMDC-registered practitioners. For others, verify using the submitted documents.</p>
                         </div>
                       )}
                     </div>
@@ -1224,7 +1194,7 @@ export default function AdminVerificationPage() {
                     >
                       <Check className="w-6 h-6" />
                       <span className="text-sm font-bold">Approve</span>
-                      <span className="text-[10px] opacity-70">Doctor is verified</span>
+                      <span className="text-[10px] opacity-70">Practitioner is verified</span>
                     </button>
                     <button
                       onClick={() => setReviewData(prev => ({ ...prev, action: 'reject' }))}
@@ -1251,7 +1221,7 @@ export default function AdminVerificationPage() {
                     onChange={(e) => setReviewData(prev => ({ ...prev, comments: e.target.value }))}
                     rows={4}
                     className="w-full p-3 sm:p-4 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 text-sm"
-                    placeholder="Add your comments for the doctor (visible to them)..."
+                    placeholder="Add your comments for the practitioner (visible to them)..."
                   />
                 </div>
 
@@ -1339,6 +1309,6 @@ export default function AdminVerificationPage() {
         show={showToast}
         onClose={() => setShowToast(false)}
       />
-    </div>
+    </AdminPageShell>
   );
 }

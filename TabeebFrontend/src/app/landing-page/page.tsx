@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, useAnimation } from 'framer-motion';
@@ -10,6 +10,8 @@ import {
   Stethoscope, X, Mail, MapPin, MessageSquareQuote 
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 // Animation variants for sections (use cubic-bezier array for type-safe easing)
 const sectionVariants = {
@@ -67,24 +69,19 @@ interface FeaturedDoctor {
 
 const LandingPage = () => {
   const [showContactModal, setShowContactModal] = useState(false);
-  const [featuredDoctors, setFeaturedDoctors] = useState<FeaturedDoctor[]>([]);
+  const { data: featuredPayload } = useApiQuery<{ doctors?: FeaturedDoctor[] }>({
+    queryKey: ['doctors', 'featured', 'experience'],
+    queryFn: () =>
+      apiFetchJson<{ doctors?: FeaturedDoctor[] }>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/doctor/verified?sortBy=experience&order=desc`
+      ),
+    staleTime: 2 * 60 * 1000,
+  });
 
-  // Fetch featured doctors (sorted by experience)
-  useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
-        const response = await fetch(`${API_URL}/api/doctor/verified?sortBy=experience&order=desc`);
-        if (response.ok) {
-          const data = await response.json();
-          setFeaturedDoctors(data.doctors.slice(0, 4));
-        }
-      } catch (error) {
-        console.error('Error fetching doctors:', error);
-      }
-    };
-    fetchDoctors();
-  }, []);
+  const featuredDoctors = useMemo(() => {
+    const doctors = featuredPayload?.doctors || [];
+    return doctors.slice(0, 4);
+  }, [featuredPayload]);
 
   // Close contact modal when clicking outside
   useEffect(() => {

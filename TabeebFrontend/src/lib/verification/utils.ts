@@ -8,11 +8,6 @@ export function validateVerificationForm(data: VerificationFormData): Verificati
   if (!data.pmdcNumber) {
     errors.push({
       field: 'pmdcNumber',
-      message: 'PMDC number is required',
-    });
-  } else if (!VALIDATION_RULES.PMDC_NUMBER.pattern.test(data.pmdcNumber)) {
-    errors.push({
-      field: 'pmdcNumber',
       message: VALIDATION_RULES.PMDC_NUMBER.message,
     });
   }
@@ -21,7 +16,7 @@ export function validateVerificationForm(data: VerificationFormData): Verificati
   if (!data.pmdcRegistrationDate) {
     errors.push({
       field: 'pmdcRegistrationDate',
-      message: 'PMDC registration date is required',
+      message: 'Registration date is required',
     });
   }
 
@@ -90,7 +85,7 @@ export function validateVerificationForm(data: VerificationFormData): Verificati
   if (!data.degreeCertificate) {
     errors.push({
       field: 'degreeCertificate',
-      message: 'Degree certificate is required',
+      message: 'Qualification/degree certificate is required',
     });
   } else {
     const validation = validateFile(data.degreeCertificate, VALIDATION_RULES.DEGREE_CERTIFICATE);
@@ -106,7 +101,7 @@ export function validateVerificationForm(data: VerificationFormData): Verificati
   if (!data.pmdcCertificate) {
     errors.push({
       field: 'pmdcCertificate',
-      message: 'PMDC certificate is required',
+      message: 'Registration/council certificate is required',
     });
   } else {
     const validation = validateFile(data.pmdcCertificate, VALIDATION_RULES.PMDC_CERTIFICATE);

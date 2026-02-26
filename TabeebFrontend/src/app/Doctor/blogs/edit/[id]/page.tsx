@@ -15,6 +15,8 @@ import { LinearProgress, useUploadProgress } from '@/components/shared/UploadPro
 import { queryClient } from '@/lib/react-query';
 import { blogKeys } from '@/lib/hooks/useBlog';
 import { RichTextEditor } from '@/components/blog/doctor/RichTextEditor';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
 
@@ -26,13 +28,24 @@ interface CloudinaryUploadResult {
   public_id?: string;
 }
 
+interface BlogPayload {
+  blog?: {
+    title?: string;
+    excerpt?: string;
+    contentHtml?: string;
+    coverImageUrl?: string;
+    coverImagePublicId?: string;
+    tags?: Array<{ name: string }>;
+    status?: 'DRAFT' | 'PUBLISHED';
+  };
+}
+
 export default function EditBlogPage() {
   const router = useRouter();
   const params = useParams();
   const blogId = params?.id as string;
   const { token } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -54,46 +67,43 @@ export default function EditBlogPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const uploadProgress = useUploadProgress();
+  const hasInitialized = useRef(false);
 
-  // Load existing blog data
+  const {
+    data: blogPayload,
+    isLoading: blogLoading,
+    error: blogError,
+  } = useApiQuery<BlogPayload>({
+    queryKey: ['blogs', 'detail', blogId],
+    queryFn: () =>
+      apiFetchJson<BlogPayload>(`${API_URL}/api/blogs/${blogId}`, {
+        token,
+      }),
+    enabled: !!blogId && !!token,
+    staleTime: 2 * 60 * 1000,
+  });
+
   useEffect(() => {
-    if (!blogId || !token) return;
+    if (!blogPayload?.blog || hasInitialized.current) return;
+    const blog = blogPayload.blog;
+    setFormData({
+      title: blog.title || '',
+      excerpt: blog.excerpt || '',
+      contentHtml: blog.contentHtml || '',
+      coverImageUrl: blog.coverImageUrl || '',
+      coverImagePublicId: blog.coverImagePublicId || '',
+      tags: blog.tags?.map((t) => t.name) || [],
+      status: blog.status || 'DRAFT',
+    });
+    hasInitialized.current = true;
+  }, [blogPayload]);
 
-    const loadBlog = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/blogs/${blogId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to load blog');
-        }
-
-        const data = await response.json();
-        const blog = data.blog;
-
-        setFormData({
-          title: blog.title || '',
-          excerpt: blog.excerpt || '',
-          contentHtml: blog.contentHtml || '',
-          coverImageUrl: blog.coverImageUrl || '',
-          coverImagePublicId: blog.coverImagePublicId || '',
-          tags: blog.tags?.map((t: { name: string }) => t.name) || [],
-          status: blog.status || 'DRAFT',
-        });
-      } catch (error) {
-        console.error('Load blog error:', error);
-        setErrorMessage('Failed to load blog. Redirecting...');
-        setTimeout(() => router.push('/Doctor/blogs/my-blogs'), 2000);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadBlog();
-  }, [blogId, token, router]);
+  useEffect(() => {
+    if (!blogError) return;
+    setErrorMessage(blogError instanceof Error ? blogError.message : 'Failed to load blog. Redirecting...');
+    const timer = setTimeout(() => router.push('/Doctor/blogs/my-blogs'), 2000);
+    return () => clearTimeout(timer);
+  }, [blogError, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -253,7 +263,7 @@ export default function EditBlogPage() {
     }
   };
 
-  if (isLoading) {
+  if (blogLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">

@@ -9,6 +9,7 @@ import {
 } from '../services/uploadService';
 import { sendVerificationApproved, sendVerificationRejected } from '../services/emailService';
 import { publishEvent } from '../realtime/realtime';
+import { invalidateDoctorCaches } from '../services/cacheService';
 
 const emitVerificationEvent = (params: {
   doctorUid: string;
@@ -210,6 +211,7 @@ export const submitVerification = async (req: Request, res: Response) => {
         }
       }
     });
+    await invalidateDoctorCaches(doctorUid);
 
     emitVerificationEvent({
       doctorUid: verification.doctorUid,
@@ -336,6 +338,7 @@ export const approveVerification = async (req: Request, res: Response) => {
       message: 'Doctor verified successfully', 
       verification 
     });
+    await invalidateDoctorCaches(doctorUid);
 
     emitVerificationEvent({
       doctorUid,
@@ -379,6 +382,7 @@ export const rejectVerification = async (req: Request, res: Response) => {
       message: 'Verification rejected', 
       verification 
     });
+    await invalidateDoctorCaches(doctorUid);
 
     emitVerificationEvent({
       doctorUid,

@@ -1,12 +1,13 @@
 ﻿'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { loadDoctorProfile } from '@/store/slices/doctorSlice';
 import { FaClock, FaPlus, FaTimes, FaSave, FaCopy, FaCheck } from 'react-icons/fa';
 import DoctorProfileEditModal from '@/components/profile/DoctorProfileEditModal';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 interface BreakTime {
   startTime: string;
@@ -24,11 +25,28 @@ interface DaySchedule {
   breakTimes: BreakTime[];
 }
 
+interface AvailabilityRecord {
+  id: string;
+  startTime?: string;
+  endTime?: string;
+  slotDuration?: number;
+  breakTimes?: BreakTime[];
+  isAvailable?: boolean;
+}
+
+interface AvailabilityResponseMessage {
+  message?: string;
+  warning?: string;
+  availability?: {
+    startTime: string;
+    endTime: string;
+  };
+}
+
 export default function DoctorAvailabilityPage() {
   const { token } = useAuth();
   const dispatch = useAppDispatch();
   const { profile } = useAppSelector((state) => state.doctor || { profile: null });
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -57,7 +75,6 @@ export default function DoctorAvailabilityPage() {
     breakTimes: BreakTime[];
     isAvailable: boolean;
   } | null>(null);
-  const [loadingSpecificDay, setLoadingSpecificDay] = useState(false);
   const [savingSpecificDay, setSavingSpecificDay] = useState(false);
   const [customizedDates, setCustomizedDates] = useState<Set<string>>(new Set());
 
@@ -69,76 +86,116 @@ export default function DoctorAvailabilityPage() {
     return `${year}-${month}-${day}`;
   };
 
-  // Fetch all availability for next 30 days to mark customized dates
-  const fetchCustomizedDates = useCallback(async () => {
-    if (!token) return;
+  const dateRange = useMemo(() => {
+    const today = new Date();
+    const futureDate = new Date(today);
+    futureDate.setDate(futureDate.getDate() + 30);
+    return {
+      startDate: formatLocalDate(today),
+      endDate: formatLocalDate(futureDate),
+    };
+  }, []);
 
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const today = new Date();
-      const futureDate = new Date(today);
-      futureDate.setDate(futureDate.getDate() + 30);
-
-      const response = await fetch(
-        `${API_URL}/api/availability/doctor?startDate=${formatLocalDate(today)}&endDate=${formatLocalDate(futureDate)}`,
+  const {
+    data: customizedData,
+    refetch: refetchCustomizedDates,
+  } = useApiQuery<Array<{ date: string | Date }>>({
+    queryKey: ['availability', 'customized', dateRange.startDate, dateRange.endDate],
+    queryFn: () =>
+      apiFetchJson<Array<{ date: string | Date }>>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/availability/doctor?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
         {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          token,
         }
-      );
+      ),
+    enabled: !!token,
+    staleTime: 30 * 1000,
+  });
 
-      if (response.ok) {
-        const data = await response.json();
-        // Parse dates as local dates and format as YYYY-MM-DD
-        const dates = new Set<string>(data.map((avail: { date: string | Date }) => {
-          const d = new Date(avail.date);
-          return formatLocalDate(d);
-        }));
-        setCustomizedDates(dates);
-      }
-    } catch (err) {
-      console.error('Error fetching customized dates:', err);
-    }
-  }, [token]);
-
-  const fetchWeeklyTemplate = useCallback(async () => {
-    if (!token) return;
-
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/availability/template`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data && Array.isArray(data)) {
-          setWeeklySchedule(prevSchedule => 
-            prevSchedule.map(day => {
-              const loadedDay = data.find((d: DaySchedule) => d.dayOfWeek === day.dayOfWeek);
-              return loadedDay ? { ...day, ...loadedDay } : day;
-            })
-          );
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching template:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
+  const {
+    data: templateData,
+    isLoading: templateLoading,
+    refetch: refetchTemplate,
+  } = useApiQuery<DaySchedule[]>({
+    queryKey: ['availability', 'template'],
+    queryFn: () =>
+      apiFetchJson<DaySchedule[]>(`${process.env.NEXT_PUBLIC_API_URL}/api/availability/template`, {
+        token,
+      }),
+    enabled: !!token,
+    staleTime: 30 * 1000,
+  });
 
   useEffect(() => {
-    fetchWeeklyTemplate();
-    fetchCustomizedDates();
-  }, [fetchWeeklyTemplate, fetchCustomizedDates]);
+    if (templateData && Array.isArray(templateData)) {
+      setWeeklySchedule((prevSchedule) =>
+        prevSchedule.map((day) => {
+          const loadedDay = templateData.find((d) => d.dayOfWeek === day.dayOfWeek);
+          return loadedDay ? { ...day, ...loadedDay } : day;
+        })
+      );
+    }
+  }, [templateData]);
+
+  useEffect(() => {
+    if (customizedData && Array.isArray(customizedData)) {
+      const dates = new Set<string>(
+        customizedData.map((avail) => {
+          const d = new Date(avail.date);
+          return formatLocalDate(d);
+        })
+      );
+      setCustomizedDates(dates);
+    }
+  }, [customizedData]);
+
+  const specificDateString = useMemo(
+    () => (selectedDate ? formatLocalDate(selectedDate) : null),
+    [selectedDate]
+  );
+
+  const {
+    data: specificDayResponse,
+    isLoading: loadingSpecificDay,
+  } = useApiQuery<Array<{ startTime: string; endTime: string; slotDuration: number; breakTimes?: BreakTime[]; isAvailable: boolean }> | []>({
+    queryKey: ['availability', 'date', specificDateString],
+    queryFn: () =>
+      apiFetchJson(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/availability/doctor?date=${specificDateString}`,
+        {
+          token,
+        }
+      ),
+    enabled: !!token && !!specificDateString && showSpecificDayModal,
+    staleTime: 30 * 1000,
+  });
+
+  useEffect(() => {
+    if (!showSpecificDayModal || !selectedDate) return;
+
+    const dayOfWeek = selectedDate.getDay();
+    const templateDay = weeklySchedule.find((d) => d.dayOfWeek === dayOfWeek);
+
+    if (Array.isArray(specificDayResponse) && specificDayResponse.length > 0) {
+      const availability = specificDayResponse[0];
+      setSpecificDayData({
+        startTime: availability.startTime,
+        endTime: availability.endTime,
+        slotDuration: availability.slotDuration,
+        breakTimes: availability.breakTimes || [],
+        isAvailable: availability.isAvailable,
+      });
+      return;
+    }
+
+    setSpecificDayData({
+      startTime: templateDay?.startTime || '09:00',
+      endTime: templateDay?.endTime || '17:00',
+      slotDuration: templateDay?.slotDuration || 30,
+      breakTimes: [],
+      isAvailable: true,
+    });
+  }, [selectedDate, showSpecificDayModal, specificDayResponse, weeklySchedule]);
 
   const toggleDay = (index: number) => {
     setWeeklySchedule(prev => 
@@ -252,81 +309,17 @@ export default function DoctorAvailabilityPage() {
   };
 
   // Open specific day editor
-  const openSpecificDayEditor = async (date: Date) => {
+  const openSpecificDayEditor = (date: Date) => {
     if (!token) {
       setError('Please log in to edit specific days');
       return;
     }
 
     setSelectedDate(date);
+    setSpecificDayData(null);
     setShowSpecificDayModal(true);
-    setLoadingSpecificDay(true);
-
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const dateString = formatLocalDate(date);
-      
-      // Try to fetch existing availability for this specific date
-      const response = await fetch(
-        `${API_URL}/api/availability/doctor?date=${dateString}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data && data.length > 0) {
-          const availability = data[0];
-          setSpecificDayData({
-            startTime: availability.startTime,
-            endTime: availability.endTime,
-            slotDuration: availability.slotDuration,
-            breakTimes: availability.breakTimes || [],
-            isAvailable: availability.isAvailable
-          });
-        } else {
-          // No existing data, use template default for this day
-          const dayOfWeek = date.getDay();
-          const templateDay = weeklySchedule.find(d => d.dayOfWeek === dayOfWeek);
-          setSpecificDayData({
-            startTime: templateDay?.startTime || '09:00',
-            endTime: templateDay?.endTime || '17:00',
-            slotDuration: templateDay?.slotDuration || 30,
-            breakTimes: [],
-            isAvailable: true
-          });
-        }
-      } else {
-        // Response not ok, use template default
-        const dayOfWeek = date.getDay();
-        const templateDay = weeklySchedule.find(d => d.dayOfWeek === dayOfWeek);
-        setSpecificDayData({
-          startTime: templateDay?.startTime || '09:00',
-          endTime: templateDay?.endTime || '17:00',
-          slotDuration: templateDay?.slotDuration || 30,
-          breakTimes: [],
-          isAvailable: true
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching specific day:', err);
-      // Use default values
-      const dayOfWeek = date.getDay();
-      const templateDay = weeklySchedule.find(d => d.dayOfWeek === dayOfWeek);
-      setSpecificDayData({
-        startTime: templateDay?.startTime || '09:00',
-        endTime: templateDay?.endTime || '17:00',
-        slotDuration: templateDay?.slotDuration || 30,
-        breakTimes: [],
-        isAvailable: true
-      });
-    } finally {
-      setLoadingSpecificDay(false);
-    }
+    setError(null);
+    setSuccess(null);
   };
 
   // Save specific day override
@@ -346,102 +339,68 @@ export default function DoctorAvailabilityPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
       const dateString = formatLocalDate(selectedDate);
 
-      // Check if availability exists for this date (including unavailable records)
-      const checkResponse = await fetch(
-        `${API_URL}/api/availability/doctor?date=${dateString}&includeUnavailable=true`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
-
-      let existingAvailability = null;
-      if (checkResponse.ok) {
-        const data = await checkResponse.json();
-        if (data && data.length > 0) {
+      let existingAvailability: { id: string } | null = null;
+      try {
+        const data = await apiFetchJson<AvailabilityRecord[]>(
+          `${API_URL}/api/availability/doctor?date=${dateString}&includeUnavailable=true`,
+          {
+            token,
+          }
+        );
+        if (Array.isArray(data) && data.length > 0) {
           existingAvailability = data[0];
         }
+      } catch {
+        existingAvailability = null;
       }
 
       if (existingAvailability) {
-        // Update existing availability
-        const response = await fetch(
+        const updateResult = await apiFetchJson<AvailabilityResponseMessage>(
           `${API_URL}/api/availability/${existingAvailability.id}`,
           {
             method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
+            token,
             body: JSON.stringify({
               date: dateString,
               startTime: specificDayData.startTime,
               endTime: specificDayData.endTime,
               slotDuration: specificDayData.slotDuration,
               breakTimes: specificDayData.breakTimes,
-              isAvailable: specificDayData.isAvailable
+              isAvailable: specificDayData.isAvailable,
             }),
           }
         );
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('Update failed:', response.status, errorData);
-          console.error('Request payload was:', {
+        if (updateResult?.warning) {
+          setSuccess(`${updateResult.message}. ${updateResult.warning}`);
+        } else {
+          const startTime = updateResult.availability?.startTime || specificDayData.startTime;
+          const endTime = updateResult.availability?.endTime || specificDayData.endTime;
+          setSuccess(
+            `${updateResult.message} - Time: ${startTime} to ${endTime}`
+          );
+        }
+      } else {
+        const result = await apiFetchJson<AvailabilityResponseMessage>(`${API_URL}/api/availability/set`, {
+          method: 'POST',
+          token,
+          body: JSON.stringify({
             date: dateString,
             startTime: specificDayData.startTime,
             endTime: specificDayData.endTime,
             slotDuration: specificDayData.slotDuration,
             breakTimes: specificDayData.breakTimes,
-            isAvailable: specificDayData.isAvailable
-          });
-          throw new Error(errorData.error || errorData.details || `Failed to update specific day (${response.status})`);
-        }
+            isAvailable: specificDayData.isAvailable,
+          }),
+        });
 
-        const updateResult = await response.json();
-        
-        // Show warning if there are existing appointments
-        if (updateResult.warning) {
-          setSuccess(`${updateResult.message}. ${updateResult.warning}`);
-        } else {
-          setSuccess(`${updateResult.message} - Time: ${updateResult.availability.startTime} to ${updateResult.availability.endTime}`);
-        }
-      } else {
-        // Create new availability
-        const response = await fetch(
-          `${API_URL}/api/availability/set`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              date: dateString,
-              startTime: specificDayData.startTime,
-              endTime: specificDayData.endTime,
-              slotDuration: specificDayData.slotDuration,
-              breakTimes: specificDayData.breakTimes,
-              isAvailable: specificDayData.isAvailable
-            }),
-          }
-        );
-
-        console.log('Create response status:', response.status);
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `Failed to create specific day (${response.status})`);
-        }
-        
-        const result = await response.json();
-        
-        // Show warning if there are existing appointments
-        if (result.warning) {
+        if (result?.warning) {
           setSuccess(`${result.message}. ${result.warning}`);
         } else {
-          setSuccess(result.message || `Successfully ${specificDayData.isAvailable ? 'updated' : 'disabled'} availability for ${selectedDate.toLocaleDateString()}`);
+          setSuccess(
+            result.message ||
+              `Successfully ${specificDayData.isAvailable ? 'updated' : 'disabled'} availability for ${selectedDate.toLocaleDateString()}`
+          );
         }
       }
 
@@ -451,7 +410,7 @@ export default function DoctorAvailabilityPage() {
       setSpecificDayData(null);
       
       // Refresh customized dates to update calendar
-      fetchCustomizedDates();
+      refetchCustomizedDates();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save specific day');
     } finally {
@@ -480,25 +439,16 @@ export default function DoctorAvailabilityPage() {
       // Only send ACTIVE days to the backend
       // This ensures only toggled days are managed by the template
       // Other days (inactive/untouched) won't be affected
-      const response = await fetchWithRateLimit(`${API_URL}/api/availability/template`, {
+      const result = await apiFetchJson<AvailabilityResponseMessage>(`${API_URL}/api/availability/template`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        token,
         body: JSON.stringify({ schedule: activeDays }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save schedule');
-      }
-
-      const result = await response.json();
       setSuccess(result.message || 'Weekly schedule saved! Slots generated for next 30 days.');
       
       // Refresh customized dates to reflect changes in the calendar
-      await fetchCustomizedDates();
+      await refetchCustomizedDates();
+      await refetchTemplate();
       
     } catch (err) {
       console.error('Error saving schedule:', err);
@@ -508,7 +458,7 @@ export default function DoctorAvailabilityPage() {
     }
   };
 
-  if (loading) {
+  if (templateLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">

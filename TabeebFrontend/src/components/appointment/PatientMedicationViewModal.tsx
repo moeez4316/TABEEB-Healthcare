@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { FaPills, FaTimes, FaCalendarAlt, FaClock, FaExclamationCircle, FaCheckCircle, FaBan, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 interface Medicine {
   id: string;
@@ -59,57 +61,35 @@ export const PatientMedicationViewModal: React.FC<PatientMedicationViewModalProp
   isEnabled
 }) => {
   const { token } = useAuth();
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [medicationActions, setMedicationActions] = useState<Map<string, MedicationAction>>(new Map());
   const [showStoppedMeds, setShowStoppedMeds] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const fetchPatientMedications = async () => {
-    if (!token) return;
+  const now = new Date();
+  const appointmentDate = new Date(appointmentDateTime);
+  const minutesUntilAppointment = (appointmentDate.getTime() - now.getTime()) / (1000 * 60);
+  const isAccessible = minutesUntilAppointment <= 15 && minutesUntilAppointment >= -60;
 
-    setLoading(true);
-    setError(null);
+  const {
+    data: prescriptionsPayload,
+    isLoading,
+    error,
+    refetch,
+  } = useApiQuery<{ data?: Prescription[] }>({
+    queryKey: ['prescriptions', 'patient', patientId],
+    queryFn: () =>
+      apiFetchJson<{ data?: Prescription[] }>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/prescriptions/patient/${patientId}?page=1&limit=50`,
+        { token }
+      ),
+    enabled: isOpen && isEnabled && isAccessible && !!token && !!patientId,
+    staleTime: 30 * 1000,
+  });
 
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(
-        `${API_URL}/api/prescriptions/patient/${patientId}?page=1&limit=50`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch patient medications');
-      }
-
-      const data = await response.json();
-      
-      // Filter only active prescriptions
-      const activePrescriptions = data.data?.filter(
-        (p: Prescription) => p.isActive
-      ) || [];
-      
-      setPrescriptions(activePrescriptions);
-    } catch (err) {
-      console.error('Error fetching patient medications:', err);
-      setError('Unable to load patient medications');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen && isEnabled) {
-      fetchPatientMedications();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, isEnabled]);
+  const prescriptions = useMemo(() => {
+    const list = prescriptionsPayload?.data || [];
+    return list.filter((prescription) => prescription.isActive);
+  }, [prescriptionsPayload]);
 
   const handleMedicationAction = (prescriptionId: string, medicineId: string, action: 'stop' | 'continue') => {
     const key = `${prescriptionId}-${medicineId}`;
@@ -139,29 +119,20 @@ export const PatientMedicationViewModal: React.FC<PatientMedicationViewModalProp
   const handleSaveChanges = async () => {
     setSaving(true);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      
       // Convert Map to array
       const actions = Array.from(medicationActions.values());
-      
-      const response = await fetch(
-        `${API_URL}/api/appointments/${appointmentId}/medication-review`,
+
+      await apiFetchJson(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/medication-review`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          token,
           body: JSON.stringify({
             actions,
             reviewDate: new Date().toISOString(),
           }),
         }
       );
-
-      if (!response.ok) {
-        throw new Error('Failed to save medication changes');
-      }
 
       // Show success message
       alert('Medication review saved successfully!');
@@ -194,12 +165,6 @@ export const PatientMedicationViewModal: React.FC<PatientMedicationViewModalProp
   };
 
   if (!isOpen) return null;
-
-  // Calculate if button should be enabled (15 minutes before appointment)
-  const now = new Date();
-  const appointmentDate = new Date(appointmentDateTime);
-  const minutesUntilAppointment = (appointmentDate.getTime() - now.getTime()) / (1000 * 60);
-  const isAccessible = minutesUntilAppointment <= 15 && minutesUntilAppointment >= -60;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -242,7 +207,7 @@ export const PatientMedicationViewModal: React.FC<PatientMedicationViewModalProp
                     Medication review is available 15 minutes before the scheduled appointment time.
                   </p>
                 </div>
-              ) : loading ? (
+              ) : isLoading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <p className="text-gray-600 dark:text-gray-400">Loading patient medications...</p>
@@ -250,9 +215,11 @@ export const PatientMedicationViewModal: React.FC<PatientMedicationViewModalProp
               ) : error ? (
                 <div className="text-center py-12">
                   <FaExclamationCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-                  <p className="text-red-600 dark:text-red-400">{error}</p>
+                  <p className="text-red-600 dark:text-red-400">
+                    {error instanceof Error ? error.message : 'Unable to load patient medications'}
+                  </p>
                   <button
-                    onClick={fetchPatientMedications}
+                    onClick={() => void refetch()}
                     className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     Try Again

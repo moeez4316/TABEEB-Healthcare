@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { FaStar, FaRegStar, FaFilter, FaExclamationTriangle, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth-context';
 import { getDoctorReviews, getDoctorRating, Review } from '@/lib/review-api';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
 
 type FilterType = 'all' | 'regular' | 'complaints';
 
@@ -15,59 +16,34 @@ const formatDate = (dateString: string) => {
 
 export default function DoctorReviewsPage() {
   const { token } = useAuth();
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalReviews, setTotalReviews] = useState(0);
-  const [averageRating, setAverageRating] = useState(0);
-  const [ratingCount, setRatingCount] = useState(0);
+  const filterComplaints =
+    filter === 'regular' ? false : filter === 'complaints' ? true : undefined;
 
-  // Fetch rating statistics
-  useEffect(() => {
-    if (!token) return;
+  const { data: ratingData } = useApiQuery({
+    queryKey: ['doctor', 'rating', token],
+    queryFn: () => getDoctorRating(token as string),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  });
 
-    const fetchRating = async () => {
-      try {
-        const data = await getDoctorRating(token);
-        setAverageRating(data.averageRating);
-        setRatingCount(data.totalReviews);
-      } catch (err: unknown) {
-        console.error('Failed to fetch rating:', err);
-      }
-    };
+  const {
+    data: reviewsData,
+    isLoading: loading,
+    error,
+  } = useApiQuery({
+    queryKey: ['doctor', 'reviews', { page: currentPage, filter }],
+    queryFn: () => getDoctorReviews(token as string, currentPage, 10, filterComplaints),
+    enabled: !!token,
+    staleTime: 30 * 1000,
+  });
 
-    fetchRating();
-  }, [token]);
-
-  // Fetch reviews
-  useEffect(() => {
-    if (!token) return;
-
-    const fetchReviews = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const filterComplaints =
-          filter === 'regular' ? false : filter === 'complaints' ? true : undefined;
-
-        const data = await getDoctorReviews(token, currentPage, 10, filterComplaints);
-        setReviews(data.reviews);
-        setTotalPages(data.pagination.totalPages);
-        setTotalReviews(data.pagination.totalReviews);
-      } catch (err: unknown) {
-        const error = err as Error;
-        setError(error.message || 'Failed to load reviews');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchReviews();
-  }, [token, filter, currentPage]);
+  const reviews = (reviewsData?.reviews || []) as Review[];
+  const totalPages = reviewsData?.pagination.totalPages || 1;
+  const totalReviews = reviewsData?.pagination.totalReviews || 0;
+  const averageRating = ratingData?.averageRating || 0;
+  const ratingCount = ratingData?.totalReviews || 0;
 
   const isClosedByPatient = (review: Review) => {
     return review.isComplaint && review.adminActionTaken && 
@@ -207,7 +183,7 @@ export default function DoctorReviewsPage() {
         {/* Error State */}
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-800 dark:text-red-200">
-            {error}
+            {error instanceof Error ? error.message : 'Failed to load reviews'}
           </div>
         )}
 

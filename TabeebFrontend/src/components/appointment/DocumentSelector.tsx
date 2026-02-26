@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { getMedicalRecords } from '@/lib/getMedicalRecords';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 interface MedicalRecord {
   id: string;
@@ -25,30 +26,21 @@ export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
   className = ''
 }) => {
   const { token } = useAuth();
-  const [documents, setDocuments] = useState<MedicalRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchDocuments = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const records = await getMedicalRecords(token!);
-      setDocuments(records);
-    } catch (err) {
-      console.error('Error fetching medical records:', err);
-      setError('Failed to load your medical records');
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    if (token) {
-      fetchDocuments();
-    }
-  }, [token, fetchDocuments]);
+  const {
+    data: documents = [],
+    isLoading,
+    error,
+    refetch,
+  } = useApiQuery<MedicalRecord[]>({
+    queryKey: ['medical-records', token],
+    queryFn: () =>
+      apiFetchJson<MedicalRecord[]>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/records`,
+        { token }
+      ),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  });
 
   const handleDocumentToggle = (documentId: string) => {
     if (selectedDocuments.includes(documentId)) {
@@ -80,7 +72,7 @@ export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={`bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6 ${className}`}>
         <div className="animate-pulse">
@@ -99,12 +91,13 @@ export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
   }
 
   if (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load your medical records';
     return (
       <div className={`bg-white dark:bg-slate-800 rounded-lg border border-red-200 dark:border-red-700 p-6 ${className}`}>
         <div className="text-red-600 dark:text-red-400 text-sm">
-          {error}
+          {message}
           <button
-            onClick={fetchDocuments}
+            onClick={() => void refetch()}
             className="ml-2 text-red-500 hover:text-red-700 underline"
           >
             Try again

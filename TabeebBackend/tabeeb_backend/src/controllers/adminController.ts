@@ -15,6 +15,16 @@ import {
   deleteAdminAccount,
 } from '../services/adminAccessService';
 import { sendAdminCredentialsEmail } from '../services/emailService';
+import {
+  cacheGet,
+  cacheSet,
+  CACHE_TTL_SECONDS,
+  buildCacheKey,
+  buildQuerySignature,
+  invalidateAdminCaches,
+  invalidateDoctorCaches,
+  invalidatePatientCaches,
+} from '../services/cacheService';
 
 const getRequestMeta = (req: Request): { ipAddress: string | null; userAgent: string | null } => {
   const xForwardedFor = req.headers['x-forwarded-for'];
@@ -203,8 +213,16 @@ export const getCurrentAdminProfile = async (req: Request, res: Response) => {
 
 export const getAdminDirectory = async (_req: Request, res: Response) => {
   try {
+    const cacheKey = buildCacheKey('admin', 'admins', 'list');
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
+    }
+
     const admins = await listActiveAdmins();
-    return res.status(200).json({ admins });
+    const response = { admins };
+    await cacheSet(cacheKey, response, CACHE_TTL_SECONDS.adminDirectory);
+    return res.status(200).json(response);
   } catch (error) {
     console.error('Error fetching admin directory:', error);
     return res.status(500).json({ error: 'Failed to fetch admin directory' });
@@ -274,12 +292,15 @@ export const createAdminAccountBySuperAdmin = async (req: Request, res: Response
       createdByName: requesterLabel,
     });
 
-    return res.status(201).json({
+    const response = {
       message: 'Admin account created successfully',
       admin: created,
       emailDelivery: delivery.success ? 'sent' : 'failed',
       emailWarning: delivery.success ? null : 'Admin created, but credential email failed to send.',
-    });
+    };
+
+    await invalidateAdminCaches();
+    return res.status(201).json(response);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create admin account';
     const lowered = message.toLowerCase();
@@ -397,10 +418,13 @@ export const deleteAdminAccountBySuperAdmin = async (req: Request, res: Response
       targetAdminId: adminId,
     });
 
-    return res.status(200).json({
+    const response = {
       message: 'Admin account deleted successfully',
       admin: deleted,
-    });
+    };
+
+    await invalidateAdminCaches();
+    return res.status(200).json(response);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete admin account';
     const lowered = message.toLowerCase();
@@ -460,7 +484,7 @@ export const updateAdminBlockStatus = async (req: Request, res: Response) => {
       await revokeAllSessionsForAdmin(adminId, 'admin_blocked');
     }
 
-    return res.status(200).json({
+    const response = {
       message: blocked ? 'Admin blocked successfully' : 'Admin unblocked successfully',
       admin: {
         id: updated.id,
@@ -471,7 +495,10 @@ export const updateAdminBlockStatus = async (req: Request, res: Response) => {
         blockedAt: updated.blockedAt,
         blockedReason: updated.blockedReason,
       },
-    });
+    };
+
+    await invalidateAdminCaches();
+    return res.status(200).json(response);
   } catch (error) {
     console.error('Error updating admin block status:', error);
     return res.status(500).json({ error: 'Failed to update admin block status' });
@@ -481,6 +508,12 @@ export const updateAdminBlockStatus = async (req: Request, res: Response) => {
 // Get dashboard statistics for admin
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
+    const cacheKey = buildCacheKey('admin', 'dashboard', 'stats');
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     // Import prisma here to avoid circular dependencies
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
@@ -534,8 +567,9 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     };
 
     await prisma.$disconnect();
-    
+
     res.json(stats);
+    await cacheSet(cacheKey, stats, CACHE_TTL_SECONDS.adminDashboardStats);
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
@@ -545,6 +579,13 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 // Get all users (doctors and patients) for admin management
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
+    const querySignature = buildQuerySignature(req.query as Record<string, unknown>);
+    const cacheKey = buildCacheKey('admin', 'users', 'list', querySignature);
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
 
@@ -609,7 +650,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
     await prisma.$disconnect();
 
-    res.json({
+    const response = {
       users,
       pagination: {
         total: totalDoctors + totalPatients,
@@ -619,7 +660,10 @@ export const getAllUsers = async (req: Request, res: Response) => {
         limit: Number(limit),
         totalPages: Math.ceil((totalDoctors + totalPatients) / Number(limit))
       }
-    });
+    };
+
+    res.json(response);
+    await cacheSet(cacheKey, response, CACHE_TTL_SECONDS.adminUsersList);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
@@ -652,11 +696,13 @@ export const suspendUser = async (req: Request, res: Response) => {
       });
       
       await prisma.$disconnect();
-      return res.json({ 
+      const response = { 
         message: 'Doctor account suspended successfully',
         user: { ...doctor, role: 'doctor' },
         reason
-      });
+      };
+      await invalidateDoctorCaches(uid);
+      return res.json(response);
     } else if (role === 'patient') {
       const patient = await prisma.patient.update({
         where: { uid },
@@ -671,11 +717,13 @@ export const suspendUser = async (req: Request, res: Response) => {
       });
       
       await prisma.$disconnect();
-      return res.json({ 
+      const response = { 
         message: 'Patient account suspended successfully',
         user: { ...patient, role: 'patient' },
         reason
-      });
+      };
+      await invalidatePatientCaches(uid);
+      return res.json(response);
     }
 
     await prisma.$disconnect();
@@ -712,10 +760,12 @@ export const activateUser = async (req: Request, res: Response) => {
       });
       
       await prisma.$disconnect();
-      return res.json({ 
+      const response = { 
         message: 'Doctor account activated successfully',
         user: { ...doctor, role: 'doctor' }
-      });
+      };
+      await invalidateDoctorCaches(uid);
+      return res.json(response);
     } else if (role === 'patient') {
       const patient = await prisma.patient.update({
         where: { uid },
@@ -730,10 +780,12 @@ export const activateUser = async (req: Request, res: Response) => {
       });
       
       await prisma.$disconnect();
-      return res.json({ 
+      const response = { 
         message: 'Patient account activated successfully',
         user: { ...patient, role: 'patient' }
-      });
+      };
+      await invalidatePatientCaches(uid);
+      return res.json(response);
     }
 
     await prisma.$disconnect();
@@ -747,6 +799,12 @@ export const activateUser = async (req: Request, res: Response) => {
 // Get all doctors for admin
 export const getAllDoctors = async (req: Request, res: Response) => {
   try {
+    const cacheKey = buildCacheKey('admin', 'doctors', 'list');
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
 
@@ -796,10 +854,13 @@ export const getAllDoctors = async (req: Request, res: Response) => {
 
     await prisma.$disconnect();
 
-    res.json({
+    const response = {
       doctors: mappedDoctors,
       total: mappedDoctors.length
-    });
+    };
+
+    res.json(response);
+    await cacheSet(cacheKey, response, CACHE_TTL_SECONDS.adminDoctorsList);
   } catch (error) {
     console.error('Error fetching doctors:', error);
     res.status(500).json({ error: 'Failed to fetch doctors' });

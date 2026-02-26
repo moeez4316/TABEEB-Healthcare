@@ -46,8 +46,7 @@ export interface VerificationValidation {
 export const VALIDATION_RULES = {
   PMDC_NUMBER: {
     required: true,
-    pattern: /^\d{1,10}-[A-Z]{1,10}$/i,
-    message: 'PMDC number must be in format: digits followed by dash and letters (e.g., 100327-P or 1004-AJK)',
+    message: 'Registration/license number is required',
   },
   CNIC_NUMBER: {
     required: true,
@@ -76,12 +75,12 @@ export const VALIDATION_RULES = {
     required: true,
     maxSize: 5 * 1024 * 1024, // 5MB
     acceptedTypes: ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'],
-    message: 'Degree certificate must be an image (JPG, PNG) or PDF file under 5MB',
+    message: 'Qualification/degree certificate must be an image (JPG, PNG) or PDF file under 5MB',
   },
   PMDC_CERTIFICATE: {
     required: true,
     maxSize: 5 * 1024 * 1024, // 5MB
     acceptedTypes: ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'],
-    message: 'PMDC certificate must be an image (JPG, PNG) or PDF file under 5MB',
+    message: 'Registration/council certificate must be an image (JPG, PNG) or PDF file under 5MB',
   },
 };

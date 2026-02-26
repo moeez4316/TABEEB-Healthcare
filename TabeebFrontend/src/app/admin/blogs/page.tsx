@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAdminBlogs } from '@/lib/hooks/useBlog';
 import { toggleBlogFeatured, adminDeleteBlog } from '@/lib/api/blog-api';
 import { BlogFilters } from '@/types/blog';
@@ -12,7 +12,6 @@ import {
   Clock, 
   CheckCircle, 
   AlertCircle,
-  Loader2,
   Calendar,
   TrendingUp,
   PlusCircle
@@ -21,6 +20,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useQueryClient } from '@tanstack/react-query';
 import { blogKeys } from '@/lib/hooks/useBlog';
+import AdminLoading from '@/components/admin/AdminLoading';
+import AdminPageShell from '@/components/admin/AdminPageShell';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 export default function AdminBlogsPage() {
   const [adminToken, setAdminToken] = useState<string>('');
@@ -76,37 +78,38 @@ export default function AdminBlogsPage() {
     }
   };
 
-  // Calculate stats
-  const stats = {
-    total: data?.blogs.length || 0,
-    published: data?.blogs.filter(b => b.status === 'PUBLISHED').length || 0,
-    drafts: data?.blogs.filter(b => b.status === 'DRAFT').length || 0,
-    featured: data?.blogs.filter(b => b.isFeatured).length || 0,
-    totalViews: data?.blogs.reduce((sum, b) => sum + b.viewCount, 0) || 0,
-  };
+  const stats = useMemo(() => {
+    const blogs = data?.blogs ?? [];
+    return blogs.reduce(
+      (acc, blog) => {
+        acc.total += 1;
+        if (blog.status === 'PUBLISHED') acc.published += 1;
+        if (blog.status === 'DRAFT') acc.drafts += 1;
+        if (blog.isFeatured) acc.featured += 1;
+        acc.totalViews += blog.viewCount;
+        return acc;
+      },
+      { total: 0, published: 0, drafts: 0, featured: 0, totalViews: 0 }
+    );
+  }, [data]);
 
   const displayedBlogs = data?.blogs || [];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6">
-      {/* Header */}
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Blog Management
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage all blog posts, set featured articles, and moderate content
-          </p>
-        </div>
-        <Link 
-          href="/admin/blogs/write"
-          className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors shadow-lg"
-        >
-          <PlusCircle className="w-5 h-5" />
-          <span>Create Blog</span>
-        </Link>
-      </div>
+    <AdminPageShell>
+      <AdminPageHeader
+        title="Blog Management"
+        subtitle="Publish, feature, and moderate editorial content across the platform."
+        actions={
+          <Link
+            href="/admin/blogs/write"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold"
+          >
+            <PlusCircle className="w-5 h-5" />
+            Create Blog
+          </Link>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -214,11 +217,7 @@ export default function AdminBlogsPage() {
       </div>
 
       {/* Loading */}
-      {isLoading && (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
-        </div>
-      )}
+      {isLoading && <AdminLoading variant="section" title="Loading Blogs" subtitle="Fetching latest posts..." />}
 
       {/* Error */}
       {error && (
@@ -360,6 +359,6 @@ export default function AdminBlogsPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPageShell>
   );
 }

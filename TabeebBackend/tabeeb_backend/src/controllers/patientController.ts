@@ -3,6 +3,14 @@ import prisma from '../lib/prisma';
 import { deleteFromCloudinary, verifyPublicIdOwnership, buildCloudinaryUrl } from '../services/uploadService';
 import { v2 as cloudinary } from 'cloudinary';
 import { normalizePhoneForDB, formatPhoneForDisplay } from '../utils/phoneUtils';
+import {
+  cacheGet,
+  cacheSet,
+  CACHE_TTL_SECONDS,
+  buildCacheKey,
+  invalidatePatientCaches,
+  invalidateAdminCaches,
+} from '../services/cacheService';
 
 export const createPatient = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
@@ -152,6 +160,7 @@ export const createPatient = async (req: Request, res: Response) => {
     });
 
     res.status(201).json(patient);
+    await invalidateAdminCaches();
 
   } catch (error: unknown) {
     console.error('Create patient error:', error);
@@ -180,6 +189,16 @@ export const getPatient = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
   
   try {
+    if (!uid) {
+      return res.status(400).json({ error: 'User UID is required' });
+    }
+
+    const cacheKey = buildCacheKey('patient', 'profile', uid);
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     const patient = await prisma.patient.findUnique({ where: { uid } });
     if (!patient || !patient.isActive) return res.status(404).json({ error: 'Patient not found or deactivated' });
 
@@ -231,6 +250,7 @@ export const getPatient = async (req: Request, res: Response) => {
     };
 
     res.json(formattedPatient);
+    await cacheSet(cacheKey, formattedPatient, CACHE_TTL_SECONDS.patientProfile);
   } catch (error) {
     console.error('Get patient error:', error);
     res.status(500).json({ error: 'Failed to fetch patient profile' });
@@ -324,6 +344,9 @@ export const updatePatient = async (req: Request, res: Response) => {
       },
     });
     res.json(patient);
+    if (uid) {
+      await invalidatePatientCaches(uid);
+    }
   } catch (error) {
     console.error('Update patient error:', error);
     
@@ -402,6 +425,7 @@ export const updatePatientProfileImage = async (req: Request, res: Response) => 
       imageUrl,
       publicId
     });
+    await invalidatePatientCaches(uid);
 
   } catch (error) {
     console.error('Update profile image error:', error);
@@ -436,6 +460,7 @@ export const deletePatientProfileImage = async (req: Request, res: Response) => 
     });
 
     res.json({ message: 'Profile image deleted successfully' });
+    await invalidatePatientCaches(uid);
 
   } catch (error) {
     console.error('Delete profile image error:', error);
@@ -475,6 +500,7 @@ export const deletePatient = async (req: Request, res: Response) => {
         isActive: false
       }
     });
+    await invalidatePatientCaches(uid);
   } catch (error) {
     console.error('Error deactivating patient profile:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -511,6 +537,7 @@ export const restorePatient = async (req: Request, res: Response) => {
         isActive: patient.isActive
       }
     });
+    await invalidatePatientCaches(uid);
   } catch (error) {
     console.error('Error restoring patient profile:', error);
     res.status(500).json({ error: 'Failed to restore patient profile' });

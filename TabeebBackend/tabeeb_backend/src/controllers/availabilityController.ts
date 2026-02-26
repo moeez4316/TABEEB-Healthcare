@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { generateAvailableSlots, generateAllSlots } from '../utils/slotGenerator';
+import { invalidateDoctorAvailabilityCache } from '../services/cacheService';
 
 // Set doctor availability (simplified - no time slot generation)
 export const setDoctorAvailability = async (req: Request, res: Response) => {
@@ -92,6 +93,7 @@ export const setDoctorAvailability = async (req: Request, res: Response) => {
       message: 'Availability set successfully with break times',
       note: 'Time slots are generated on-demand when requested'
     });
+    await invalidateDoctorAvailabilityCache(doctorUid);
 
   } catch (error) {
     console.error('Error setting doctor availability:', error);
@@ -412,6 +414,7 @@ export const updateAvailability = async (req: Request, res: Response) => {
         ? 'Existing appointments are preserved and accessible to both doctor and patients'
         : 'Changes will apply to this specific day only'
     });
+    await invalidateDoctorAvailabilityCache(doctorUid);
 
   } catch (error) {
     res.status(500).json({ 
@@ -469,6 +472,7 @@ export const deleteAvailability = async (req: Request, res: Response) => {
       existingAppointmentsCount: existingAppointments.length,
       note: 'Existing appointments remain active and accessible to both doctor and patients'
     });
+    await invalidateDoctorAvailabilityCache(doctorUid);
 
   } catch (error) {
     console.error('Error deleting availability:', error);
@@ -778,6 +782,7 @@ export const saveWeeklyTemplate = async (req: Request, res: Response) => {
       slotsGenerated: slotsGenerated.length,
       generatedDates: slotsGenerated
     });
+    await invalidateDoctorAvailabilityCache(doctorUid);
 
   } catch (error) {
     console.error('Error saving weekly template:', error);

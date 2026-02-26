@@ -9,7 +9,6 @@ import ProfileImageUpload from "@/components/shared/ProfileImageUpload";
 import { formatPhoneNumber, isValidEmail, isValidPhoneNumber, pakistaniMedicalSpecializations, pakistaniMedicalQualifications } from "@/lib/profile-utils";
 import { APP_CONFIG } from "@/lib/config/appConfig";
 import { uploadFile } from "@/lib/cloudinary-upload";
-import { LinearProgress } from "@/components/shared/UploadProgress";
 import { fetchWithRateLimit } from "@/lib/api-utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;

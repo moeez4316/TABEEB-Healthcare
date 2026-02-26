@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2, KeyRound, Lock } from 'lucide-react';
+import { useAdminMe } from '@/lib/hooks/useAdminQueries';
+import { apiFetchJson, ApiError } from '@/lib/api-client';
+import AdminAuthShell from '@/components/admin/AdminAuthShell';
+import AdminLoading from '@/components/admin/AdminLoading';
 
 interface AdminProfilePayload {
   admin?: {
@@ -35,7 +39,6 @@ const readCachedAdminUser = (): Record<string, unknown> => {
 
 export default function AdminChangePasswordPage() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -45,55 +48,44 @@ export default function AdminChangePasswordPage() {
   const [success, setSuccess] = useState('');
 
   const apiBase = useMemo(() => `${process.env.NEXT_PUBLIC_API_URL}/api/admin`, []);
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
+  const { data: adminMe, isLoading, error: adminError } = useAdminMe(adminToken, !!adminToken);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        router.push('/admin/login');
-        return;
-      }
+    if (!adminToken) {
+      router.push('/admin/login');
+    }
+  }, [adminToken, router]);
 
-      try {
-        const response = await fetch(`${apiBase}/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+  useEffect(() => {
+    const status = (adminError as ApiError | undefined)?.status;
+    if (status === 401) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      router.push('/admin/login');
+    }
+    if (adminError) {
+      setError(adminError instanceof Error ? adminError.message : 'Failed to verify admin session');
+    }
+  }, [adminError, router]);
 
-        if (!response.ok) {
-          if (response.status === 401) {
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminUser');
-            router.push('/admin/login');
-            return;
-          }
-          throw new Error('Failed to verify admin session');
-        }
+  useEffect(() => {
+    const payload = adminMe as AdminProfilePayload | undefined;
+    const admin = payload?.admin || {};
+    setMustChangePassword(Boolean(admin.mustChangePassword));
 
-        const payload = (await response.json()) as AdminProfilePayload;
-        const admin = payload.admin || {};
-
-        setMustChangePassword(Boolean(admin.mustChangePassword));
-
-        const cached = readCachedAdminUser();
-        localStorage.setItem(
-          'adminUser',
-          JSON.stringify({
-            ...cached,
-            ...admin,
-            mustChangePassword: Boolean(admin.mustChangePassword),
-          })
-        );
-      } catch (fetchError) {
-        setError(fetchError instanceof Error ? fetchError.message : 'Failed to verify admin session');
-      } finally {
-        setChecking(false);
-      }
-    };
-
-    void loadProfile();
-  }, [apiBase, router]);
+    const cached = readCachedAdminUser();
+    if (payload?.admin) {
+      localStorage.setItem(
+        'adminUser',
+        JSON.stringify({
+          ...cached,
+          ...admin,
+          mustChangePassword: Boolean(admin.mustChangePassword),
+        })
+      );
+    }
+  }, [adminMe]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -113,35 +105,20 @@ export default function AdminChangePasswordPage() {
     setSubmitting(true);
 
     try {
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
+      if (!adminToken) {
         router.push('/admin/login');
         return;
       }
 
-      const response = await fetch(`${apiBase}/password/change`, {
+      await apiFetchJson(`${apiBase}/password/change`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        token: adminToken,
         body: JSON.stringify({
           currentPassword,
           newPassword,
           confirmNewPassword: confirmPassword,
         }),
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('adminUser');
-          router.push('/admin/login');
-          return;
-        }
-        throw new Error(data.error || 'Failed to change password');
-      }
 
       const cached = readCachedAdminUser();
       localStorage.setItem(
@@ -167,26 +144,29 @@ export default function AdminChangePasswordPage() {
     }
   };
 
-  if (checking) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-4">
-        <p className="text-sm text-slate-600 dark:text-slate-300">Checking admin session...</p>
-      </div>
+      <AdminLoading title="Checking Session" subtitle="Verifying admin access..." />
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-8">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 flex items-center justify-center">
-            <KeyRound className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Change Admin Password</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Secure your account before continuing.</p>
-          </div>
+    <AdminAuthShell
+      title="Change Password"
+      subtitle={
+        mustChangePassword
+          ? 'You must update your password before continuing.'
+          : 'Securely update your admin password.'
+      }
+    >
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-2xl bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 flex items-center justify-center">
+          <KeyRound className="w-5 h-5" />
         </div>
+        <div className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
+          Secure Update
+        </div>
+      </div>
 
         {mustChangePassword && (
           <div className="mb-4 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-200 text-sm">
@@ -271,7 +251,6 @@ export default function AdminChangePasswordPage() {
             {submitting ? 'Updating password...' : 'Update Password'}
           </button>
         </form>
-      </div>
-    </div>
+    </AdminAuthShell>
   );
 }
