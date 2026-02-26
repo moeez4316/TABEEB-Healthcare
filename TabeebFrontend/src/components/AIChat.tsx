@@ -1013,7 +1013,7 @@ export default function AIChat() {
                     </button>
                   </div>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
-                    TABEEB AI provides general medical information only. Always consult a healthcare professional for medical advice.
+                    ⚠️ TABEEB AI is not a doctor. Please verify any health information with a qualified healthcare provider.
                   </p>
                 </div>
               </div>
