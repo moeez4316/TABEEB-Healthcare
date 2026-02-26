@@ -122,15 +122,47 @@ export default function AuthPage() {
     } else if (searchParams.get('deleted') === 'true') {
       setSuccess('Your account has been successfully deleted.');
     } else if (searchParams.get('reset') === 'true') {
-      // Coming from magic link — OTP already verified, jump to new password step
+      // Coming from magic link — validate OTP before allowing reset
       const resetEmailParam = searchParams.get('email') || '';
       const resetCodeParam = searchParams.get('code') || '';
       setMode('reset');
       setResetMethod('email');
       setResetEmail(resetEmailParam);
       setOtpCode(resetCodeParam);
-      setResetStep('new-password');
-      setSuccess('Code verified! Set your new password.');
+      setError('');
+      setSuccess('');
+
+      if (!resetEmailParam || !resetCodeParam) {
+        setResetStep('email-input');
+        setError('Invalid reset link. Please request a new code.');
+        return;
+      }
+
+      (async () => {
+        try {
+          setLoading(true);
+          const res = await fetch(`${API_URL}/api/auth/validate-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: resetEmailParam, code: resetCodeParam, type: 'PASSWORD_RESET' }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setResetStep('otp');
+            setOtpCode('');
+            setError(data.error || 'This reset link has expired or is invalid. Please request a new code.');
+            return;
+          }
+          setResetStep('new-password');
+          setSuccess('Code verified! Set your new password.');
+        } catch {
+          setResetStep('otp');
+          setOtpCode('');
+          setError('Network error. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      })();
     }
   }, [searchParams]);
 
@@ -283,6 +315,9 @@ export default function AuthPage() {
     }
   };
 
+  const buildPhoneEmail = (phone: string) =>
+    `${phone.replace(/[^0-9+]/g, '')}@tabeeb.phone`;
+
   const handlePasswordReset = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -340,10 +375,44 @@ export default function AuthPage() {
       setError('Please enter a 6-digit code.');
       return;
     }
-    // OTP will be verified together with password reset
-    setError('');
-    setSuccess('');
-    setResetStep('new-password');
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+
+      let targetEmail = '';
+      if (resetMethod === 'email') {
+        if (!resetEmail.trim()) {
+          setError('Missing email. Please request a new code.');
+          return;
+        }
+        targetEmail = resetEmail;
+      } else {
+        if (!resetPhone || !isValidPhoneNumber(resetPhone)) {
+          setError('Missing or invalid phone number. Please request a new code.');
+          return;
+        }
+        targetEmail = buildPhoneEmail(resetPhone);
+      }
+
+      const res = await fetch(`${API_URL}/api/auth/validate-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail, code: otpCode, type: 'PASSWORD_RESET' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Invalid or expired code.');
+        return;
+      }
+
+      setSuccess('Code verified! Set your new password.');
+      setResetStep('new-password');
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSetNewPassword = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -1145,3 +1214,4 @@ export default function AuthPage() {
     </div>
   );
 }
+

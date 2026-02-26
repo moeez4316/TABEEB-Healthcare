@@ -62,8 +62,10 @@ export async function generateOtp(email: string, type: OtpType): Promise<{ code:
 export async function verifyOtp(
   email: string,
   code: string,
-  type: OtpType
+  type: OtpType,
+  options?: { consume?: boolean }
 ): Promise<{ valid: boolean; error?: string }> {
+  const consume = options?.consume !== false;
   const otp = await prisma.otpCode.findFirst({
     where: {
       email: email.toLowerCase(),
@@ -87,11 +89,13 @@ export async function verifyOtp(
     return { valid: false, error: 'OTP code has expired. Please request a new one.' };
   }
 
-  // Mark OTP as used
-  await prisma.otpCode.update({
-    where: { id: otp.id },
-    data: { used: true },
-  });
+  if (consume) {
+    // Mark OTP as used
+    await prisma.otpCode.update({
+      where: { id: otp.id },
+      data: { used: true },
+    });
+  }
 
   return { valid: true };
 }

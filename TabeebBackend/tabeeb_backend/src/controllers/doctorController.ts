@@ -119,13 +119,12 @@ export const createDoctor = async (req: Request, res: Response) => {
 
     // Create database records in a transaction (atomic operation)
     const doctor = await prisma.$transaction(async (tx) => {
-      // Check if user already exists, if not create it
-      const existingUser = await tx.user.findUnique({ where: { uid: uid as string } });
-      if (!existingUser) {
-        await tx.user.create({
-          data: { uid: uid as string, role: 'doctor' }
-        });
-      }
+      // Create or update User record to ensure role consistency
+      await tx.user.upsert({
+        where: { uid: uid as string },
+        create: { uid: uid as string, role: 'doctor' },
+        update: { role: 'doctor' }
+      });
       
       // Create Doctor record (now safe since we checked for conflicts)
       const newDoctor = await tx.doctor.create({

@@ -121,6 +121,39 @@ export const verifyOtpCode = async (req: Request, res: Response): Promise<void> 
 };
 
 // ========================================
+// VALIDATE OTP (Password Reset Only - Non-consuming)
+// ========================================
+
+export const validateOtpCode = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, code, type } = req.body;
+
+    if (!email || !code || !type) {
+      res.status(400).json({ error: 'Email, code, and type are required.' });
+      return;
+    }
+
+    if (type !== 'PASSWORD_RESET') {
+      res.status(400).json({ error: 'Invalid OTP type. Must be PASSWORD_RESET.' });
+      return;
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const result = await verifyOtp(normalizedEmail, String(code), 'PASSWORD_RESET', { consume: false });
+
+    if (!result.valid) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+
+    res.json({ message: 'OTP is valid.', verified: true });
+  } catch (error) {
+    console.error('Validate OTP error:', error);
+    res.status(500).json({ error: 'An error occurred. Please try again.' });
+  }
+};
+
+// ========================================
 // MAGIC LINK VERIFY (GET — from email link click)
 // ========================================
 
@@ -141,7 +174,10 @@ export const verifyMagicLink = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const result = await verifyOtp(normalizedEmail, code as string, otpType as 'EMAIL_VERIFY' | 'PASSWORD_RESET');
+    const shouldConsume = otpType === 'EMAIL_VERIFY';
+    const result = await verifyOtp(normalizedEmail, code as string, otpType as 'EMAIL_VERIFY' | 'PASSWORD_RESET', {
+      consume: shouldConsume
+    });
 
     if (!result.valid) {
       res.redirect(`${FRONTEND_URL}/auth/verify?error=invalid_code&type=${otpType}`);

@@ -397,6 +397,18 @@ export default function SelectRolePage() {
         }, 1500);
       } else {
         const errorData = await createRes.json().catch(() => ({}));
+        if (createRes.status === 409 && errorData.existing) {
+          setUserRole(role);
+          setSuccess("Profile already exists. Redirecting...");
+          setTimeout(() => {
+            if (role === "doctor") {
+              router.replace(getDoctorRedirectPath(verificationStatus));
+            } else {
+              router.replace("/Patient/dashboard");
+            }
+          }, 1200);
+          return;
+        }
         setError(errorData.error || errorData.message || "Failed to create profile. Please try again.");
       }
       
