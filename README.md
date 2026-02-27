@@ -1631,21 +1631,13 @@ chmod +x nginx/init-letsencrypt.sh
 ```
 
 This provisions certificates and reloads Nginx. If `LETSENCRYPT_EMAIL` is missing or `SITE_ADDRESS` is `localhost`, a self-signed cert is used.
-Certbot is not started automatically; for renewals run:
+Certbot is manual-only. For renewals run:
 ```bash
 docker compose --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
 ```
 For prebuilt deployments:
 ```bash
 docker compose -f docker-compose.prebuilt.yml --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
-```
-If you want a background renewal container, start it with:
-```bash
-docker compose --profile tools up -d certbot
-```
-For prebuilt:
-```bash
-docker compose -f docker-compose.prebuilt.yml --profile tools up -d certbot
 ```
 Ensure DNS points to your server and port 80 is reachable for the HTTP-01 challenge.
 

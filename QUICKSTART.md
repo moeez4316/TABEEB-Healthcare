@@ -104,7 +104,7 @@ chmod +x nginx/init-letsencrypt.sh
 If you skip this on first run, Nginx will fail to start because certificates are missing.
 If `LETSENCRYPT_EMAIL` is not set, the script will fall back to a self-signed certificate.
 Make sure DNS points to your server and port 80 is reachable for the HTTP-01 challenge.
-Certbot is not started automatically. For renewals:
+Certbot is manual-only. For renewals:
 ```bash
 docker compose --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
 ```
