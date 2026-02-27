@@ -212,6 +212,7 @@ If you are using prebuilt images:
 ```
 
 If you plan to use `deploy-prebuilt.sh`, run this step first. The script now expects certificates to already exist.
+`deploy-prebuilt.sh` also installs/updates a host cron entry for automatic renewal.
 
 If you skip this on first run, Nginx will fail to start because certificates are missing.
 If `LETSENCRYPT_EMAIL` is not set, the script will fall back to a self-signed certificate.

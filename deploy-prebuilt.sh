@@ -4,8 +4,14 @@
 
 set -e
 
-if [ -z "$SITE_ADDRESS" ] && [ -f ./.env ]; then
-    SITE_ADDRESS=$(grep -E "^SITE_ADDRESS=" ./.env | head -n1 | cut -d= -f2- | sed 's/^"//;s/"$//')
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DOCKER_BIN="$(command -v docker || true)"
+if [ -z "$DOCKER_BIN" ]; then
+    DOCKER_BIN="/usr/bin/docker"
+fi
+
+if [ -z "$SITE_ADDRESS" ] && [ -f "$ROOT_DIR/.env" ]; then
+    SITE_ADDRESS=$(grep -E "^SITE_ADDRESS=" "$ROOT_DIR/.env" | head -n1 | cut -d= -f2- | sed 's/^"//;s/"$//')
 fi
 
 if [ -z "$SITE_ADDRESS" ]; then
@@ -43,7 +49,7 @@ echo "Running database migrations..."
 docker compose -f docker-compose.prebuilt.yml run --rm \
   backend npx prisma migrate deploy
 
-cert_dir="./nginx/certbot/conf/live/${SITE_ADDRESS}"
+cert_dir="$ROOT_DIR/nginx/certbot/conf/live/${SITE_ADDRESS}"
 if [ ! -f "$cert_dir/fullchain.pem" ]; then
     echo "❌ Missing TLS certificates for $SITE_ADDRESS."
     echo "   Run: ./nginx/init-letsencrypt.sh docker-compose.prebuilt.yml"
@@ -54,7 +60,31 @@ fi
 echo "🚀 Starting all services..."
 docker compose -f docker-compose.prebuilt.yml up -d
 
-# Step 7: Show status
+# Step 7: Ensure Certbot renewal cron (host)
+if [ "$SITE_ADDRESS" != "localhost" ] && [ -f "$cert_dir/fullchain.pem" ]; then
+    echo "Setting up Certbot renewal cron..."
+    cat > "$ROOT_DIR/nginx/renew-certbot.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$ROOT_DIR"
+
+$DOCKER_BIN compose -f docker-compose.prebuilt.yml --profile tools run --rm certbot renew \\
+  --webroot -w /var/www/certbot --quiet
+
+$DOCKER_BIN compose -f docker-compose.prebuilt.yml exec -T nginx nginx -s reload
+EOF
+    chmod +x "$ROOT_DIR/nginx/renew-certbot.sh"
+
+    if command -v crontab >/dev/null 2>&1; then
+        cron_line="15 3 * * * $ROOT_DIR/nginx/renew-certbot.sh >> $ROOT_DIR/nginx/renew-certbot.log 2>&1"
+        ( crontab -l 2>/dev/null | grep -v 'renew-certbot.sh' ; echo "$cron_line" ) | crontab -
+    else
+        echo "WARNING: crontab not found; install cron to enable auto-renew."
+    fi
+fi
+
+# Step 8: Show status
 echo ""
 echo "✅ Deployment complete!"
 docker compose -f docker-compose.prebuilt.yml ps
@@ -65,6 +95,7 @@ else
     echo "🌐 Your app should be live at: http://localhost"
 fi
 echo "🔧 Health check: curl http://localhost:5002/api/health"
+
 
 
 

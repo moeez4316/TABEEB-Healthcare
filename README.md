@@ -520,6 +520,7 @@ docker-compose -f docker-compose.prebuilt.yml up -d
 ```
 
 If you plan to use HTTPS with Nginx, run `nginx/init-letsencrypt.sh` first (or ensure certs exist). The `deploy-prebuilt.sh` script now expects certificates to already exist.
+`deploy-prebuilt.sh` also installs/updates a host cron entry for automatic renewal.
 
 #### Windows Users
 

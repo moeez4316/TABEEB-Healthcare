@@ -113,6 +113,7 @@ For prebuilt deployments:
 docker compose -f docker-compose.prebuilt.yml --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
 ```
 If you use `deploy-prebuilt.sh`, run this step first. The script expects certificates to already exist.
+`deploy-prebuilt.sh` also installs/updates a host cron entry for automatic renewal.
 
 ### 6. Verify Deployment
 ```bash
