@@ -40,6 +40,12 @@ if [ "$SITE_ADDRESS" = "localhost" ] || [ -z "$LETSENCRYPT_EMAIL" ]; then
   exit 0
 fi
 
+# Remove the temporary self-signed cert so Certbot can create a proper lineage.
+if [ -f "$live_path/fullchain.pem" ] && [ ! -L "$live_path/fullchain.pem" ]; then
+  echo "Removing temporary self-signed certificate..."
+  rm -rf "$live_path"
+fi
+
 echo "Requesting Let's Encrypt certificate for $SITE_ADDRESS..."
 docker compose -f "$compose_file" run --rm certbot certonly \
   --webroot -w /var/www/certbot \
