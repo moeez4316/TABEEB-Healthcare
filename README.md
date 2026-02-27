@@ -318,7 +318,7 @@ The platform serves three distinct user types, each with specialized interfaces 
 |---------|---------|
 | **Vercel** | Frontend hosting with automatic deployments |
 | **Railway** | Backend hosting with database management |
-| **Caddy** | Reverse proxy with automatic HTTPS |
+| **Nginx** | Reverse proxy |
 | **GitHub Actions** | CI/CD pipeline |
 | **Cloudinary CDN** | Global content delivery network |
 | **Firebase Hosting** | Alternative frontend hosting |
@@ -437,7 +437,9 @@ TABEEB-Healthcare/
 ├── 🐳 Docker Configuration            # Container orchestration
 │   ├── docker-compose.yml            # Development compose file
 │   ├── docker-compose.prebuilt.yml   # Production compose file
-│   └── Caddyfile                     # Caddy reverse proxy config
+│   └── nginx/                        # Nginx reverse proxy config
+    default.conf.template
+    init-letsencrypt.sh
 │
 ├── 📜 Deployment Scripts              # Deployment automation
 │   ├── build-and-push.sh             # Linux/Mac build script
@@ -1428,7 +1430,9 @@ The `docker-compose.yml` includes:
 - **Backend**: Express.js API (port 5000)
 - **MySQL**: Database (port 3306)
 - **MongoDB**: Document database (port 27017)
-- **Caddy**: Reverse proxy with automatic HTTPS (port 80, 443)
+- **Nginx**: Reverse proxy (ports 80, 443)
+- **Certbot**: Let's Encrypt client (SSL certificates)
+- **Certbot**: Let's Encrypt client (SSL certificates)
 
 #### Custom Docker Build
 
@@ -1610,7 +1614,7 @@ This script will:
 2. Install dependencies
 3. Configure firewall
 4. Deploy application with Docker
-5. Setup automatic SSL with Caddy
+5. Setup Nginx reverse proxy
 
 ---
 
@@ -1618,38 +1622,42 @@ This script will:
 
 #### Using Certbot (Let's Encrypt)
 
+Set `SITE_ADDRESS` and `LETSENCRYPT_EMAIL` in `.env`, then run:
+
 ```bash
-# Install Certbot
-sudo apt-get install certbot python3-certbot-nginx
-
-# Get SSL certificate
-sudo certbot --nginx -d your-domain.com -d www.your-domain.com
-
-# Auto-renewal test
-sudo certbot renew --dry-run
+chmod +x nginx/init-letsencrypt.sh
+./nginx/init-letsencrypt.sh
 ```
 
-#### Using Caddy (Automatic HTTPS)
+This provisions certificates and reloads Nginx. If `LETSENCRYPT_EMAIL` is missing or `SITE_ADDRESS` is `localhost`, a self-signed cert is used. Renewal runs in the `certbot` container when using Let's Encrypt.
+Ensure DNS points to your server and port 80 is reachable for the HTTP-01 challenge.
 
-Caddy in `docker-compose.yml` automatically handles SSL:
+#### Nginx Service (Docker)
 
 ```yaml
-caddy:
-  image: caddy:2
+nginx:
+  image: nginx:1.27-alpine
   ports:
     - "80:80"
     - "443:443"
   volumes:
-    - ./Caddyfile:/etc/caddy/Caddyfile
+    - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    - ./nginx/certbot/www:/var/www/certbot
+    - ./nginx/certbot/conf:/etc/letsencrypt
 ```
 
-**Caddyfile:**
+**Nginx template (excerpt):**
 ```
-your-domain.com {
-    reverse_proxy frontend:3000
-    
-    handle /api/* {
-        reverse_proxy backend:5000
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
     }
 }
 ```
@@ -2449,3 +2457,5 @@ This software is provided "as is" without warranty of any kind. The authors are 
 [🌟 Star this repo](https://github.com/moeez4316/TABEEB-Healthcare) | [🐛 Report Bug](https://github.com/moeez4316/TABEEB-Healthcare/issues) | [💡 Request Feature](https://github.com/moeez4316/TABEEB-Healthcare/issues)
 
 </div>
+
+

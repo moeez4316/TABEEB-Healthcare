@@ -34,7 +34,7 @@ foreach ($line in $envFile) {
     }
 }
 
-# Override API URL for production (Caddy reverse proxy)
+# Override API URL for production (Nginx reverse proxy)
 $PROD_API_URL = "https://tabeeb.dpdns.org"
 
 docker build `

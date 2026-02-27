@@ -2,15 +2,17 @@
 
 ## Deploying to Oracle Cloud Free Tier
 
-This guide will help you deploy the TABEEB Healthcare application to your Oracle Cloud instance using Docker and Caddy for automatic SSL.
+This guide will help you deploy the TABEEB Healthcare application to your Oracle Cloud instance using Docker and Nginx as the reverse proxy.
 
 ## Architecture
 
-The deployment consists of 4 Docker containers:
-- **MySQL** - Database (persistent volume)
+The deployment consists of these Docker containers:
+- **MySQL** - Database (persistent volume, optional)
+- **Redis** - Realtime pub/sub
 - **Backend** - Express.js API with Prisma ORM (Port 5002)
 - **Frontend** - Next.js application (Port 3000)
-- **Caddy** - Reverse proxy with automatic HTTPS (Ports 80, 443)
+- **Nginx** - Reverse proxy (Ports 80, 443)
+- **Certbot** - Let's Encrypt client for SSL certificates
 
 ## Prerequisites
 
@@ -140,6 +142,7 @@ openssl rand -base64 24
    - JWT secret (generated above)
    - Firebase credentials (from Firebase Console)
    - Cloudinary credentials (from Cloudinary Dashboard)
+   - `SITE_ADDRESS` and `LETSENCRYPT_EMAIL` (for HTTPS)
 
 **Example `.env`:**
 ```env
@@ -151,6 +154,10 @@ MYSQL_PASSWORD=YOUR_STRONG_USER_PASSWORD_HERE
 
 # JWT Secret
 JWT_SECRET=YOUR_GENERATED_JWT_SECRET_HERE
+
+# Nginx / Certbot
+SITE_ADDRESS=your-domain.com
+LETSENCRYPT_EMAIL=you@example.com
 
 # Firebase Admin SDK (from Firebase Console → Project Settings → Service Accounts)
 FIREBASE_PROJECT_ID=your-project-id
@@ -177,15 +184,36 @@ CLOUDINARY_API_SECRET=your-api-secret
 - Use strong, unique passwords in production
 - Keep Firebase private key secure
 
-## Step 4: Update Caddyfile (if needed)
+## Step 4: Update Nginx Config (if needed)
 
-If your domain is different, update the `Caddyfile`:
+If your domain is different, update the Nginx template:
 
 ```bash
-nano Caddyfile
+nano nginx/default.conf.template
 ```
 
-Replace `tabeeb.dpdns.org` with your actual domain.
+Replace `tabeeb.dpdns.org` (or `localhost`) with your actual domain in `server_name`, or set `SITE_ADDRESS` in `.env`.
+
+### Step 4b: Enable HTTPS with Certbot (recommended)
+
+1. Set these in `.env`:
+   - `SITE_ADDRESS=your-domain.com`
+   - `LETSENCRYPT_EMAIL=you@example.com`
+
+2. Initialize the certificate and reload Nginx:
+```bash
+chmod +x nginx/init-letsencrypt.sh
+./nginx/init-letsencrypt.sh
+```
+
+If you are using prebuilt images:
+```bash
+./nginx/init-letsencrypt.sh docker-compose.prebuilt.yml
+```
+
+If you skip this on first run, Nginx will fail to start because certificates are missing.
+If `LETSENCRYPT_EMAIL` is not set, the script will fall back to a self-signed certificate.
+Make sure DNS points to your server and port 80 is reachable for the HTTP-01 challenge.
 
 ## Step 5: Build and Deploy
 
@@ -233,7 +261,8 @@ docker compose logs
 # Specific service
 docker compose logs backend
 docker compose logs frontend
-docker compose logs caddy
+docker compose logs nginx
+docker compose logs certbot
 docker compose logs mysql
 
 # Follow logs in real-time
@@ -242,19 +271,10 @@ docker compose logs -f backend
 
 ### Test Services
 
-1. **Frontend:** Visit https://tabeeb.dpdns.org
+1. **Frontend:** Visit https://tabeeb.dpdns.org (after Certbot)
 2. **Backend Health:** `curl https://tabeeb.dpdns.org/api/health`
-3. **SSL Certificate:** Check browser padlock icon
 
-### Verify SSL Certificate
-
-Caddy should automatically obtain SSL certificate from Let's Encrypt. Check Caddy logs:
-
-```bash
-docker compose logs caddy | grep -i "certificate"
-```
-
-You should see: "certificate obtained successfully"
+If you have not enabled Certbot yet, use `http://` for the checks above.
 
 ## Step 8: Setup Auto-restart on Reboot
 
@@ -418,14 +438,14 @@ docker compose exec backend npx prisma db pull
 
 ### SSL Certificate Issues
 ```bash
-# Check Caddy logs
-docker compose logs caddy
-
 # Verify domain points to your IP
 nslookup tabeeb.dpdns.org
 
-# Restart Caddy
-docker compose restart caddy
+# Check Certbot logs
+docker compose logs certbot
+
+# Test renewal
+docker compose run --rm certbot renew --webroot -w /var/www/certbot --dry-run
 ```
 
 ### Out of Memory
@@ -484,7 +504,7 @@ If issues persist:
 - Configure monitoring (Prometheus + Grafana)
 - Setup CI/CD pipeline (GitHub Actions)
 - Add application-level logging (Winston, Pino)
-- Configure rate limiting in Caddy
+- Configure rate limiting in Nginx
 - Add WAF (Web Application Firewall)
 
 ---
@@ -502,7 +522,7 @@ If issues persist:
 - [ ] Domain DNS pointing to instance IP
 - [ ] `docker compose up -d` executed successfully
 - [ ] Database migrations run
-- [ ] SSL certificate obtained (check Caddy logs)
+- [ ] SSL certificate obtained (Certbot)
 - [ ] Frontend accessible at https://tabeeb.dpdns.org
 - [ ] Backend API responding
 - [ ] Database backups scheduled
