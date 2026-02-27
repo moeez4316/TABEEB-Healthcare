@@ -519,6 +519,8 @@ docker-compose -f docker-compose.prebuilt.yml up -d
 # Access via reverse proxy at http://localhost
 ```
 
+If you plan to use HTTPS with Nginx, run `nginx/init-letsencrypt.sh` first (or ensure certs exist). The `deploy-prebuilt.sh` script now expects certificates to already exist.
+
 #### Windows Users
 
 ```powershell
@@ -1431,8 +1433,7 @@ The `docker-compose.yml` includes:
 - **MySQL**: Database (port 3306)
 - **MongoDB**: Document database (port 27017)
 - **Nginx**: Reverse proxy (ports 80, 443)
-- **Certbot**: Let's Encrypt client (SSL certificates)
-- **Certbot**: Let's Encrypt client (SSL certificates)
+- **Certbot**: Let's Encrypt client (SSL certificates, manual)
 
 #### Custom Docker Build
 
@@ -1622,14 +1623,22 @@ This script will:
 
 #### Using Certbot (Let's Encrypt)
 
-Set `SITE_ADDRESS` and `LETSENCRYPT_EMAIL` in `.env`, then run:
+Set `SITE_ADDRESS` and `LETSENCRYPT_EMAIL` in `.env`, then run manually:
 
 ```bash
 chmod +x nginx/init-letsencrypt.sh
 ./nginx/init-letsencrypt.sh
 ```
 
-This provisions certificates and reloads Nginx. If `LETSENCRYPT_EMAIL` is missing or `SITE_ADDRESS` is `localhost`, a self-signed cert is used. Renewal runs in the `certbot` container when using Let's Encrypt.
+This provisions certificates and reloads Nginx. If `LETSENCRYPT_EMAIL` is missing or `SITE_ADDRESS` is `localhost`, a self-signed cert is used.
+Certbot is not started automatically; for renewals run:
+```bash
+docker compose --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
+```
+If you want a background renewal container, start it with:
+```bash
+docker compose --profile tools up -d certbot
+```
 Ensure DNS points to your server and port 80 is reachable for the HTTP-01 challenge.
 
 #### Nginx Service (Docker)

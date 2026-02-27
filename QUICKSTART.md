@@ -95,7 +95,7 @@ docker compose ps
 docker compose exec backend npx prisma migrate deploy
 ```
 
-### 5b. Enable HTTPS with Certbot (recommended)
+### 5b. Enable HTTPS with Certbot (manual)
 ```bash
 chmod +x nginx/init-letsencrypt.sh
 ./nginx/init-letsencrypt.sh
@@ -104,6 +104,11 @@ chmod +x nginx/init-letsencrypt.sh
 If you skip this on first run, Nginx will fail to start because certificates are missing.
 If `LETSENCRYPT_EMAIL` is not set, the script will fall back to a self-signed certificate.
 Make sure DNS points to your server and port 80 is reachable for the HTTP-01 challenge.
+Certbot is not started automatically. For renewals:
+```bash
+docker compose --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
+```
+If you use `deploy-prebuilt.sh`, run this step first. The script expects certificates to already exist.
 
 ### 6. Verify Deployment
 ```bash
@@ -168,7 +173,6 @@ docker compose logs -f
 docker compose logs backend
 docker compose logs frontend
 docker compose logs nginx
-docker compose logs certbot
 docker compose logs mysql
 ```
 
@@ -203,8 +207,8 @@ sudo systemctl stop nginx
 # Check DNS is pointing correctly
 nslookup tabeeb.dpdns.org
 
-# Check Certbot logs
-docker compose logs certbot
+# Run Certbot with verbose logs
+docker compose --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run --verbose
 ```
 
 ### Database connection failed

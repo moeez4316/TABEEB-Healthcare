@@ -148,6 +148,8 @@ services:
       - tabeeb_network
     depends_on:
       - nginx
+    profiles:
+      - tools
 
 networks:
   tabeeb_network:

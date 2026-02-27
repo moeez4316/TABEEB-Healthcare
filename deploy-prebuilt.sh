@@ -8,8 +8,8 @@ if [ -z "$SITE_ADDRESS" ] && [ -f ./.env ]; then
     SITE_ADDRESS=$(grep -E "^SITE_ADDRESS=" ./.env | head -n1 | cut -d= -f2- | sed 's/^"//;s/"$//')
 fi
 
-if [ -z "$LETSENCRYPT_EMAIL" ] && [ -f ./.env ]; then
-    LETSENCRYPT_EMAIL=$(grep -E "^LETSENCRYPT_EMAIL=" ./.env | head -n1 | cut -d= -f2- | sed 's/^"//;s/"$//')
+if [ -z "$SITE_ADDRESS" ]; then
+    SITE_ADDRESS="localhost"
 fi
 echo "🚀 Tabeeb Healthcare - Pre-built Image Deploy"
 echo "=============================================="
@@ -43,22 +43,35 @@ echo "Running database migrations..."
 docker compose -f docker-compose.prebuilt.yml run --rm \
   backend npx prisma migrate deploy
 
-# Step 6: Initialize TLS (self-signed or Let's Encrypt)
-echo "🔐 Initializing TLS certificates..."
-chmod +x nginx/init-letsencrypt.sh
-./nginx/init-letsencrypt.sh docker-compose.prebuilt.yml
+cert_dir="./nginx/certbot/conf/live/${SITE_ADDRESS}"
+if [ ! -f "$cert_dir/fullchain.pem" ]; then
+    echo "❌ Missing TLS certificates for $SITE_ADDRESS."
+    echo "   Run: ./nginx/init-letsencrypt.sh docker-compose.prebuilt.yml"
+    exit 1
+fi
 
-# Step 7: Start all services
+# Step 6: Start all services
 echo "🚀 Starting all services..."
 docker compose -f docker-compose.prebuilt.yml up -d
 
-# Step 8: Show status
+# Step 7: Show status
 echo ""
 echo "✅ Deployment complete!"
 docker compose -f docker-compose.prebuilt.yml ps
 echo ""
-echo "🌐 Your app should be live at: https://${SITE_ADDRESS:-localhost}"
+if [ -n "$SITE_ADDRESS" ] && [ "$SITE_ADDRESS" != "localhost" ]; then
+    echo "🌐 Your app should be live at: https://$SITE_ADDRESS"
+else
+    echo "🌐 Your app should be live at: http://localhost"
+fi
 echo "🔧 Health check: curl http://localhost:5002/api/health"
+
+
+
+
+
+
+
 
 
 

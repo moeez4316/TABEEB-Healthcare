@@ -194,7 +194,7 @@ nano nginx/default.conf.template
 
 Replace `tabeeb.dpdns.org` (or `localhost`) with your actual domain in `server_name`, or set `SITE_ADDRESS` in `.env`.
 
-### Step 4b: Enable HTTPS with Certbot (recommended)
+### Step 4b: Enable HTTPS with Certbot (manual)
 
 1. Set these in `.env`:
    - `SITE_ADDRESS=your-domain.com`
@@ -211,9 +211,15 @@ If you are using prebuilt images:
 ./nginx/init-letsencrypt.sh docker-compose.prebuilt.yml
 ```
 
+If you plan to use `deploy-prebuilt.sh`, run this step first. The script now expects certificates to already exist.
+
 If you skip this on first run, Nginx will fail to start because certificates are missing.
 If `LETSENCRYPT_EMAIL` is not set, the script will fall back to a self-signed certificate.
 Make sure DNS points to your server and port 80 is reachable for the HTTP-01 challenge.
+Certbot is not started automatically. For renewals:
+```bash
+docker compose --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
+```
 
 ## Step 5: Build and Deploy
 
@@ -262,7 +268,6 @@ docker compose logs
 docker compose logs backend
 docker compose logs frontend
 docker compose logs nginx
-docker compose logs certbot
 docker compose logs mysql
 
 # Follow logs in real-time
@@ -441,11 +446,8 @@ docker compose exec backend npx prisma db pull
 # Verify domain points to your IP
 nslookup tabeeb.dpdns.org
 
-# Check Certbot logs
-docker compose logs certbot
-
 # Test renewal
-docker compose run --rm certbot renew --webroot -w /var/www/certbot --dry-run
+docker compose --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run --verbose
 ```
 
 ### Out of Memory
