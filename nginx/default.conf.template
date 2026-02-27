@@ -32,6 +32,9 @@ server {
     access_log /dev/stdout;
     error_log /dev/stderr warn;
 
+    resolver 127.0.0.11 ipv6=off;
+    resolver_timeout 5s;
+
     ssl_certificate /etc/letsencrypt/live/${SITE_ADDRESS}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${SITE_ADDRESS}/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;

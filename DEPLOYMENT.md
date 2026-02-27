@@ -220,6 +220,10 @@ Certbot is not started automatically. For renewals:
 ```bash
 docker compose --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
 ```
+For prebuilt deployments:
+```bash
+docker compose -f docker-compose.prebuilt.yml --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
+```
 
 ## Step 5: Build and Deploy
 
