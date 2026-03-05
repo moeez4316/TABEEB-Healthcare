@@ -20,26 +20,11 @@ import {
   ChevronRight,
   Stethoscope
 } from 'lucide-react';
-import { useAdminDashboardStats } from '@/lib/hooks/useAdminQueries';
+import { useAdminDashboardStats, AdminDashboardStats } from '@/lib/hooks/useAdminQueries';
 import { ApiError } from '@/lib/api-client';
 import AdminLoading from '@/components/admin/AdminLoading';
 import AdminPageShell from '@/components/admin/AdminPageShell';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-
-interface DashboardStats {
-  totalDoctors: number;
-  pendingVerifications: number;
-  approvedDoctors: number;
-  rejectedApplications: number;
-  totalPatients: number;
-  totalVerifications: number;
-  recentActivity: Array<{
-    id: string;
-    type: string;
-    message: string;
-    timestamp: string;
-  }>;
-}
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -61,11 +46,14 @@ export default function AdminDashboard() {
     }
   }, [error, router]);
 
-  const stats: DashboardStats | null = data ?? (error ? {
+  const stats: AdminDashboardStats | null = data ?? (error ? {
     totalDoctors: 25,
     pendingVerifications: 8,
     approvedDoctors: 17,
+    approvedVerifications: 17,
     rejectedApplications: 3,
+    rejectedVerifications: 3,
+    totalVerifications: 28,
     totalPatients: 150,
     recentActivity: [
       {
