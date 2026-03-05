@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { FaTimes, FaSpinner } from 'react-icons/fa';
+import VideoCallPrescriptionPanel from './VideoCallPrescriptionPanel';
 
 interface DoctorVideoCallModalProps {
   appointmentId: string;
@@ -49,6 +50,7 @@ export default function DoctorVideoCallModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jitsiLoaded, setJitsiLoaded] = useState(false);
+  const [prescriptionPanelOpen, setPrescriptionPanelOpen] = useState(false);
 
   // Load Jitsi External API script
   useEffect(() => {
@@ -294,28 +296,28 @@ export default function DoctorVideoCallModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-      <div className="relative w-full h-full max-w-7xl max-h-screen m-4 bg-white dark:bg-slate-900 rounded-lg shadow-2xl overflow-hidden">
+      <div className="relative w-full h-full max-h-screen bg-white dark:bg-slate-900 shadow-2xl overflow-hidden sm:m-2 md:m-3 lg:m-4 sm:rounded-lg">
         {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4 bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-700 dark:to-teal-800">
-          <div>
-            <h2 className="text-xl font-bold text-white">
+        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-700 dark:to-teal-800">
+          <div className="min-w-0">
+            <h2 className="text-sm sm:text-base md:text-xl font-bold text-white truncate">
               🩺 Doctor Video Consultation
             </h2>
-            <p className="text-sm text-teal-100">
+            <p className="text-xs sm:text-sm text-teal-100 hidden sm:block">
               Moderator Mode - You can admit patients from lobby
             </p>
           </div>
           <button
             onClick={handleClose}
-            className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+            className="p-1.5 sm:p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors shrink-0 ml-2"
             aria-label="Close video call"
           >
-            <FaTimes className="w-6 h-6" />
+            <FaTimes className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
         {/* Video Call Container */}
-        <div className="w-full h-full pt-20 relative">
+        <div className="w-full h-full pt-12 sm:pt-14 md:pt-20 relative overflow-hidden">
           {loading && !error && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white dark:bg-slate-900">
               <FaSpinner className="w-16 h-16 text-teal-600 animate-spin mb-4" />
@@ -366,18 +368,25 @@ export default function DoctorVideoCallModal({
 
           <div
             ref={jitsiContainer}
-            className="w-full h-full"
+            className={`h-full transition-all duration-300 ease-in-out ${prescriptionPanelOpen ? 'hidden sm:block sm:mr-[min(420px,45vw)]' : 'w-full'}`}
+          />
+
+          {/* Prescription Side Panel */}
+          <VideoCallPrescriptionPanel
+            appointmentId={appointmentId}
+            isOpen={prescriptionPanelOpen}
+            onToggle={() => setPrescriptionPanelOpen((prev) => !prev)}
           />
         </div>
 
         {/* Instructions Footer */}
         {loading && !error && (
-          <div className="absolute bottom-0 left-0 right-0 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 px-6 py-4">
-            <div className="flex items-start space-x-3 text-sm">
-              <span className="text-teal-600 dark:text-teal-400 font-semibold">💡 Doctor Tips:</span>
+          <div className="absolute bottom-0 left-0 right-0 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4">
+            <div className="flex items-start space-x-2 sm:space-x-3 text-xs sm:text-sm">
+              <span className="text-teal-600 dark:text-teal-400 font-semibold shrink-0">💡 Tips:</span>
               <div className="flex-1 text-gray-600 dark:text-gray-400">
-                <p>Make sure to allow camera and microphone access when prompted.</p>
-                <p className="mt-1">As a moderator, you can admit patients from the waiting room and control meeting settings.</p>
+                <p>Allow camera and microphone access when prompted.</p>
+                <p className="mt-1 hidden sm:block">As a moderator, you can admit patients from the waiting room and control meeting settings.</p>
               </div>
             </div>
           </div>

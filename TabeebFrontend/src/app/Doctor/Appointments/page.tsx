@@ -42,7 +42,9 @@ export default function DoctorAppointmentsPage() {
     refetch,
   } = useDoctorAppointments(token, 100, true);
 
-  const appointments = (appointmentsData || []) as Appointment[];
+  const appointments = (Array.isArray(appointmentsData)
+    ? appointmentsData
+    : (appointmentsData as unknown as { appointments?: Appointment[] })?.appointments || []) as Appointment[];
 
   useEffect(() => {
     if (!token) return;
