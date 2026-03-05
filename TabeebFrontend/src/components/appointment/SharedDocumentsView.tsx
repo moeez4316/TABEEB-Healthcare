@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 interface SharedDocument {
   sharedDocumentId: string;
@@ -26,50 +28,31 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
   className = ''
 }) => {
   const { token } = useAuth();
-  const [documents, setDocuments] = useState<SharedDocument[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [previewDocument, setPreviewDocument] = useState<SharedDocument | null>(null);
-  const [unavailableCount, setUnavailableCount] = useState(0);
+  const {
+    data: sharedPayload,
+    isLoading,
+    error,
+    refetch,
+  } = useApiQuery<{ sharedDocuments?: SharedDocument[] }>({
+    queryKey: ['appointments', 'shared-documents', appointmentId],
+    queryFn: () =>
+      apiFetchJson<{ sharedDocuments?: SharedDocument[] }>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/shared-documents`,
+        { token }
+      ),
+    enabled: !!appointmentId && !!token,
+    staleTime: 30 * 1000,
+  });
 
-  const fetchSharedDocuments = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(
-        `${API_URL}/api/appointments/${appointmentId}/shared-documents`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch shared documents');
-      }
-
-      const data = await response.json();
-      const rawDocuments = Array.isArray(data.sharedDocuments) ? data.sharedDocuments : [];
-      const validDocuments = rawDocuments.filter((doc: Partial<SharedDocument>) => !!doc.fileUrl && !!doc.fileType);
-      setUnavailableCount(Math.max(0, rawDocuments.length - validDocuments.length));
-      setDocuments(validDocuments as SharedDocument[]);
-    } catch (err) {
-      console.error('Error fetching shared documents:', err);
-      setError('Failed to load shared documents');
-    } finally {
-      setLoading(false);
-    }
-  }, [appointmentId, token]);
-
-  useEffect(() => {
-    if (appointmentId && token) {
-      fetchSharedDocuments();
-    }
-  }, [appointmentId, token, fetchSharedDocuments]);
+  const { documents, unavailableCount } = useMemo(() => {
+    const rawDocuments = Array.isArray(sharedPayload?.sharedDocuments) ? sharedPayload?.sharedDocuments : [];
+    const validDocuments = rawDocuments.filter((doc) => !!doc.fileUrl && !!doc.fileType);
+    return {
+      documents: validDocuments,
+      unavailableCount: Math.max(0, rawDocuments.length - validDocuments.length),
+    };
+  }, [sharedPayload]);
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) {
@@ -101,7 +84,7 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
     setPreviewDocument(document);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={`bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6 ${className}`}>
         <div className="animate-pulse">
@@ -123,12 +106,13 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
   }
 
   if (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load shared documents';
     return (
       <div className={`bg-white dark:bg-slate-800 rounded-lg border border-red-200 dark:border-red-700 p-6 ${className}`}>
         <div className="text-red-600 dark:text-red-400 text-sm">
-          {error}
+          {message}
           <button
-            onClick={fetchSharedDocuments}
+            onClick={() => void refetch()}
             className="ml-2 text-red-500 hover:text-red-700 underline"
           >
             Try again

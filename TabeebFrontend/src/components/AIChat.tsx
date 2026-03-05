@@ -1062,6 +1062,7 @@ export default function AIChat() {
                     ) : (
                       <div className="relative inline-block">
                         {filePreviewType === 'image' ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
                           <img
                             src={filePreview}
                             alt="Medical document preview"

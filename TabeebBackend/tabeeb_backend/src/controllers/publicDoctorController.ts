@@ -1,6 +1,12 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { formatPhoneForDisplay } from '../utils/phoneUtils';
+import {
+  cacheGet,
+  cacheSet,
+  CACHE_TTL_SECONDS,
+  buildCacheKey,
+} from '../services/cacheService';
 
 /**
  * Get public doctor profile with all related data
@@ -12,6 +18,12 @@ export const getPublicDoctorProfile = async (req: Request, res: Response) => {
 
     if (!doctorUid) {
       return res.status(400).json({ error: 'Doctor UID is required' });
+    }
+
+    const cacheKey = buildCacheKey('doctor', 'public', 'profile', doctorUid);
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
     }
 
     // Fetch doctor with verification
@@ -206,6 +218,7 @@ export const getPublicDoctorProfile = async (req: Request, res: Response) => {
     };
 
     res.json(profileResponse);
+    await cacheSet(cacheKey, profileResponse, CACHE_TTL_SECONDS.publicDoctorProfile);
   } catch (error) {
     console.error('Error fetching public doctor profile:', error);
     res.status(500).json({ error: 'Failed to fetch doctor profile' });
@@ -221,6 +234,12 @@ export const getDoctorAvailabilitySummary = async (req: Request, res: Response) 
 
     if (!doctorUid) {
       return res.status(400).json({ error: 'Doctor UID is required' });
+    }
+
+    const cacheKey = buildCacheKey('doctor', 'public', 'availability', doctorUid);
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
     }
 
     // Get next 7 days dates
@@ -288,10 +307,13 @@ export const getDoctorAvailabilitySummary = async (req: Request, res: Response) 
       })
     );
 
-    res.json({
+    const response = {
       doctorUid,
       availabilitySummary
-    });
+    };
+
+    res.json(response);
+    await cacheSet(cacheKey, response, CACHE_TTL_SECONDS.publicAvailabilitySummary);
   } catch (error) {
     console.error('Error fetching doctor availability summary:', error);
     res.status(500).json({ error: 'Failed to fetch availability summary' });

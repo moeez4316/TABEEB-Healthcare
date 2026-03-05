@@ -9,7 +9,6 @@ import ProfileImageUpload from "@/components/shared/ProfileImageUpload";
 import { formatPhoneNumber, isValidEmail, isValidPhoneNumber, pakistaniMedicalSpecializations, pakistaniMedicalQualifications } from "@/lib/profile-utils";
 import { APP_CONFIG } from "@/lib/config/appConfig";
 import { uploadFile } from "@/lib/cloudinary-upload";
-import { LinearProgress } from "@/components/shared/UploadProgress";
 import { fetchWithRateLimit } from "@/lib/api-utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -398,6 +397,18 @@ export default function SelectRolePage() {
         }, 1500);
       } else {
         const errorData = await createRes.json().catch(() => ({}));
+        if (createRes.status === 409 && errorData.existing) {
+          setUserRole(role);
+          setSuccess("Profile already exists. Redirecting...");
+          setTimeout(() => {
+            if (role === "doctor") {
+              router.replace(getDoctorRedirectPath(verificationStatus));
+            } else {
+              router.replace("/Patient/dashboard");
+            }
+          }, 1200);
+          return;
+        }
         setError(errorData.error || errorData.message || "Failed to create profile. Please try again.");
       }
       

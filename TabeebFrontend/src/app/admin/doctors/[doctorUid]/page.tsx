@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   fetchPublicDoctorProfile,
@@ -16,7 +16,12 @@ import {
   AvailabilityPreview,
   ComplaintsSection
 } from '@/components/doctor-profile';
-import { FaSpinner, FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
+import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
+import { useAdminApiQuery } from '@/lib/hooks/useAdminApiQuery';
+import { apiFetchJson, ApiError } from '@/lib/api-client';
+import AdminLoading from '@/components/admin/AdminLoading';
+import AdminPageShell from '@/components/admin/AdminPageShell';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 interface Complaint {
   id: string;
@@ -44,120 +49,115 @@ interface ComplaintReview {
 export default function AdminDoctorProfilePage({ params }: { params: Promise<{ doctorUid: string }> }) {
   const router = useRouter();
   const { doctorUid } = use(params);
-  const [profile, setProfile] = useState<PublicDoctorProfile | null>(null);
-  const [availability, setAvailability] = useState<DoctorAvailabilitySummary | null>(null);
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
+
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    error: profileError,
+  } = useAdminApiQuery<PublicDoctorProfile>({
+    queryKey: ['doctor', 'profile', doctorUid],
+    queryFn: () => fetchPublicDoctorProfile(doctorUid),
+    enabled: !!doctorUid,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: availability } = useAdminApiQuery<DoctorAvailabilitySummary | null>({
+    queryKey: ['doctor', 'availability-summary', doctorUid],
+    queryFn: () => fetchDoctorAvailabilitySummary(doctorUid).catch(() => null),
+    enabled: !!doctorUid,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const {
+    data: complaintsPayload,
+    error: complaintsError,
+  } = useAdminApiQuery<{ reviews: ComplaintReview[] }>({
+    queryKey: ['admin', 'complaints', doctorUid],
+    queryFn: () =>
+      apiFetchJson<{ reviews: ComplaintReview[] }>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/reviews/admin/complaints?limit=100`,
+        {
+          token: adminToken,
+        }
+      ),
+    enabled: !!adminToken && !!doctorUid,
+    staleTime: 30 * 1000,
+  });
 
   useEffect(() => {
-    const loadDoctorData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const adminToken = localStorage.getItem('adminToken');
-        if (!adminToken) {
-          router.push('/admin/login');
-          return;
-        }
-
-        // Fetch profile and availability
-        const [profileData, availabilityData] = await Promise.all([
-          fetchPublicDoctorProfile(doctorUid),
-          fetchDoctorAvailabilitySummary(doctorUid).catch(() => null)
-        ]);
-
-        setProfile(profileData);
-        setAvailability(availabilityData);
-
-        // Fetch all complaints for admin using correct endpoint
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
-        
-        const complaintsResponse = await fetch(`${API_URL}/api/reviews/admin/complaints?limit=100`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${adminToken}`,
-          },
-        });
-
-        if (complaintsResponse.ok) {
-          const complaintsData = await complaintsResponse.json();
-          // Filter complaints for this specific doctor
-          const doctorComplaints = (complaintsData.reviews as ComplaintReview[])
-            .filter((review) => review.appointment.doctor.uid === doctorUid)
-            .map((review) => ({
-              id: review.id,
-              rating: review.rating,
-              comment: review.comment,
-              createdAt: review.createdAt,
-              patientName: `${review.appointment.patient.firstName} ${review.appointment.patient.lastName.charAt(0)}.`,
-              adminNotes: review.adminNotes,
-              adminActionTaken: review.adminActionTaken
-            }));
-          setComplaints(doctorComplaints);
-        } else {
-          console.error('Failed to fetch complaints:', complaintsResponse.status, await complaintsResponse.text());
-        }
-      } catch (err) {
-        console.error('Error loading doctor data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load doctor data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (doctorUid) {
-      loadDoctorData();
+    if (!adminToken) {
+      router.push('/admin/login');
     }
-  }, [doctorUid, router]);
+  }, [adminToken, router]);
+
+  useEffect(() => {
+    const status = (complaintsError as ApiError | undefined)?.status;
+    if (status === 401) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      router.push('/admin/login');
+    }
+  }, [complaintsError, router]);
+
+  const complaints: Complaint[] = useMemo(() => {
+    const reviews = complaintsPayload?.reviews || [];
+    return reviews
+      .filter((review) => review.appointment.doctor.uid === doctorUid)
+      .map((review) => ({
+        id: review.id,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        patientName: `${review.appointment.patient.firstName} ${review.appointment.patient.lastName.charAt(0)}.`,
+        adminNotes: review.adminNotes,
+        adminActionTaken: review.adminActionTaken,
+      }));
+  }, [complaintsPayload, doctorUid]);
 
   // Loading State
-  if (loading) {
+  if (profileLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <FaSpinner className="animate-spin text-teal-600 dark:text-teal-400 text-6xl mb-4 mx-auto" />
-          <p className="text-gray-600 dark:text-gray-400 text-lg">Loading doctor profile...</p>
-        </div>
-      </div>
+      <AdminLoading title="Loading Doctor Profile" subtitle="Fetching profile details..." />
     );
   }
 
   // Error State
-  if (error || !profile) {
+  if (profileError || !profile) {
+    const message = profileError instanceof Error ? profileError.message : 'The doctor profile you are looking for could not be found.';
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-8">
-          <FaExclamationCircle className="text-red-500 text-6xl mb-4 mx-auto" />
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-            Profile Not Found
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {error || 'The doctor profile you are looking for could not be found.'}
-          </p>
+      <AdminPageShell>
+        <AdminPageHeader title="Doctor Profile" subtitle="Profile not found or unavailable." />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center">
+          <FaExclamationCircle className="text-red-500 text-5xl mb-4 mx-auto" />
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Profile Not Found</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">{message}</p>
           <button
             onClick={() => router.back()}
-            className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg transition-colors"
+            className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold"
           >
             Go Back
           </button>
         </div>
-      </div>
+      </AdminPageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Back Button */}
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 mb-6 transition-colors"
-        >
-          <FaArrowLeft />
-          Back to Admin Panel
-        </button>
+    <AdminPageShell>
+      <AdminPageHeader
+        title="Doctor Profile"
+        subtitle="Full profile snapshot, availability, and feedback."
+        actions={
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+          >
+            <FaArrowLeft />
+            Back to Admin Panel
+          </button>
+        }
+      />
 
         {/* Admin Badge */}
         <div className="mb-4">
@@ -211,7 +211,6 @@ export default function AdminDoctorProfilePage({ params }: { params: Promise<{ d
             doctorUid={profile.uid}
           />
         )}
-      </div>
-    </div>
+    </AdminPageShell>
   );
 }

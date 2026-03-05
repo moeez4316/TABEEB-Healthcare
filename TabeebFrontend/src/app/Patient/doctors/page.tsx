@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FaSearch, FaSort, FaUserMd, FaStar, FaCalendarAlt } from 'react-icons/fa';
-import { useAuth } from '@/lib/auth-context';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 interface Doctor {
   uid: string;
@@ -32,36 +32,28 @@ interface DoctorsResponse {
 }
 
 export default function DoctorsPage() {
-  const { } = useAuth();
   const router = useRouter();
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialization, setSelectedSpecialization] = useState('all');
   const [experienceFilter, setExperienceFilter] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
-  const [specializations, setSpecializations] = useState<string[]>([]);
+  const {
+    data: doctorsPayload,
+    isLoading,
+    error,
+  } = useApiQuery<DoctorsResponse>({
+    queryKey: ['doctors', 'verified'],
+    queryFn: () => apiFetchJson<DoctorsResponse>(`${process.env.NEXT_PUBLIC_API_URL}/api/doctor/verified`),
+    staleTime: 60 * 1000,
+  });
 
-  const fetchDoctors = async () => {
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/doctor/verified`);
-      
-      if (response.ok) {
-        const data: DoctorsResponse = await response.json();
-        setDoctors(data.doctors);
-        setSpecializations(data.filterOptions.specializations);
-      } else {
-        console.error('Failed to fetch doctors');
-      }
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const doctors = useMemo(() => doctorsPayload?.doctors || [], [doctorsPayload]);
+  const specializations = useMemo(
+    () => doctorsPayload?.filterOptions?.specializations || [],
+    [doctorsPayload]
+  );
 
   const filterAndSortDoctors = useCallback(() => {
     let filtered = [...doctors];
@@ -116,10 +108,6 @@ export default function DoctorsPage() {
   }, [doctors, searchTerm, selectedSpecialization, experienceFilter, sortBy, sortOrder]);
 
   useEffect(() => {
-    fetchDoctors();
-  }, []);
-
-  useEffect(() => {
     filterAndSortDoctors();
   }, [filterAndSortDoctors]);
 
@@ -128,7 +116,7 @@ export default function DoctorsPage() {
     router.push(`/Patient/book-appointment?doctorId=${doctorUid}`);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
         <div className="text-center bg-white/80 dark:bg-[#18181b]/80 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-8 backdrop-blur-md">
@@ -150,6 +138,13 @@ export default function DoctorsPage() {
         </div>
 
         {/* Filters and Search */}
+        {error && (
+          <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div className="text-red-800 dark:text-red-400">
+              {error instanceof Error ? error.message : 'Failed to load doctors. Please try again.'}
+            </div>
+          </div>
+        )}
         <div className="bg-white/80 dark:bg-[#18181b]/80 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-8 backdrop-blur-md mb-6 transition-all">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Search */}
@@ -320,7 +315,7 @@ export default function DoctorsPage() {
         </div>
 
         {/* No Results */}
-        {filteredDoctors.length === 0 && !loading && (
+        {filteredDoctors.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <div className="bg-white/80 dark:bg-[#18181b]/80 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-8 backdrop-blur-md max-w-md mx-auto">
               <FaUserMd className="text-4xl text-gray-400 dark:text-gray-500 mx-auto mb-4" />

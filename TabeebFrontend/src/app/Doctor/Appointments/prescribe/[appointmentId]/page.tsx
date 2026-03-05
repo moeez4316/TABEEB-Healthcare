@@ -5,8 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useCreatePrescription, useAppointmentPrescriptions, useUpdatePrescription, useDeletePrescription } from '@/lib/prescription-api';
 import { PrescriptionFormData, MedicineFormData, Prescription } from '@/types/prescription';
-import { Appointment } from '@/types/appointment';
 import { FaArrowLeft, FaPlus, FaTrash, FaPrescriptionBottleAlt, FaUser, FaCalendarAlt, FaEdit } from 'react-icons/fa';
+import { useAppointmentById } from '@/lib/hooks/useAppointments';
 
 export default function PrescribePage() {
   const router = useRouter();
@@ -14,8 +14,6 @@ export default function PrescribePage() {
   const { token } = useAuth();
   const appointmentId = params.appointmentId as string;
 
-  const [appointment, setAppointment] = useState<Appointment | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
   const [showExistingPrescriptions, setShowExistingPrescriptions] = useState(true);
@@ -59,42 +57,20 @@ export default function PrescribePage() {
     error: prescriptionsError 
   } = useAppointmentPrescriptions(appointmentId, token);
 
-  // Fetch appointment details
+  const {
+    data: appointment,
+    isLoading,
+    error: appointmentError,
+  } = useAppointmentById(token, appointmentId, true);
+
   useEffect(() => {
-    const fetchAppointment = async () => {
-      if (!token || !appointmentId) return;
-
-      try {
-        setLoading(true);
-        const API_URL = process.env.NEXT_PUBLIC_API_URL;
-        const response = await fetch(`${API_URL}/api/appointments/${appointmentId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch appointment');
-        }
-
-        const data = await response.json();
-        
-        setAppointment(data);
-        setFormData(prev => ({
-          ...prev,
-          patientUid: data.patientUid
-        }));
-      } catch (err) {
-        console.error('Error fetching appointment:', err);
-        setError('Failed to load appointment details. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAppointment();
-  }, [token, appointmentId]);
+    if (appointment?.patientUid) {
+      setFormData((prev) => ({
+        ...prev,
+        patientUid: appointment.patientUid,
+      }));
+    }
+  }, [appointment?.patientUid]);
 
   const handleEditPrescription = (prescription: Prescription) => {
     setEditingPrescription(prescription);
@@ -367,7 +343,7 @@ export default function PrescribePage() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -378,11 +354,13 @@ export default function PrescribePage() {
     );
   }
 
-  if (error) {
+  if (error || appointmentError) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-600 dark:text-red-400 mb-4">{error}</div>
+          <div className="text-red-600 dark:text-red-400 mb-4">
+            {error || (appointmentError instanceof Error ? appointmentError.message : 'Failed to load appointment details. Please try again.')}
+          </div>
           <button
             onClick={() => router.push('/Doctor/Appointments')}
             className="text-teal-600 dark:text-teal-400 hover:underline"

@@ -242,7 +242,13 @@ export default function DoctorVerificationPage() {
           // Calculate overall progress based on all files
           // Each file contributes equally to total progress
           const fileIndex = filesToUpload.findIndex((_, i) => {
-            const docTypeMap = ['CNIC Front', 'CNIC Back', 'Verification Photo', 'Degree Certificate', 'PMDC Certificate'];
+            const docTypeMap = [
+              'CNIC Front',
+              'CNIC Back',
+              'Verification Photo',
+              'Qualification/Degree Certificate',
+              'Registration/Council Certificate'
+            ];
             return docTypeMap[i] === docName;
           });
           
@@ -426,7 +432,7 @@ export default function DoctorVerificationPage() {
                 <span className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-teal-700 bg-clip-text text-transparent">
                   TABEEB
                 </span>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Doctor Verification</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Practitioner Verification</p>
               </div>
             </div>
           </div>
@@ -447,11 +453,11 @@ export default function DoctorVerificationPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Doctor Verification</h1>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Medical Practitioner Verification</h1>
                 <p className="mt-2 text-slate-600 dark:text-slate-400 text-lg">
                   {verificationStatus === 'rejected' 
                     ? 'Your previous application was rejected. Please review the feedback and submit updated documents.'
-                    : 'Submit your documents for verification to start practicing on our platform.'
+                    : 'Submit your documents for verification to start practicing on our platform as a doctor, Hakeem, or other medical specialist.'
                   }
                 </p>
               </div>
@@ -470,8 +476,8 @@ export default function DoctorVerificationPage() {
                   <li>All documents must be clear and legible</li>
                   <li>CNIC images must show all four corners clearly</li>
                   <li>Verification photo must match your CNIC photo</li>
-                  <li>Certificates must be from recognized Pakistani institutions</li>
-                  <li>PMDC registration must be active and valid</li>
+                  <li>Certificates must be from recognized institutions or councils</li>
+                  <li>Registration/license must be active and valid (PMDC or relevant council)</li>
                 </ul>
               </div>
             </div>
@@ -567,13 +573,13 @@ export default function DoctorVerificationPage() {
             {/* PMDC Information Section */}
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">
-                PMDC Registration
+                Professional Registration
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="pmdcNumber" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    PMDC License Number <span className="text-red-500">*</span>
+                    Registration / License Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -584,7 +590,7 @@ export default function DoctorVerificationPage() {
                     className={`block w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white transition-all duration-200 ${
                       getFieldError('pmdcNumber') ? 'border-red-300 dark:border-red-500' : 'border-slate-300 dark:border-slate-600'
                     }`}
-                    placeholder="100327-P"
+                    placeholder="e.g., PMDC 100327-P or council number"
                   />
                   {getFieldError('pmdcNumber') && (
                     <p className="mt-1 text-sm text-red-500 dark:text-red-400">{getFieldError('pmdcNumber')}</p>
@@ -593,7 +599,7 @@ export default function DoctorVerificationPage() {
 
                 <div>
                   <label htmlFor="pmdcRegistrationDate" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    PMDC Registration Date <span className="text-red-500">*</span>
+                    Registration Date <span className="text-red-500">*</span>
                   </label>
                   <div 
                     className="relative cursor-pointer"
@@ -825,15 +831,15 @@ export default function DoctorVerificationPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {renderFileUpload(
                   'degreeCertificate',
-                  'Medical Degree Certificate',
-                  'Upload your medical degree certificate (MBBS, BDS, etc.)',
+                  'Qualification / Degree Certificate',
+                  'Upload your degree, diploma, or certification. If you are a Hakeem or other specialist, upload the relevant credential or any other professional identification.',
                   <Upload className="w-12 h-12 text-slate-400 dark:text-slate-500" />
                 )}
 
                 {renderFileUpload(
                   'pmdcCertificate',
-                  'PMDC Registration Certificate',
-                  'Upload your official PMDC registration certificate',
+                  'Registration / Council Card',
+                  'Upload your PMDC registration certificate or any other valid council/board registration card or professional ID.',
                   <Upload className="w-12 h-12 text-slate-400 dark:text-slate-500" />
                 )}
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -20,7 +20,11 @@ import {
   ChevronRight,
   Stethoscope
 } from 'lucide-react';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { useAdminDashboardStats } from '@/lib/hooks/useAdminQueries';
+import { ApiError } from '@/lib/api-client';
+import AdminLoading from '@/components/admin/AdminLoading';
+import AdminPageShell from '@/components/admin/AdminPageShell';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 interface DashboardStats {
   totalDoctors: number;
@@ -28,6 +32,7 @@ interface DashboardStats {
   approvedDoctors: number;
   rejectedApplications: number;
   totalPatients: number;
+  totalVerifications: number;
   recentActivity: Array<{
     id: string;
     type: string;
@@ -38,87 +43,58 @@ interface DashboardStats {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchDashboardStats = useCallback(async () => {
-    try {
-      const adminToken = localStorage.getItem('adminToken');
-      const response = await fetchWithRateLimit(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/dashboard/stats`, {
-        headers: {
-          'Authorization': `Bearer ${adminToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('adminUser');
-          router.push('/admin/login');
-          return;
-        }
-        throw new Error('Failed to fetch dashboard stats');
-      }
-
-      const data = await response.json();
-      setStats(data);
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-      // For now, set demo data
-      setStats({
-        totalDoctors: 25,
-        pendingVerifications: 8,
-        approvedDoctors: 17,
-        rejectedApplications: 3,
-        totalPatients: 150,
-        recentActivity: [
-          {
-            id: '1',
-            type: 'verification_submitted',
-            message: 'Dr. Sarah Ahmed submitted verification documents',
-            timestamp: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            type: 'verification_approved',
-            message: 'Dr. Muhammad Ali verification approved',
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-          },
-          {
-            id: '3',
-            type: 'doctor_registered',
-            message: 'New doctor registration: Dr. Fatima Khan',
-            timestamp: new Date(Date.now() - 7200000).toISOString(),
-          },
-        ],
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
+  const { data, isLoading, error } = useAdminDashboardStats(adminToken, true);
 
   useEffect(() => {
-    // Check if admin is logged in
-    const adminToken = localStorage.getItem('adminToken');
     if (!adminToken) {
       router.push('/admin/login');
-      return;
     }
+  }, [adminToken, router]);
 
-    fetchDashboardStats();
-  }, [fetchDashboardStats, router]);
+  useEffect(() => {
+    const status = (error as ApiError | undefined)?.status;
+    if (status === 401) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      router.push('/admin/login');
+    }
+  }, [error, router]);
 
-  if (loading) {
+  const stats: DashboardStats | null = data ?? (error ? {
+    totalDoctors: 25,
+    pendingVerifications: 8,
+    approvedDoctors: 17,
+    rejectedApplications: 3,
+    totalPatients: 150,
+    recentActivity: [
+      {
+        id: '1',
+        type: 'verification_submitted',
+        message: 'Dr. Sarah Ahmed submitted verification documents',
+        timestamp: new Date().toISOString(),
+      },
+      {
+        id: '2',
+        type: 'verification_approved',
+        message: 'Dr. Muhammad Ali verification approved',
+        timestamp: new Date(Date.now() - 3600000).toISOString(),
+      },
+      {
+        id: '3',
+        type: 'doctor_registered',
+        message: 'New doctor registration: Dr. Fatima Khan',
+        timestamp: new Date(Date.now() - 7200000).toISOString(),
+      },
+    ],
+  } : null);
+
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-20 h-20 mx-auto mb-4">
-            <div className="w-full h-full border-4 border-teal-200 dark:border-teal-800 border-t-teal-500 rounded-full animate-spin"></div>
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Loading Dashboard</h3>
-          <p className="text-gray-600 dark:text-gray-400">Preparing admin control center...</p>
-        </div>
-      </div>
+      <AdminLoading
+        title="Loading Dashboard"
+        subtitle="Preparing your admin control center..."
+      />
     );
   }
 
@@ -149,39 +125,25 @@ export default function AdminDashboard() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Admin Dashboard
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Platform Overview & Management
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
-                <Calendar className="w-4 h-4" />
-                <span>
-                  {new Date().toLocaleDateString('en-US', { 
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+  const todayLabel = new Date().toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0 space-y-6">
+  return (
+    <AdminPageShell>
+      <AdminPageHeader
+        title="Admin Dashboard"
+        subtitle="Real-time platform overview with the latest operational signals."
+        meta={
+          <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <Calendar className="w-4 h-4" />
+            <span>{todayLabel}</span>
+          </div>
+        }
+      />
+      <div className="space-y-6">
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
@@ -385,8 +347,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </AdminPageShell>
   );
 }

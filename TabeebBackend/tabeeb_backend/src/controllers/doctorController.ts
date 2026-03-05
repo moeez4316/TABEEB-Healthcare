@@ -2,6 +2,15 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { deleteFromCloudinary, verifyPublicIdOwnership, buildCloudinaryUrl } from '../services/uploadService';
 import { normalizePhoneForDB, formatPhoneForDisplay } from '../utils/phoneUtils';
+import {
+  cacheGet,
+  cacheSet,
+  CACHE_TTL_SECONDS,
+  buildCacheKey,
+  buildQuerySignature,
+  invalidateDoctorCaches,
+  invalidateAdminCaches,
+} from '../services/cacheService';
 
 export const createDoctor = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
@@ -110,13 +119,12 @@ export const createDoctor = async (req: Request, res: Response) => {
 
     // Create database records in a transaction (atomic operation)
     const doctor = await prisma.$transaction(async (tx) => {
-      // Check if user already exists, if not create it
-      const existingUser = await tx.user.findUnique({ where: { uid: uid as string } });
-      if (!existingUser) {
-        await tx.user.create({
-          data: { uid: uid as string, role: 'doctor' }
-        });
-      }
+      // Create or update User record to ensure role consistency
+      await tx.user.upsert({
+        where: { uid: uid as string },
+        create: { uid: uid as string, role: 'doctor' },
+        update: { role: 'doctor' }
+      });
       
       // Create Doctor record (now safe since we checked for conflicts)
       const newDoctor = await tx.doctor.create({
@@ -153,6 +161,7 @@ export const createDoctor = async (req: Request, res: Response) => {
     });
 
     res.status(201).json(doctor);
+    await invalidateAdminCaches();
 
   } catch (error: unknown) {
     console.error(error);
@@ -179,6 +188,16 @@ export const createDoctor = async (req: Request, res: Response) => {
 export const getDoctor = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
   try {
+    if (!uid) {
+      return res.status(400).json({ error: 'User UID is required' });
+    }
+
+    const cacheKey = buildCacheKey('doctor', 'profile', uid);
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     const doctor = await prisma.doctor.findUnique({ 
       where: { uid },
       include: {
@@ -202,7 +221,10 @@ export const getDoctor = async (req: Request, res: Response) => {
       pmdcRegistrationDate: doctor.verification?.pmdcRegistrationDate || null,
       verificationStatus: doctor.verification?.status || 'not-submitted',
       isVerified: doctor.verification?.isVerified || false,
-    };    res.json(response);
+    };
+
+    res.json(response);
+    await cacheSet(cacheKey, response, CACHE_TTL_SECONDS.doctorProfile);
   } catch (error) {
     console.error('Error fetching doctor profile:', error);
     res.status(500).json({ error: 'Failed to fetch doctor profile' });
@@ -318,6 +340,7 @@ export const updateDoctor = async (req: Request, res: Response) => {
       data: updateData,
     });
     res.json(doctor);
+    await invalidateDoctorCaches(uid);
   } catch (error) {
     console.error('Update doctor error:', error);
     
@@ -364,6 +387,7 @@ export const deleteDoctor = async (req: Request, res: Response) => {
         isActive: doctor.isActive
       }
     });
+    await invalidateDoctorCaches(uid);
   } catch (error) {
     console.error('Error deactivating doctor profile:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -399,6 +423,7 @@ export const restoreDoctor = async (req: Request, res: Response) => {
         isActive: doctor.isActive
       }
     });
+    await invalidateDoctorCaches(uid);
   } catch (error) {
     console.error('Error restoring doctor profile:', error);
     res.status(500).json({ error: 'Failed to restore doctor profile' });
@@ -409,6 +434,13 @@ export const restoreDoctor = async (req: Request, res: Response) => {
 export const getVerifiedDoctors = async (req: Request, res: Response) => {
   try {
     const { specialization, experience, search, sortBy = 'name', order = 'asc' } = req.query;
+
+    const querySignature = buildQuerySignature(req.query as Record<string, unknown>);
+    const cacheKey = buildCacheKey('doctor', 'verified', 'list', querySignature);
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
     
     // Build where clause for filtering
     const where: any = {
@@ -505,13 +537,16 @@ export const getVerifiedDoctors = async (req: Request, res: Response) => {
       distinct: ['specialization']
     });
 
-    res.json({
+    const response = {
       doctors,
       filterOptions: {
         specializations: specializations.map(s => s.specialization).sort()
       },
       total: doctors.length
-    });
+    };
+
+    res.json(response);
+    await cacheSet(cacheKey, response, CACHE_TTL_SECONDS.verifiedDoctorList);
   } catch (error) {
     console.error('Error fetching verified doctors:', error);
     res.status(500).json({ error: 'Failed to fetch doctors' });
@@ -575,6 +610,7 @@ export const updateDoctorProfileImage = async (req: Request, res: Response) => {
       imageUrl,
       publicId
     });
+    await invalidateDoctorCaches(uid);
 
   } catch (error) {
     console.error('Update profile image error:', error);
@@ -612,6 +648,7 @@ export const deleteDoctorProfileImage = async (req: Request, res: Response) => {
     });
 
     res.json({ message: 'Profile image deleted successfully' });
+    await invalidateDoctorCaches(uid);
 
   } catch (error) {
     console.error('Delete profile image error:', error);

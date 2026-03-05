@@ -1,10 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { FaFlag, FaUser, FaUserMd, FaCalendar, FaStar, FaCheck, FaTimes, FaChevronLeft, FaChevronRight, FaExclamationTriangle } from 'react-icons/fa';
 import { formatDate, formatTime } from '@/lib/dateUtils';
 import { Toast } from '@/components/Toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAdminApiQuery } from '@/lib/hooks/useAdminApiQuery';
+import { apiFetchJson, ApiError } from '@/lib/api-client';
+import AdminLoading from '@/components/admin/AdminLoading';
+import AdminPageShell from '@/components/admin/AdminPageShell';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 interface Complaint {
   id: string;
@@ -43,14 +49,7 @@ interface ComplaintsResponse {
 
 export default function AdminComplaintsPage() {
   const router = useRouter();
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalReviews: 0,
-    hasMore: false,
-  });
+  const [page, setPage] = useState(1);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
@@ -60,49 +59,73 @@ export default function AdminComplaintsPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const queryClient = useQueryClient();
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
 
-  const fetchComplaints = useCallback(async (page: number = 1) => {
-    try {
-      setLoading(true);
-      const adminToken = localStorage.getItem('adminToken');
-      
-      if (!adminToken) {
-        router.push('/admin/login');
-        return;
-      }
-
-      const response = await fetch(
+  const {
+    data: complaintsPayload,
+    isLoading,
+    error: complaintsError,
+    refetch,
+  } = useAdminApiQuery<ComplaintsResponse>({
+    queryKey: ['admin', 'complaints', page],
+    queryFn: () =>
+      apiFetchJson<ComplaintsResponse>(
         `${process.env.NEXT_PUBLIC_API_URL}/api/reviews/admin/complaints?page=${page}&limit=10`,
         {
-          headers: {
-            'Authorization': `Bearer ${adminToken}`,
-          },
+          token: adminToken,
         }
-      );
+      ),
+    enabled: !!adminToken,
+    staleTime: 30 * 1000,
+  });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('adminUser');
-          router.push('/admin/login');
-          return;
-        }
-        throw new Error('Failed to fetch complaints');
+  const complaints = useMemo(() => complaintsPayload?.reviews ?? [], [complaintsPayload]);
+  const pagination = useMemo(
+    () =>
+      complaintsPayload?.pagination || {
+        currentPage: page,
+        totalPages: 1,
+        totalReviews: 0,
+        hasMore: false,
+        limit: 10,
+      },
+    [complaintsPayload, page]
+  );
+  const stats = useMemo(() => {
+    let pending = 0;
+    let resolved = 0;
+
+    for (const complaint of complaints) {
+      if (complaint.adminActionTaken) {
+        resolved += 1;
+      } else {
+        pending += 1;
       }
-
-      const data: ComplaintsResponse = await response.json();
-      setComplaints(data.reviews);
-      setPagination(data.pagination);
-    } catch (error) {
-      console.error('Error fetching complaints:', error);
-    } finally {
-      setLoading(false);
     }
-  }, [router]);
+
+    return {
+      total: complaints.length,
+      pending,
+      resolved,
+    };
+  }, [complaints]);
 
   useEffect(() => {
-    fetchComplaints();
-  }, [fetchComplaints]);
+    if (!adminToken) {
+      router.push('/admin/login');
+      return;
+    }
+  }, [adminToken, router]);
+
+  useEffect(() => {
+    const status = (complaintsError as ApiError | undefined)?.status;
+    if (status === 401) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      router.push('/admin/login');
+    }
+  }, [complaintsError, router]);
 
   const handleComplaintClick = (complaint: Complaint) => {
     setSelectedComplaint(complaint);
@@ -117,14 +140,11 @@ export default function AdminComplaintsPage() {
     setSubmitting(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(
+      await apiFetchJson(
         `${process.env.NEXT_PUBLIC_API_URL}/api/reviews/admin/${selectedComplaint.id}/action`,
         {
           method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${adminToken}`,
-            'Content-Type': 'application/json',
-          },
+          token: adminToken,
           body: JSON.stringify({
             adminNotes: adminNotes.trim() || undefined,
             adminActionTaken: adminAction.trim() || undefined,
@@ -132,13 +152,9 @@ export default function AdminComplaintsPage() {
         }
       );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to update complaint');
-      }
-
       // Refresh complaints list
-      await fetchComplaints(pagination.currentPage);
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ['admin', 'complaints'] });
       setShowModal(false);
       setSelectedComplaint(null);
       
@@ -163,29 +179,22 @@ export default function AdminComplaintsPage() {
     setClosing(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(
+      await apiFetchJson(
         `${process.env.NEXT_PUBLIC_API_URL}/api/reviews/admin/${selectedComplaint.id}/action`,
         {
           method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${adminToken}`,
-            'Content-Type': 'application/json',
-          },
+          token: adminToken,
           body: JSON.stringify({
-            adminActionTaken: selectedComplaint.adminActionTaken 
+            adminActionTaken: selectedComplaint.adminActionTaken
               ? `${selectedComplaint.adminActionTaken}\n\n[Complaint closed by admin]`
-              : '[Complaint closed by admin]'
+              : '[Complaint closed by admin]',
           }),
         }
       );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to close complaint');
-      }
-
       // Refresh complaints list
-      await fetchComplaints(pagination.currentPage);
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ['admin', 'complaints'] });
       setShowModal(false);
       setSelectedComplaint(null);
       
@@ -205,28 +214,20 @@ export default function AdminComplaintsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30">
-              <FaFlag className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Complaint Management
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Review and respond to patient complaints
-              </p>
-            </div>
+    <AdminPageShell>
+      <AdminPageHeader
+        title="Complaint Management"
+        subtitle="Review, respond, and close patient complaints with confidence."
+        meta={
+          <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <FaFlag className="w-4 h-4" />
+            <span>{pagination.totalReviews} total complaints</span>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Stats Cards */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="py-2">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
             <div className="flex items-center justify-between">
@@ -245,7 +246,7 @@ export default function AdminComplaintsPage() {
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Pending Review</p>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {complaints.filter(c => !c.adminActionTaken).length}
+                  {stats.pending}
                 </p>
               </div>
               <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/20 rounded-xl flex items-center justify-center">
@@ -259,7 +260,7 @@ export default function AdminComplaintsPage() {
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Resolved</p>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {complaints.filter(c => c.adminActionTaken).length}
+                  {stats.resolved}
                 </p>
               </div>
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-xl flex items-center justify-center">
@@ -271,11 +272,8 @@ export default function AdminComplaintsPage() {
 
         {/* Complaints List */}
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-          {loading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading complaints...</p>
-            </div>
+          {isLoading ? (
+            <AdminLoading variant="section" title="Loading Complaints" subtitle="Fetching complaint records..." />
           ) : complaints.length === 0 ? (
             <div className="p-12 text-center">
               <FaCheck className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -404,7 +402,7 @@ export default function AdminComplaintsPage() {
           {pagination.totalPages > 1 && (
             <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex items-center justify-between">
               <button
-                onClick={() => fetchComplaints(pagination.currentPage - 1)}
+                onClick={() => setPage(Math.max(1, pagination.currentPage - 1))}
                 disabled={pagination.currentPage === 1}
                 className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -417,7 +415,7 @@ export default function AdminComplaintsPage() {
               </span>
 
               <button
-                onClick={() => fetchComplaints(pagination.currentPage + 1)}
+                onClick={() => setPage(pagination.currentPage + 1)}
                 disabled={!pagination.hasMore}
                 className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -633,6 +631,6 @@ export default function AdminComplaintsPage() {
         show={showToast}
         onClose={() => setShowToast(false)}
       />
-    </div>
+    </AdminPageShell>
   );
 }

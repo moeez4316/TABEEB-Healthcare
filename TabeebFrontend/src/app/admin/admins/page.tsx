@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldPlus, Trash2, UserCog, Users } from 'lucide-react';
 import { Toast } from '@/components/Toast';
+import { useAdminApiQuery } from '@/lib/hooks/useAdminApiQuery';
+import { useAdminMe } from '@/lib/hooks/useAdminQueries';
+import { ApiError } from '@/lib/api-client';
+import AdminLoading from '@/components/admin/AdminLoading';
+import AdminPageShell from '@/components/admin/AdminPageShell';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 interface AdminSessionUser {
   id: string;
@@ -50,14 +56,13 @@ const ADMINS_AUTO_REFRESH_MS = 10000;
 
 export default function AdminManagementPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingAdminId, setDeletingAdminId] = useState<string | null>(null);
   const [totpPendingAction, setTotpPendingAction] = useState<TotpPendingAction | null>(null);
   const [totpCode, setTotpCode] = useState('');
   const [totpSubmitting, setTotpSubmitting] = useState(false);
   const [sessionUser, setSessionUser] = useState<AdminSessionUser | null>(null);
-  const [admins, setAdmins] = useState<AdminDirectoryEntry[]>([]);
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
 
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -81,6 +86,8 @@ export default function AdminManagementPage() {
     setCenterFailMessage(message);
     setShowCenterFailMessage(true);
   }, []);
+
+  const { data: adminMe, isLoading: adminLoading, error: adminError } = useAdminMe(adminToken, !!adminToken);
 
   useEffect(() => {
     if (!showCenterFailMessage) return;
@@ -126,108 +133,66 @@ export default function AdminManagementPage() {
     [router]
   );
 
-  const loadAdmins = useCallback(async () => {
-    const response = await apiRequest('/admins');
-    setAdmins(response.admins || []);
-  }, [apiRequest]);
+  const {
+    data: adminsPayload,
+    isLoading: adminsLoading,
+    error: adminsError,
+    refetch,
+  } = useAdminApiQuery<{ admins?: AdminDirectoryEntry[] }>({
+    queryKey: ['admin', 'admins'],
+    queryFn: () => apiRequest('/admins') as Promise<{ admins?: AdminDirectoryEntry[] }>,
+    enabled: !!adminToken,
+    staleTime: 5 * 1000,
+    refetchInterval: ADMINS_AUTO_REFRESH_MS,
+  });
 
-  const loadSessionUser = useCallback(async (): Promise<AdminSessionUser | null> => {
-    const token = localStorage.getItem('adminToken');
-    if (!token) return null;
+  const admins = adminsPayload?.admins || [];
+  const loading = adminLoading || adminsLoading;
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  useEffect(() => {
+    const rawUser = localStorage.getItem('adminUser');
+    if (!rawUser) return;
+    try {
+      const parsed = JSON.parse(rawUser) as AdminSessionUser;
+      if (parsed?.id && parsed?.username && parsed?.role) {
+        setSessionUser(parsed);
+      }
+    } catch {
+      // ignore malformed cache
+    }
+  }, []);
 
-    if (!response.ok) return null;
-    const payload = await response.json();
-    const admin = payload?.admin;
-    if (!admin || typeof admin !== 'object') return null;
-
+  useEffect(() => {
+    if (!adminMe?.admin) return;
+    const admin = adminMe.admin as Record<string, unknown>;
     const normalized: AdminSessionUser = {
       id: String(admin.id || ''),
       username: String(admin.username || ''),
       name: String(admin.name || admin.username || ''),
       role: String(admin.role || ''),
-      permissions: Array.isArray(admin.permissions) ? admin.permissions : [],
+      permissions: Array.isArray(admin.permissions) ? (admin.permissions as string[]) : [],
     };
-
-    if (!normalized.id || !normalized.username || !normalized.role) return null;
-
+    if (!normalized.id || !normalized.username || !normalized.role) return;
+    setSessionUser(normalized);
     localStorage.setItem('adminUser', JSON.stringify(normalized));
-    return normalized;
-  }, []);
+  }, [adminMe]);
 
   useEffect(() => {
-    const rawUser = localStorage.getItem('adminUser');
-    const initialize = async () => {
-      let parsedUser: AdminSessionUser | null = null;
-
-      if (rawUser) {
-        try {
-          const parsed = JSON.parse(rawUser) as AdminSessionUser;
-          if (parsed?.id && parsed?.username && parsed?.role) {
-            parsedUser = parsed;
-          }
-        } catch {
-          parsedUser = null;
-        }
-      }
-
-      if (!parsedUser) {
-        parsedUser = await loadSessionUser();
-      }
-
-      if (!parsedUser) {
-        router.push('/admin/login');
-        return;
-      }
-
-      setSessionUser(parsedUser);
-
-      await loadAdmins();
-    };
-
-    initialize()
-      .catch(() => {
-        setAdmins([]);
-      })
-      .finally(() => setLoading(false));
-  }, [loadAdmins, loadSessionUser, router]);
+    if (!adminToken) {
+      router.push('/admin/login');
+    }
+  }, [adminToken, router]);
 
   useEffect(() => {
-    if (loading) return;
-
-    const runAutoRefresh = () => {
-      if (document.hidden || submitting || totpSubmitting) return;
-      void loadAdmins().catch(() => {
-        // Silent background refresh.
-      });
-    };
-
-    const intervalId = window.setInterval(runAutoRefresh, ADMINS_AUTO_REFRESH_MS);
-
-    const handleFocus = () => {
-      runAutoRefresh();
-    };
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        runAutoRefresh();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [loadAdmins, loading, submitting, totpSubmitting]);
+    const status =
+      (adminError as ApiError | undefined)?.status ||
+      (adminsError as ApiError | undefined)?.status;
+    if (status === 401) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      router.push('/admin/login');
+    }
+  }, [adminError, adminsError, router]);
 
   const isSuperAdmin = useMemo(() => sessionUser?.role === 'SUPER_ADMIN', [sessionUser?.role]);
 
@@ -322,7 +287,7 @@ export default function AdminManagementPage() {
         showFeedback('Admin account deleted successfully', 'success');
       }
 
-      await loadAdmins();
+      await refetch();
       closeTotpModal();
     } catch (error) {
       showCenteredFailure(error instanceof Error ? error.message : 'Action failed');
@@ -333,36 +298,39 @@ export default function AdminManagementPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-8 text-sm text-gray-600 dark:text-gray-300">
-        Loading admin management...
-      </div>
+      <AdminLoading title="Loading Admins" subtitle="Preparing admin management console..." />
     );
   }
 
   if (!isSuperAdmin) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6">
-        <div className="max-w-3xl mx-auto bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Admin Management</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Only Super Admin can create admin accounts.
-          </p>
+      <AdminPageShell>
+        <AdminPageHeader
+          title="Admin Management"
+          subtitle="Only Super Admins can create or remove administrator accounts."
+        />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 text-sm text-slate-600 dark:text-slate-300">
+          Reach out to the Super Admin team if you need elevated access.
         </div>
-      </div>
+      </AdminPageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Management</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Create or delete admin accounts. TOTP is requested in a popup when you confirm the action.
-          </p>
-        </div>
+    <AdminPageShell>
+      <AdminPageHeader
+        title="Admin Management"
+        subtitle="Create or delete admin accounts. TOTP is required for sensitive actions."
+        meta={
+          <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <Users className="w-4 h-4" />
+            <span>{admins.length} active admins</span>
+          </div>
+        }
+      />
+      <div className="space-y-6">
         <button
-          onClick={loadAdmins}
+          onClick={() => void refetch()}
           className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm"
         >
           Refresh
@@ -549,6 +517,6 @@ export default function AdminManagementPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPageShell>
   );
 }

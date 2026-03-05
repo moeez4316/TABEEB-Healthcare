@@ -12,6 +12,7 @@ import {
   Home,
   KeyRound,
 } from 'lucide-react';
+import AdminAuthShell from '@/components/admin/AdminAuthShell';
 
 interface LoginResponse {
   token: string;
@@ -167,28 +168,23 @@ export default function AdminLoginPage() {
     setError('');
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-2xl mb-6 shadow-lg">
-            {requiresTwoFactor ? (
-              <KeyRound className="w-8 h-8 text-white" />
-            ) : (
-              <Shield className="w-8 h-8 text-white" />
-            )}
-          </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-            {requiresTwoFactor ? 'Two-Factor Verification' : 'Admin Access'}
-          </h1>
-          <p className="text-slate-600 dark:text-slate-300">
-            {requiresTwoFactor
-              ? 'Enter the 6-digit code from your Google Authenticator app'
-              : 'Secure login to administrative dashboard'}
-          </p>
-        </div>
+  const pageTitle = requiresTwoFactor ? 'Two-Factor Verification' : 'Admin Access';
+  const pageSubtitle = requiresTwoFactor
+    ? 'Enter the 6-digit code from your authenticator app.'
+    : 'Secure login to the TABEEB administrative suite.';
 
-        <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-white/20 dark:border-slate-700/50 rounded-2xl shadow-xl p-8 mb-6">
+  return (
+    <AdminAuthShell title={pageTitle} subtitle={pageSubtitle}>
+      <div className="flex items-center justify-between mb-6">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg">
+          {requiresTwoFactor ? <KeyRound className="w-6 h-6" /> : <Shield className="w-6 h-6" />}
+        </div>
+        <div className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
+          Secured
+        </div>
+      </div>
+
+      <div>
           {error && (
             <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
               <div className="flex items-center">
@@ -270,6 +266,7 @@ export default function AdminLoginPage() {
                     Step 1: Scan this QR in Google Authenticator
                   </p>
                   <div className="flex justify-center mb-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={totpSetup.qrCodeUrl}
                       alt="TOTP QR code"
@@ -334,8 +331,7 @@ export default function AdminLoginPage() {
               Back to Home
             </button>
           </div>
-        </div>
       </div>
-    </div>
+    </AdminAuthShell>
   );
 }

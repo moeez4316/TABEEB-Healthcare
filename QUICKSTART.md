@@ -78,7 +78,7 @@ nano .env
 - Replace all passwords with generated ones above
 - Add Firebase credentials (Project Settings → Service Accounts)
 - Add Cloudinary credentials (Dashboard → API Keys)
-- Verify domain is set correctly in docker-compose.yml
+- Set `SITE_ADDRESS` and `LETSENCRYPT_EMAIL` for HTTPS
 
 ### 5. Deploy Application
 ```bash
@@ -95,6 +95,26 @@ docker compose ps
 docker compose exec backend npx prisma migrate deploy
 ```
 
+### 5b. Enable HTTPS with Certbot (manual)
+```bash
+chmod +x nginx/init-letsencrypt.sh
+./nginx/init-letsencrypt.sh
+```
+
+If you skip this on first run, Nginx will fail to start because certificates are missing.
+If `LETSENCRYPT_EMAIL` is not set, the script will fall back to a self-signed certificate.
+Make sure DNS points to your server and port 80 is reachable for the HTTP-01 challenge.
+Certbot is manual-only. For renewals:
+```bash
+docker compose --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
+```
+For prebuilt deployments:
+```bash
+docker compose -f docker-compose.prebuilt.yml --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run
+```
+If you use `deploy-prebuilt.sh`, run this step first. The script expects certificates to already exist.
+`deploy-prebuilt.sh` also installs/updates a host cron entry for automatic renewal.
+
 ### 6. Verify Deployment
 ```bash
 # Check all services are running
@@ -102,9 +122,6 @@ docker compose ps
 
 # Check backend logs
 docker compose logs backend
-
-# Check Caddy logs for SSL certificate
-docker compose logs caddy | grep -i certificate
 
 # Test frontend (in browser)
 # Visit: https://tabeeb.dpdns.org
@@ -160,7 +177,7 @@ docker compose logs -f
 # Specific service
 docker compose logs backend
 docker compose logs frontend
-docker compose logs caddy
+docker compose logs nginx
 docker compose logs mysql
 ```
 
@@ -195,11 +212,8 @@ sudo systemctl stop nginx
 # Check DNS is pointing correctly
 nslookup tabeeb.dpdns.org
 
-# Check Caddy logs
-docker compose logs caddy
-
-# Restart Caddy
-docker compose restart caddy
+# Run Certbot with verbose logs
+docker compose --profile tools run --rm certbot renew --webroot -w /var/www/certbot --dry-run --verbose
 ```
 
 ### Database connection failed
@@ -223,7 +237,7 @@ docker compose exec backend printenv | grep DATABASE
 - [ ] Strong passwords generated
 - [ ] DNS pointing to instance IP
 - [ ] `docker compose up -d` successful
-- [ ] All 4 containers running (mysql, backend, frontend, caddy)
+- [ ] All 4 containers running (mysql, backend, frontend, nginx)
 - [ ] Database migrations applied
 - [ ] SSL certificate obtained (check logs)
 - [ ] Frontend loads at https://tabeeb.dpdns.org
@@ -232,3 +246,5 @@ docker compose exec backend printenv | grep DATABASE
 ## Need More Help?
 
 See full documentation: [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+

@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { TimeSlot, SlotResponse } from '@/types/appointment';
 import { StatCard } from '@/components/shared/StatCard';
 import { LoadingCard } from '@/components/shared/LoadingSpinner';
 import { formatDateForAPI } from '@/lib/dateUtils';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 interface TimeSlotPickerProps {
   doctorUid: string;
@@ -23,47 +25,26 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
   className = '',
   token
 }) => {
-  const [slotData, setSlotData] = useState<SlotResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const dateStr = useMemo(
+    () => (selectedDate ? formatDateForAPI(selectedDate) : ''),
+    [selectedDate]
+  );
 
-  const fetchSlots = useCallback(async () => {
-    if (!doctorUid || !selectedDate) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const dateStr = formatDateForAPI(selectedDate);
-      const response = await fetch(
-        `${API_URL}/api/availability/slots/${doctorUid}?date=${dateStr}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` }),
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch slots: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('Fetched slot data:', data); // Debug log
-      setSlotData(data);
-    } catch (err) {
-      console.error('Error fetching slots:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch available slots');
-    } finally {
-      setLoading(false);
-    }
-  }, [doctorUid, selectedDate, token]);
-
-  useEffect(() => {
-    fetchSlots();
-  }, [fetchSlots]);
+  const {
+    data: slotData,
+    isLoading,
+    error,
+    refetch,
+  } = useApiQuery<SlotResponse>({
+    queryKey: ['availability', 'slots', doctorUid, dateStr],
+    queryFn: () =>
+      apiFetchJson<SlotResponse>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/availability/slots/${doctorUid}?date=${dateStr}`,
+        { token }
+      ),
+    enabled: !!doctorUid && !!dateStr,
+    staleTime: 30 * 1000,
+  });
 
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
@@ -94,18 +75,19 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
     return slotDate < now;
   };
 
-  if (loading) {
+  if (isLoading) {
     return <LoadingCard className={className} />;
   }
 
   if (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch available slots';
     return (
       <div className={`border border-red-200 dark:border-red-800 rounded-lg p-6 bg-red-50 dark:bg-red-900/20 ${className}`}>
         <div className="text-center">
           <div className="text-red-600 dark:text-red-400 font-medium">Error Loading Slots</div>
-          <div className="text-red-500 dark:text-red-300 text-sm mt-1">{error}</div>
+          <div className="text-red-500 dark:text-red-300 text-sm mt-1">{message}</div>
           <button
-            onClick={fetchSlots}
+            onClick={() => void refetch()}
             className="mt-3 px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
           >
             Try Again

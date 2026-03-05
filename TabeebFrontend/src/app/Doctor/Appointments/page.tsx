@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { AppointmentWithDetails } from '@/types/appointment';
@@ -11,7 +11,8 @@ import { SharedDocumentsView } from '@/components/appointment/SharedDocumentsVie
 import { useRouter } from 'next/navigation';
 import DoctorVideoCallModal from '@/components/VideoCall/DoctorVideoCallModal';
 import { Toast } from '@/components/Toast';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { useDoctorAppointments } from '@/lib/hooks/useAppointments';
+import { apiFetchJson } from '@/lib/api-client';
 import AppointmentChat from '@/components/chat/AppointmentChat';
 import { createRealtimeSocket, RealtimeEvent } from '@/lib/realtime';
 
@@ -19,15 +20,13 @@ export default function DoctorAppointmentsPage() {
   const { token, user } = useAuth();
   const router = useRouter();
   
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'pending' | 'completed'>('upcoming');
   const [updating, setUpdating] = useState<string | null>(null);
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
@@ -36,41 +35,14 @@ export default function DoctorAppointmentsPage() {
   const [showChat, setShowChat] = useState(false);
   const [chatAppointment, setChatAppointment] = useState<AppointmentWithDetails | null>(null);
 
-  const fetchAppointments = useCallback(async (silent = false) => {
-    if (!token) return;
-    
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-    }
+  const {
+    data: appointmentsData,
+    isLoading,
+    error,
+    refetch,
+  } = useDoctorAppointments(token, 100, true);
 
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/doctor?limit=100`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch appointments');
-      }
-
-      const data = await response.json();
-      setAppointments(data.appointments || []);
-    } catch {
-      setError('Failed to load appointments. Please try again.');
-    } finally {
-      if (!silent) {
-        setLoading(false);
-      }
-    }
-  }, [token]);
-
-  useEffect(() => {
-    fetchAppointments(false);
-  }, [fetchAppointments]);
+  const appointments = (appointmentsData || []) as Appointment[];
 
   useEffect(() => {
     if (!token) return;
@@ -82,7 +54,7 @@ export default function DoctorAppointmentsPage() {
       if (isRefreshing) return;
       isRefreshing = true;
       try {
-        await fetchAppointments(true);
+        await refetch();
       } finally {
         isRefreshing = false;
       }
@@ -118,33 +90,26 @@ export default function DoctorAppointmentsPage() {
       socket.off('domain.event', onEvent);
       socket.disconnect();
     };
-  }, [token, fetchAppointments]);
+  }, [token, refetch]);
 
   const updateAppointmentStatus = async (appointmentId: string, newStatus: 'CONFIRMED' | 'CANCELLED', cancelReason?: string) => {
     setUpdating(appointmentId);
     
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/${appointmentId}/status`, {
+      await apiFetchJson(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/status`, {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
+        token,
+        body: JSON.stringify({
           status: newStatus,
-          ...(newStatus === 'CANCELLED' && cancelReason && { cancelReason })
+          ...(newStatus === 'CANCELLED' && cancelReason && { cancelReason }),
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update appointment status');
-      }
-
       // Refresh appointments
-      fetchAppointments(true);
+      await refetch();
     } catch {
-      setError('Failed to update appointment. Please try again.');
+      // Surface error in toast to avoid screen-level flicker
+      showNotification('Failed to update appointment. Please try again.', 'error');
     } finally {
       setUpdating(null);
     }
@@ -152,12 +117,13 @@ export default function DoctorAppointmentsPage() {
 
   const handleCancelClick = (appointmentId: string) => {
     setAppointmentToCancel(appointmentId);
+    setCancelError(null);
     setShowCancelModal(true);
   };
 
   const handleCancelConfirm = async () => {
     if (!appointmentToCancel || !cancelReason.trim()) {
-      setError('Please provide a cancellation reason');
+      setCancelError('Please provide a cancellation reason');
       return;
     }
 
@@ -165,12 +131,14 @@ export default function DoctorAppointmentsPage() {
     setShowCancelModal(false);
     setAppointmentToCancel(null);
     setCancelReason('');
+    setCancelError(null);
   };
 
   const handleCancelClose = () => {
     setShowCancelModal(false);
     setAppointmentToCancel(null);
     setCancelReason('');
+    setCancelError(null);
   };
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -265,7 +233,7 @@ export default function DoctorAppointmentsPage() {
 
   const filteredAppointments = filterAppointments();
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -413,9 +381,11 @@ export default function DoctorAppointmentsPage() {
         {/* Error Display */}
         {error && (
           <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 shadow-lg">
-            <div className="text-red-800 dark:text-red-400">{error}</div>
+            <div className="text-red-800 dark:text-red-400">
+              {error instanceof Error ? error.message : 'Failed to load appointments. Please try again.'}
+            </div>
             <button
-              onClick={() => fetchAppointments(false)}
+              onClick={() => refetch()}
               className="mt-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
             >
               Try Again
@@ -770,6 +740,12 @@ export default function DoctorAppointmentsPage() {
               rows={4}
               maxLength={500}
             />
+
+            {cancelError && (
+              <div className="mt-3 text-sm text-red-600 dark:text-red-400">
+                {cancelError}
+              </div>
+            )}
             
             <div className="text-right text-xs text-gray-500 dark:text-gray-400 mb-4">
               {cancelReason.length}/500 characters
@@ -803,7 +779,7 @@ export default function DoctorAppointmentsPage() {
             setShowVideoCall(false);
             setSelectedAppointmentId(null);
             // Refresh appointments to update status
-            fetchAppointments(true);
+            refetch();
           }}
           firebaseToken={token}
         />

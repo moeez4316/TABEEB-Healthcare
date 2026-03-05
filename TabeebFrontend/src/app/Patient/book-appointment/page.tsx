@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Doctor, TimeSlot, AppointmentBooking, Appointment } from '@/types/appointment';
 import { DoctorSelector } from '@/components/appointment/BookingFlow/DoctorSelector';
@@ -9,7 +9,8 @@ import { TimeSlotPicker } from '@/components/appointment/BookingFlow/TimeSlotPic
 import { BookingForm } from '@/components/appointment/BookingFlow/BookingForm';
 import { BookingConfirmation } from '@/components/appointment/BookingFlow/BookingConfirmation';
 import { useAuth } from '@/lib/auth-context';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 type BookingStep = 'doctor' | 'date' | 'time' | 'details' | 'confirmation';
 
@@ -17,7 +18,7 @@ export default function BookAppointmentPage() {
   const { token } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const preSelectedDoctorId = searchParams.get('doctorId');
+  const preSelectedDoctorId = searchParams.get('doctorId') || searchParams.get('doctor');
   const isFollowUp = searchParams.get('followUp') === 'true';
   const originalAppointmentId = searchParams.get('originalAppointmentId');
   
@@ -27,18 +28,68 @@ export default function BookAppointmentPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [bookedAppointment, setBookedAppointment] = useState<Appointment | null>(null);
+  const [bookingLoading, setBookingLoading] = useState(false);
   
   // Data state
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [doctorAvailability, setDoctorAvailability] = useState<Date[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dismissedDoctorsError, setDismissedDoctorsError] = useState(false);
 
-  // Fetch doctors on component mount
+  const {
+    data: doctorsPayload,
+    isLoading: doctorsLoading,
+    error: doctorsError,
+  } = useApiQuery<{ doctors?: Array<{
+    uid: string;
+    name: string;
+    specialization: string;
+    hourlyConsultationRate?: number;
+    followUpPercentage?: number;
+    verification?: { isVerified: boolean };
+  }> }>({
+    queryKey: ['doctors', 'verified'],
+    queryFn: () => apiFetchJson(`${process.env.NEXT_PUBLIC_API_URL}/api/doctor/verified`),
+    staleTime: 60 * 1000,
+  });
+
+  const doctors: Doctor[] = useMemo(() => {
+    const source = doctorsPayload?.doctors || [];
+    return source.map((doctor) => ({
+      uid: doctor.uid,
+      name: doctor.name,
+      specialization: doctor.specialization,
+      consultationFees: doctor.hourlyConsultationRate || 1500,
+      followUpPercentage: doctor.followUpPercentage ?? 50,
+      rating: 4.5,
+      isAvailable: doctor.verification?.isVerified || false,
+    }));
+  }, [doctorsPayload]);
+
+  const doctorsErrorMessage = doctorsError instanceof Error ? doctorsError.message : null;
+
   useEffect(() => {
-    fetchDoctors();
-  }, []);
+    if (doctorsErrorMessage) {
+      setDismissedDoctorsError(false);
+    }
+  }, [doctorsErrorMessage]);
+
+  const {
+    data: availabilityData,
+    isLoading: availabilityLoading,
+  } = useApiQuery<Array<{ date: string }>>({
+    queryKey: ['doctor', 'availability', selectedDoctor?.uid],
+    queryFn: () =>
+      apiFetchJson(`${process.env.NEXT_PUBLIC_API_URL}/api/availability/doctor/${selectedDoctor?.uid}`),
+    enabled: !!selectedDoctor?.uid,
+    staleTime: 30 * 1000,
+  });
+
+  const doctorAvailability = useMemo(
+    () =>
+      (Array.isArray(availabilityData) ? availabilityData : []).map(
+        (availability) => new Date(availability.date)
+      ),
+    [availabilityData]
+  );
 
   // Handle pre-selected doctor
   useEffect(() => {
@@ -47,92 +98,15 @@ export default function BookAppointmentPage() {
       if (doctor) {
         setSelectedDoctor(doctor);
         setCurrentStep('date');
-        fetchDoctorAvailability(doctor.uid);
       }
     }
   }, [preSelectedDoctorId, doctors]);
-
-  const fetchDoctors = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/doctor/verified`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch doctors');
-      }
-
-      const data = await response.json();
-      
-      // Transform the data to match our Doctor interface
-      const transformedDoctors: Doctor[] = data.doctors?.map((doctor: {
-        uid: string;
-        name: string;
-        specialization: string;
-        hourlyConsultationRate?: number;
-        followUpPercentage?: number;
-        verification?: { isVerified: boolean };
-      }) => ({
-        uid: doctor.uid,
-        name: doctor.name,
-        specialization: doctor.specialization,
-        consultationFees: doctor.hourlyConsultationRate || 1500, // Default fee PKR 1500
-        followUpPercentage: doctor.followUpPercentage ?? 50, // Default 50%
-        rating: 4.5, // Default rating
-        isAvailable: doctor.verification?.isVerified || false
-      })) || [];
-
-      setDoctors(transformedDoctors);
-    } catch {
-      setError('Failed to load doctors. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchDoctorAvailability = async (doctorUid: string) => {
-    setAvailabilityLoading(true);
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/availability/doctor/${doctorUid}`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        return;
-      }
-
-      const data = await response.json();
-      
-      // Convert availability dates to Date objects
-      const availableDates = (Array.isArray(data) ? data : []).map((availability: { date: string }) => 
-        new Date(availability.date)
-      );
-      
-      setDoctorAvailability(availableDates);
-    } catch {
-      setDoctorAvailability([]);
-    } finally {
-      setAvailabilityLoading(false);
-    }
-  };
 
   const handleDoctorSelect = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setSelectedDate(null);
     setSelectedSlot(null);
     setCurrentStep('date');
-    
-    // Fetch availability for the selected doctor
-    fetchDoctorAvailability(doctor.uid);
   };
 
   const handleDateSelect = (date: Date) => {
@@ -147,7 +121,7 @@ export default function BookAppointmentPage() {
   };
 
   const handleBookingSubmit = async (bookingData: AppointmentBooking & { patientNotes: string; sharedDocumentIds?: string[] }) => {
-    setLoading(true);
+    setBookingLoading(true);
     setError(null);
 
     try {
@@ -162,21 +136,11 @@ export default function BookAppointmentPage() {
         ? { ...bookingData, originalAppointmentId }
         : bookingData;
       
-      const response = await fetchWithRateLimit(endpoint, {
+      const result = await apiFetchJson<{ appointment: Appointment; discountApplied?: number }>(endpoint, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        token,
         body: JSON.stringify(requestBody),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to book appointment');
-      }
-
-      const result = await response.json();
       const appointment = result.appointment;
       
       // Redirect to payment page with appointment details
@@ -193,7 +157,7 @@ export default function BookAppointmentPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to book appointment');
     } finally {
-      setLoading(false);
+      setBookingLoading(false);
     }
   };
 
@@ -247,7 +211,7 @@ export default function BookAppointmentPage() {
             doctors={doctors}
             selectedDoctor={selectedDoctor}
             onDoctorSelect={handleDoctorSelect}
-            loading={loading}
+            loading={doctorsLoading}
           />
         );
 
@@ -288,7 +252,7 @@ export default function BookAppointmentPage() {
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
             onBookingSubmit={handleBookingSubmit}
-            loading={loading}
+            loading={bookingLoading}
           />
         ) : null;
 
@@ -415,12 +379,17 @@ export default function BookAppointmentPage() {
         </div>
 
         {/* Error Display */}
-        {error && (
+        {(error || (doctorsErrorMessage && !dismissedDoctorsError)) && (
           <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 shadow-lg">
             <div className="text-red-800 dark:text-red-400 font-medium">Error</div>
-            <div className="text-red-600 dark:text-red-300 text-sm">{error}</div>
+            <div className="text-red-600 dark:text-red-300 text-sm">
+              {error || doctorsErrorMessage}
+            </div>
             <button
-              onClick={() => setError(null)}
+              onClick={() => {
+                setError(null);
+                setDismissedDoctorsError(true);
+              }}
               className="mt-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
             >
               Dismiss

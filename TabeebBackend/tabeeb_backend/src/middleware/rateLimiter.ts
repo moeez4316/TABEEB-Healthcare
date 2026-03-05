@@ -1,5 +1,6 @@
 import rateLimit from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
+import { createRedisRateLimitStore } from './redisRateLimitStore';
 
 // Helper to parse common truthy env values
 const parseBool = (v?: string): boolean | undefined =>
@@ -31,9 +32,16 @@ export const wrapLimiter = (
  */
 
 // General API rate limiter - 200 requests per 15 minutes per IP (balanced)
+const generalStore = createRedisRateLimitStore('general');
+const authStore = createRedisRateLimitStore('auth');
+const uploadStore = createRedisRateLimitStore('upload');
+const verificationStore = createRedisRateLimitStore('verification');
+const appointmentStore = createRedisRateLimitStore('appointment');
+
 export const generalLimiter = wrapLimiter(rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200,
+  store: generalStore,
   message: {
     error: 'Too many requests. Please wait a moment and try again.',
     code: 'RATE_LIMIT_EXCEEDED',
@@ -48,6 +56,7 @@ export const generalLimiter = wrapLimiter(rateLimit({
 export const authLimiter = wrapLimiter(rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
+  store: authStore,
   message: {
     error: 'Too many login attempts. Please try again after 15 minutes.',
     code: 'RATE_LIMIT_EXCEEDED',
@@ -62,6 +71,7 @@ export const authLimiter = wrapLimiter(rateLimit({
 export const uploadSignatureLimiter = wrapLimiter(rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 20,
+  store: uploadStore,
   message: {
     error: 'Upload limit reached. You can upload up to 50 files per hour.',
     code: 'RATE_LIMIT_EXCEEDED',
@@ -80,6 +90,7 @@ export const uploadSignatureLimiter = wrapLimiter(rateLimit({
 export const verificationLimiter = wrapLimiter(rateLimit({
   windowMs: 24 * 60 * 60 * 1000, // 24 hours
   max: 3,
+  store: verificationStore,
   message: {
     error: 'Verification submission limit reached. Please try again tomorrow.',
     code: 'RATE_LIMIT_EXCEEDED',
@@ -98,6 +109,7 @@ export const verificationLimiter = wrapLimiter(rateLimit({
 export const appointmentLimiter = wrapLimiter(rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10,
+  store: appointmentStore,
   message: {
     error: 'Booking limit reached. Please try again later.',
     code: 'RATE_LIMIT_EXCEEDED',

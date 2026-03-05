@@ -26,6 +26,7 @@ import { APP_CONFIG } from '@/lib/config/appConfig';
 
 interface SidebarAdminProps {
   className?: string;
+  adminRole?: string;
 }
 
 interface CachedAdminUser {
@@ -41,7 +42,7 @@ interface NavigationItem {
   disabled?: boolean;
 }
 
-export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
+export default function SidebarAdmin({ className = '', adminRole: adminRoleProp }: SidebarAdminProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -62,52 +63,24 @@ export default function SidebarAdmin({ className = '' }: SidebarAdminProps) {
   }, []);
 
   useEffect(() => {
-    const syncAdminRole = async () => {
-      let cachedUser: CachedAdminUser | null = null;
-      try {
-        const raw = localStorage.getItem('adminUser');
-        if (raw) {
-          cachedUser = JSON.parse(raw) as CachedAdminUser;
-          if (cachedUser && typeof cachedUser.role === 'string') {
-            setAdminRole(cachedUser.role);
-          }
+    try {
+      const raw = localStorage.getItem('adminUser');
+      if (raw) {
+        const cachedUser = JSON.parse(raw) as CachedAdminUser;
+        if (cachedUser && typeof cachedUser.role === 'string') {
+          setAdminRole(cachedUser.role);
         }
-      } catch {
-        setAdminRole('');
       }
-
-      const token = localStorage.getItem('adminToken');
-      if (!token) return;
-
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) return;
-        const payload = await response.json();
-        const role = payload?.admin?.role;
-        if (typeof role !== 'string') return;
-
-        setAdminRole(role);
-
-        const mergedUser = {
-          ...(cachedUser && typeof cachedUser === 'object' ? cachedUser : {}),
-          ...(payload?.admin && typeof payload.admin === 'object' ? payload.admin : {}),
-          role,
-        };
-        localStorage.setItem('adminUser', JSON.stringify(mergedUser));
-      } catch {
-        // keep cached role
-      }
-    };
-
-    void syncAdminRole();
-    window.addEventListener('focus', syncAdminRole);
-    return () => window.removeEventListener('focus', syncAdminRole);
+    } catch {
+      setAdminRole('');
+    }
   }, []);
+
+  useEffect(() => {
+    if (adminRoleProp) {
+      setAdminRole(adminRoleProp);
+    }
+  }, [adminRoleProp]);
 
   const navigation: NavigationItem[] = [
     {

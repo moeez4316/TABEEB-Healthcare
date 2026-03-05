@@ -53,7 +53,7 @@ class VerificationAPI {
   ): Promise<{ message: string; [key: string]: unknown }> {
     // Validate minimum requirements
     if (!data.pmdcNumber) {
-      throw new Error('PMDC Number is required');
+      throw new Error('Registration/license number is required');
     }
     
     if (!data.cnicFront) {
@@ -65,8 +65,8 @@ class VerificationAPI {
       { file: data.cnicFront, name: 'CNIC Front' },
       { file: data.cnicBack, name: 'CNIC Back' },
       { file: data.verificationPhoto, name: 'Verification Photo' },
-      { file: data.degreeCertificate, name: 'Degree Certificate' },
-      { file: data.pmdcCertificate, name: 'PMDC Certificate' },
+      { file: data.degreeCertificate, name: 'Qualification/Degree Certificate' },
+      { file: data.pmdcCertificate, name: 'Registration/Council Certificate' },
     ].filter(f => f.file !== null);
 
     for (const { file, name } of filesToValidate) {
@@ -88,8 +88,8 @@ class VerificationAPI {
       { key: 'cnicFront', docType: 'cnic_front', name: 'CNIC Front' },
       { key: 'cnicBack', docType: 'cnic_back', name: 'CNIC Back' },
       { key: 'verificationPhoto', docType: 'verification_photo', name: 'Verification Photo' },
-      { key: 'degreeCertificate', docType: 'degree_certificate', name: 'Degree Certificate' },
-      { key: 'pmdcCertificate', docType: 'pmdc_certificate', name: 'PMDC Certificate' },
+      { key: 'degreeCertificate', docType: 'degree_certificate', name: 'Qualification/Degree Certificate' },
+      { key: 'pmdcCertificate', docType: 'pmdc_certificate', name: 'Registration/Council Certificate' },
     ];
 
     for (const { key, docType, name } of docTypeMap) {

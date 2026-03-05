@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { FaPills, FaTimes, FaCalendarAlt, FaClock, FaExclamationCircle } from 'react-icons/fa';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 interface Medicine {
   id: string;
@@ -44,54 +46,26 @@ export const CurrentMedicationsModal: React.FC<CurrentMedicationsModalProps> = (
   onClose
 }) => {
   const { token } = useAuth();
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: prescriptionsPayload,
+    isLoading,
+    error,
+    refetch,
+  } = useApiQuery<{ data?: Prescription[] }>({
+    queryKey: ['prescriptions', 'patient', token],
+    queryFn: () =>
+      apiFetchJson<{ data?: Prescription[] }>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/prescriptions/patient?page=1&limit=50`,
+        { token }
+      ),
+    enabled: isOpen && !!token,
+    staleTime: 30 * 1000,
+  });
 
-  const fetchCurrentMedications = async () => {
-    if (!token) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(
-        `${API_URL}/api/prescriptions/patient?page=1&limit=50`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch medications');
-      }
-
-      const data = await response.json();
-      
-      // Filter only active prescriptions
-      const activePrescriptions = data.data?.filter(
-        (p: Prescription) => p.isActive
-      ) || [];
-      
-      setPrescriptions(activePrescriptions);
-    } catch (err) {
-      console.error('Error fetching current medications:', err);
-      setError('Unable to load your current medications');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchCurrentMedications();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  const prescriptions = useMemo(() => {
+    const list = prescriptionsPayload?.data || [];
+    return list.filter((prescription) => prescription.isActive);
+  }, [prescriptionsPayload]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -145,7 +119,7 @@ export const CurrentMedicationsModal: React.FC<CurrentMedicationsModalProps> = (
           {/* Content */}
           <div className="overflow-y-auto max-h-[calc(85vh-80px)]">
             <div className="p-6">
-              {loading ? (
+              {isLoading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
                   <p className="text-gray-600 dark:text-gray-400">Loading your medications...</p>
@@ -153,9 +127,11 @@ export const CurrentMedicationsModal: React.FC<CurrentMedicationsModalProps> = (
               ) : error ? (
                 <div className="text-center py-12">
                   <FaExclamationCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-                  <p className="text-red-600 dark:text-red-400">{error}</p>
+                  <p className="text-red-600 dark:text-red-400">
+                    {error instanceof Error ? error.message : 'Unable to load your current medications'}
+                  </p>
                   <button
-                    onClick={fetchCurrentMedications}
+                    onClick={() => void refetch()}
                     className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
                   >
                     Try Again

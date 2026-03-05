@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2, Mail, RefreshCw, Send } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAdminApiQuery } from '@/lib/hooks/useAdminApiQuery';
+import AdminLoading from '@/components/admin/AdminLoading';
+import AdminPageShell from '@/components/admin/AdminPageShell';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 type ContactMessageStatus = 'NEW' | 'READ' | 'IN_PROGRESS' | 'REPLIED' | 'CLOSED';
 type ContactMessageType = 'CONTACT' | 'SUPPORT' | 'FEEDBACK' | 'INBOUND';
@@ -53,22 +58,15 @@ const INBOX_AUTO_REFRESH_MS = 10000;
 export default function AdminInboxPage() {
   const router = useRouter();
 
-  const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
-  const [pagination, setPagination] = useState<PaginationPayload>({
-    currentPage: 1,
-    totalPages: 1,
-    totalMessages: 0,
-    hasMore: false,
-    limit: 20,
-  });
+  const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [savingReply, setSavingReply] = useState(false);
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const queryClient = useQueryClient();
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
 
   const apiOrigins = useMemo(() => {
     const origins: string[] = [];
@@ -197,40 +195,89 @@ export default function AdminInboxPage() {
     [apiOrigins, router]
   );
 
-  const loadMessages = useCallback(
-    async (page = 1, keepSelected = false) => {
-      const query = new URLSearchParams();
-      query.set('page', String(page));
-      query.set('limit', '20');
-      if (statusFilter !== 'all') query.set('status', statusFilter);
-      if (typeFilter !== 'all') query.set('type', typeFilter);
+  const queryString = useMemo(() => {
+    const query = new URLSearchParams();
+    query.set('page', String(page));
+    query.set('limit', '20');
+    if (statusFilter !== 'all') query.set('status', statusFilter);
+    if (typeFilter !== 'all') query.set('type', typeFilter);
+    return query.toString();
+  }, [page, statusFilter, typeFilter]);
 
-      const payload = await apiRequest(`/api/admin/inbox/messages?${query.toString()}`);
-      const list = Array.isArray(payload.messages)
-        ? (payload.messages as ContactMessage[])
-        : [];
-      const pageData = (payload.pagination || {}) as Partial<PaginationPayload>;
+  const {
+    data: inboxPayload,
+    isLoading,
+    isFetching,
+    error: inboxError,
+    refetch,
+  } = useAdminApiQuery<{ messages?: ContactMessage[]; pagination?: PaginationPayload }>({
+    queryKey: ['admin', 'inbox', { page, statusFilter, typeFilter }],
+    queryFn: () => apiRequest(`/api/admin/inbox/messages?${queryString}`) as Promise<{
+      messages?: ContactMessage[];
+      pagination?: PaginationPayload;
+    }>,
+    enabled: !!adminToken,
+    staleTime: 5 * 1000,
+    refetchInterval: savingReply ? false : INBOX_AUTO_REFRESH_MS,
+  });
 
-      setMessages(list);
-      setPagination({
-        currentPage: pageData.currentPage || page,
-        totalPages: pageData.totalPages || 1,
-        totalMessages: pageData.totalMessages || 0,
-        hasMore: Boolean(pageData.hasMore),
-        limit: pageData.limit || 20,
-      });
-
-      setSelectedMessage((previous) => {
-        if (!keepSelected || !previous) {
-          return list[0] || null;
-        }
-
-        const updated = list.find((entry) => entry.id === previous.id);
-        return updated || list[0] || null;
-      });
-    },
-    [apiRequest, statusFilter, typeFilter]
+  const messages = useMemo(
+    () => (Array.isArray(inboxPayload?.messages) ? inboxPayload?.messages : []),
+    [inboxPayload]
   );
+  const pagination: PaginationPayload = inboxPayload?.pagination || {
+    currentPage: page,
+    totalPages: 1,
+    totalMessages: 0,
+    hasMore: false,
+    limit: 20,
+  };
+  const refreshing = isFetching && !isLoading;
+
+  const updateCachedMessage = useCallback(
+    (message: ContactMessage) => {
+      queryClient.setQueryData(
+        ['admin', 'inbox', { page, statusFilter, typeFilter }],
+        (previous: { messages?: ContactMessage[]; pagination?: PaginationPayload } | undefined) => {
+          if (!previous || !Array.isArray(previous.messages)) return previous;
+          return {
+            ...previous,
+            messages: previous.messages.map((item) => (item.id === message.id ? message : item)),
+          };
+        }
+      );
+    },
+    [page, queryClient, statusFilter, typeFilter]
+  );
+
+  useEffect(() => {
+    if (isLoading) return;
+    setSelectedMessage((previous) => {
+      if (!messages.length) return null;
+      if (!previous) return messages[0];
+      const updated = messages.find((entry) => entry.id === previous.id);
+      return updated || messages[0];
+    });
+  }, [isLoading, messages]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, typeFilter]);
+
+  useEffect(() => {
+    if (!adminToken) {
+      router.push('/admin/login');
+    }
+  }, [adminToken, router]);
+
+  useEffect(() => {
+    if (inboxError) {
+      setBanner({
+        type: 'error',
+        message: inboxError instanceof Error ? inboxError.message : 'Failed to load inbox',
+      });
+    }
+  }, [inboxError]);
 
   const openMessage = useCallback(
     async (messageId: string) => {
@@ -238,27 +285,22 @@ export default function AdminInboxPage() {
       const message = payload.message as ContactMessage | undefined;
       if (!message) return;
       setSelectedMessage(message);
-      setMessages((prev) =>
-        prev.map((item) => (item.id === message.id ? message : item))
-      );
+      updateCachedMessage(message);
     },
-    [apiRequest]
+    [apiRequest, updateCachedMessage]
   );
 
   const refresh = useCallback(async () => {
-    setRefreshing(true);
     setBanner(null);
     try {
-      await loadMessages(pagination.currentPage || 1, true);
+      await refetch();
     } catch (error) {
       setBanner({
         type: 'error',
         message: error instanceof Error ? error.message : 'Failed to refresh inbox',
       });
-    } finally {
-      setRefreshing(false);
     }
-  }, [loadMessages, pagination.currentPage]);
+  }, [refetch]);
 
   const updateStatus = useCallback(
     async (status: ContactMessageStatus) => {
@@ -273,9 +315,7 @@ export default function AdminInboxPage() {
         const message = payload.message as ContactMessage | undefined;
         if (message) {
           setSelectedMessage(message);
-          setMessages((prev) =>
-            prev.map((item) => (item.id === message.id ? message : item))
-          );
+          updateCachedMessage(message);
         }
         setBanner({ type: 'success', message: `Status updated to ${status}.` });
       } catch (error) {
@@ -285,7 +325,7 @@ export default function AdminInboxPage() {
         });
       }
     },
-    [apiRequest, selectedMessage]
+    [apiRequest, selectedMessage, updateCachedMessage]
   );
 
   const sendReply = useCallback(async () => {
@@ -317,9 +357,7 @@ export default function AdminInboxPage() {
       const message = payload.message as ContactMessage | undefined;
       if (message) {
         setSelectedMessage(message);
-        setMessages((prev) =>
-          prev.map((item) => (item.id === message.id ? message : item))
-        );
+        updateCachedMessage(message);
       }
       setReplyText('');
       setBanner({ type: 'success', message: 'Reply sent successfully.' });
@@ -331,71 +369,25 @@ export default function AdminInboxPage() {
     } finally {
       setSavingReply(false);
     }
-  }, [apiRequest, replyText, selectedMessage]);
-
-  useEffect(() => {
-    setLoading(true);
-    setBanner(null);
-    loadMessages(1)
-      .catch((error) => {
-        setBanner({
-          type: 'error',
-          message: error instanceof Error ? error.message : 'Failed to load inbox',
-        });
-      })
-      .finally(() => setLoading(false));
-  }, [loadMessages]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    const runAutoRefresh = () => {
-      if (document.hidden || savingReply || refreshing) return;
-      void loadMessages(pagination.currentPage || 1, true).catch(() => {
-        // Keep polling silent to avoid noisy transient banners.
-      });
-    };
-
-    const intervalId = window.setInterval(runAutoRefresh, INBOX_AUTO_REFRESH_MS);
-
-    const handleFocus = () => {
-      runAutoRefresh();
-    };
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        runAutoRefresh();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [loadMessages, loading, pagination.currentPage, refreshing, savingReply]);
+  }, [apiRequest, replyText, selectedMessage, updateCachedMessage]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Inbox</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Support and contact messages sent to TABEEB admin mailboxes.
-          </p>
-        </div>
-        <button
-          onClick={refresh}
-          disabled={refreshing}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white text-sm font-medium"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
+    <AdminPageShell>
+      <AdminPageHeader
+        title="Admin Inbox"
+        subtitle="Support, feedback, and contact messages across the platform."
+        actions={
+          <button
+            onClick={refresh}
+            disabled={refreshing}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white text-sm font-semibold"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        }
+      />
+      <div className="space-y-4">
 
       {banner && (
         <div
@@ -447,8 +439,8 @@ export default function AdminInboxPage() {
           </div>
 
           <div className="max-h-[68vh] overflow-y-auto">
-            {loading ? (
-              <div className="p-4 text-sm text-gray-600 dark:text-gray-300">Loading inbox...</div>
+            {isLoading ? (
+              <AdminLoading variant="section" title="Loading Inbox" subtitle="Syncing support messages..." />
             ) : messages.length === 0 ? (
               <div className="p-6 text-sm text-gray-500 dark:text-gray-400">No messages found.</div>
             ) : (
@@ -482,8 +474,8 @@ export default function AdminInboxPage() {
 
           <div className="p-3 border-t border-gray-200 dark:border-slate-700 flex items-center justify-between text-sm">
             <button
-              onClick={() => loadMessages(Math.max(1, pagination.currentPage - 1), true)}
-              disabled={pagination.currentPage <= 1 || loading}
+              onClick={() => setPage(Math.max(1, pagination.currentPage - 1))}
+              disabled={pagination.currentPage <= 1 || isLoading}
               className="px-3 py-1.5 rounded border border-gray-200 dark:border-slate-600 disabled:opacity-50 text-gray-700 dark:text-gray-200"
             >
               Prev
@@ -492,8 +484,8 @@ export default function AdminInboxPage() {
               Page {pagination.currentPage} of {pagination.totalPages}
             </span>
             <button
-              onClick={() => loadMessages(Math.min(pagination.totalPages, pagination.currentPage + 1), true)}
-              disabled={pagination.currentPage >= pagination.totalPages || loading}
+              onClick={() => setPage(Math.min(pagination.totalPages, pagination.currentPage + 1))}
+              disabled={pagination.currentPage >= pagination.totalPages || isLoading}
               className="px-3 py-1.5 rounded border border-gray-200 dark:border-slate-600 disabled:opacity-50 text-gray-700 dark:text-gray-200"
             >
               Next
@@ -581,6 +573,7 @@ export default function AdminInboxPage() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </AdminPageShell>
   );
 }

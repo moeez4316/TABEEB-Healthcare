@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useDeferredValue, useMemo } from 'react';
 import { FaUserMd, FaUser, FaBan, FaCheckCircle, FaSearch } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAdminApiQuery } from '@/lib/hooks/useAdminApiQuery';
+import { apiFetchJson, ApiError } from '@/lib/api-client';
+import AdminLoading from '@/components/admin/AdminLoading';
+import AdminPageShell from '@/components/admin/AdminPageShell';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 interface User {
   uid: string;
@@ -19,9 +24,6 @@ interface User {
 
 export default function AdminUsersPage() {
   const router = useRouter();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'doctor' | 'patient'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,48 +31,59 @@ export default function AdminUsersPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [actionType, setActionType] = useState<'suspend' | 'activate'>('suspend');
   const [suspendReason, setSuspendReason] = useState('');
+  const [error, setError] = useState('');
+  const queryClient = useQueryClient();
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
 
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const adminToken = localStorage.getItem('adminToken');
-      
-      const params = new URLSearchParams();
-      if (filter !== 'all') params.append('role', filter);
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-
-      const response = await fetchWithRateLimit(`${API_URL}/api/admin/users?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${adminToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
-
-      const data = await response.json();
-      setUsers(data.users);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load users');
-    } finally {
-      setLoading(false);
-    }
+  const params = useMemo(() => {
+    const search = new URLSearchParams();
+    if (filter !== 'all') search.append('role', filter);
+    if (statusFilter !== 'all') search.append('status', statusFilter);
+    return search.toString();
   }, [filter, statusFilter]);
+
+  const {
+    data: userPayload,
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useAdminApiQuery<{ users: User[] }>({
+    queryKey: ['admin', 'users', { filter, statusFilter }],
+    queryFn: () =>
+      apiFetchJson<{ users: User[] }>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/users?${params}`,
+        {
+          token: adminToken,
+        }
+      ),
+    enabled: !!adminToken,
+    staleTime: 30 * 1000,
+  });
+
+  const users = useMemo(() => userPayload?.users ?? [], [userPayload]);
 
   useEffect(() => {
     // Check if admin is logged in
-    const adminToken = localStorage.getItem('adminToken');
     if (!adminToken) {
       router.push('/admin/login');
       return;
     }
+  }, [adminToken, router]);
 
-    fetchUsers();
-  }, [fetchUsers, router]);
+  useEffect(() => {
+    const status = (queryError as ApiError | undefined)?.status;
+    if (status === 401) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      router.push('/admin/login');
+    }
+    if (queryError) {
+      setError('Failed to load users');
+    } else {
+      setError('');
+    }
+  }, [queryError, router]);
 
   const handleSuspendClick = (user: User) => {
     setSelectedUser(user);
@@ -89,28 +102,21 @@ export default function AdminUsersPage() {
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const adminToken = localStorage.getItem('adminToken');
       
       const endpoint = actionType === 'suspend' ? 'suspend' : 'activate';
-      const response = await fetchWithRateLimit(`${API_URL}/api/admin/users/${endpoint}`, {
+      await apiFetchJson(`${API_URL}/api/admin/users/${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${adminToken}`,
-          'Content-Type': 'application/json',
-        },
+        token: adminToken,
         body: JSON.stringify({
           uid: selectedUser.uid,
           role: selectedUser.role,
-          ...(actionType === 'suspend' && suspendReason ? { reason: suspendReason } : {})
+          ...(actionType === 'suspend' && suspendReason ? { reason: suspendReason } : {}),
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to ${actionType} user`);
-      }
-
       // Refresh the user list
-      await fetchUsers();
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       
       // Close modal
       setShowConfirmModal(false);
@@ -121,36 +127,65 @@ export default function AdminUsersPage() {
     }
   };
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch = 
-      user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.phone?.includes(searchQuery);
-    
-    return matchesSearch;
-  });
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-  const stats = {
-    totalUsers: users.length,
-    activeUsers: users.filter(u => u.isActive).length,
-    suspendedUsers: users.filter(u => !u.isActive).length,
-    doctors: users.filter(u => u.role === 'doctor').length,
-    patients: users.filter(u => u.role === 'patient').length,
-  };
+  const filteredUsers = useMemo(() => {
+    const query = deferredSearchQuery.trim().toLowerCase();
+    const hasQuery = query.length > 0;
+    if (!hasQuery) return users;
+
+    return users.filter((user) => {
+      const matchesSearch =
+        user.firstName.toLowerCase().includes(query) ||
+        user.lastName.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query) ||
+        user.phone?.includes(deferredSearchQuery.trim());
+
+      return matchesSearch;
+    });
+  }, [users, deferredSearchQuery]);
+
+  const stats = useMemo(
+    () =>
+      users.reduce(
+        (acc, user) => {
+          acc.totalUsers += 1;
+          if (user.isActive) {
+            acc.activeUsers += 1;
+          } else {
+            acc.suspendedUsers += 1;
+          }
+          if (user.role === 'doctor') {
+            acc.doctors += 1;
+          } else if (user.role === 'patient') {
+            acc.patients += 1;
+          }
+          return acc;
+        },
+        {
+          totalUsers: 0,
+          activeUsers: 0,
+          suspendedUsers: 0,
+          doctors: 0,
+          patients: 0,
+        }
+      ),
+    [users]
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            User Management
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage doctor and patient accounts
-          </p>
-        </div>
+    <AdminPageShell>
+      <AdminPageHeader
+        title="User Management"
+        subtitle="Manage doctor and patient accounts with realtime status controls."
+        meta={
+          <div className="flex flex-wrap gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>Total: {stats.totalUsers}</span>
+            <span>Active: {stats.activeUsers}</span>
+            <span>Suspended: {stats.suspendedUsers}</span>
+          </div>
+        }
+      />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -224,11 +259,8 @@ export default function AdminUsersPage() {
 
         {/* Users Table */}
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow border border-gray-200 dark:border-slate-700 overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center">
-              <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading users...</p>
-            </div>
+          {isLoading ? (
+            <AdminLoading variant="section" title="Loading Users" subtitle="Fetching the latest user list..." />
           ) : filteredUsers.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-gray-600 dark:text-gray-400">No users found</p>
@@ -394,7 +426,6 @@ export default function AdminUsersPage() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </AdminPageShell>
   );
 }

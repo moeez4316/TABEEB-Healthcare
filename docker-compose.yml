@@ -181,21 +181,20 @@ services:
     profiles:
       - tools
 
-  # Caddy Reverse Proxy with Automatic SSL
-  caddy:
-    image: caddy:2-alpine
-    container_name: tabeeb_caddy
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: tabeeb_nginx
     restart: unless-stopped
     environment:
       - SITE_ADDRESS=${SITE_ADDRESS:-localhost}
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/certbot/www:/var/www/certbot
+      - ./nginx/certbot/conf:/etc/letsencrypt
     networks:
       - tabeeb_network
     depends_on:
@@ -207,6 +206,20 @@ services:
           cpus: '0.4'
           memory: 192M
 
+  certbot:
+    image: certbot/certbot:latest
+    container_name: tabeeb_certbot
+    restart: "no"
+    volumes:
+      - ./nginx/certbot/www:/var/www/certbot
+      - ./nginx/certbot/conf:/etc/letsencrypt
+    networks:
+      - tabeeb_network
+    depends_on:
+      - nginx
+    profiles:
+      - tools
+
 networks:
   tabeeb_network:
     driver: bridge
@@ -215,8 +228,4 @@ volumes:
   mysql_data:
     driver: local
   redis_data:
-    driver: local
-  caddy_data:
-    driver: local
-  caddy_config:
     driver: local

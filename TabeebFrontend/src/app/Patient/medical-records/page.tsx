@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { uploadMedicalRecord } from "@/lib/uploadMedicalRecord";
-import { getMedicalRecords } from "@/lib/getMedicalRecords";
 import { useAuth } from '@/lib/auth-context';
 import MedicalRecordCard from "@/components/MedicalRecordCard";
 import { deleteMedicalRecord } from '@/lib/deleteMedicalRecord';
 import { CircularProgress, useUploadProgress } from '@/components/shared/UploadProgress';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface MedicalRecord {
   id: string;
@@ -23,18 +25,28 @@ export default function MedicalRecordsPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [tags, setTags] = useState("");
   const [notes, setNotes] = useState("");
-  const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [uploadError, setUploadError] = useState("");
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [currentFileName, setCurrentFileName] = useState<string>("");
   const uploadProgress = useUploadProgress();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (token) {
-      getMedicalRecords(token).then(setRecords).catch(console.error);
-    }
-  }, [token]);
+  const {
+    data: records = [],
+    isLoading,
+    error,
+    refetch,
+  } = useApiQuery<MedicalRecord[]>({
+    queryKey: ['medical-records', token],
+    queryFn: () =>
+      apiFetchJson<MedicalRecord[]>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/records`,
+        { token }
+      ),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  });
 
   const [uploading, setUploading] = useState(false);
 
@@ -107,8 +119,7 @@ export default function MedicalRecordsPage() {
     uploadProgress.startProcessing();
     
     // Refresh records
-    const updated = await getMedicalRecords(token);
-    setRecords(updated);
+    await refetch();
     
     // Reset form
     setTags("");
@@ -133,7 +144,9 @@ export default function MedicalRecordsPage() {
     if (!token) return;
     try {
       await deleteMedicalRecord(id, token);
-      setRecords(records => records.filter(r => r.id !== id));
+      queryClient.setQueryData<MedicalRecord[]>(['medical-records', token], (previous) =>
+        previous ? previous.filter((record) => record.id !== id) : []
+      );
     } catch (error) {
       console.error('Delete error:', error);
       alert('Failed to delete record');
@@ -235,7 +248,21 @@ export default function MedicalRecordsPage() {
         </div>
         <div>
           <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-[#1e293b] dark:text-[#ededed] tracking-tight">Your Uploaded Records</h2>
-          {records.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center text-gray-400 dark:text-gray-500 py-16 text-lg font-medium">
+              Loading medical records...
+            </div>
+          ) : error ? (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+              {error instanceof Error ? error.message : 'Failed to load medical records'}
+              <button
+                onClick={() => void refetch()}
+                className="ml-3 text-sm underline"
+              >
+                Try again
+              </button>
+            </div>
+          ) : records.length === 0 ? (
             <div className="text-center text-gray-400 dark:text-gray-500 py-16 text-lg font-medium">No records uploaded yet.</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">

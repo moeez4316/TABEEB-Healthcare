@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   fetchPublicDoctorProfile,
@@ -16,41 +16,28 @@ import {
   AvailabilityPreview
 } from '@/components/doctor-profile';
 import { FaSpinner, FaExclamationCircle, FaUserPlus } from 'react-icons/fa';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
 
 export default function PublicDoctorProfilePage({ params }: { params: Promise<{ doctorUid: string }> }) {
   const router = useRouter();
   const { doctorUid } = use(params);
-  const [profile, setProfile] = useState<PublicDoctorProfile | null>(null);
-  const [availability, setAvailability] = useState<DoctorAvailabilitySummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    error: profileError,
+  } = useApiQuery<PublicDoctorProfile>({
+    queryKey: ['doctor', 'profile', doctorUid],
+    queryFn: () => fetchPublicDoctorProfile(doctorUid),
+    enabled: !!doctorUid,
+    staleTime: 2 * 60 * 1000,
+  });
 
-  useEffect(() => {
-    const loadDoctorProfile = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Fetch profile and availability in parallel
-        const [profileData, availabilityData] = await Promise.all([
-          fetchPublicDoctorProfile(doctorUid),
-          fetchDoctorAvailabilitySummary(doctorUid).catch(() => null) // Availability is optional
-        ]);
-
-        setProfile(profileData);
-        setAvailability(availabilityData);
-      } catch (err) {
-        console.error('Error loading doctor profile:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load doctor profile');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (doctorUid) {
-      loadDoctorProfile();
-    }
-  }, [doctorUid]);
+  const { data: availability } = useApiQuery<DoctorAvailabilitySummary | null>({
+    queryKey: ['doctor', 'availability-summary', doctorUid],
+    queryFn: () => fetchDoctorAvailabilitySummary(doctorUid).catch(() => null),
+    enabled: !!doctorUid,
+    staleTime: 2 * 60 * 1000,
+  });
 
   const handleSignUpToBook = () => {
     // Redirect to auth page
@@ -58,7 +45,7 @@ export default function PublicDoctorProfilePage({ params }: { params: Promise<{ 
   };
 
   // Loading State
-  if (loading) {
+  if (profileLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -70,7 +57,9 @@ export default function PublicDoctorProfilePage({ params }: { params: Promise<{ 
   }
 
   // Error State
-  if (error || !profile) {
+  if (profileError || !profile) {
+    const message =
+      profileError instanceof Error ? profileError.message : 'The doctor profile you are looking for could not be found.';
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
@@ -79,7 +68,7 @@ export default function PublicDoctorProfilePage({ params }: { params: Promise<{ 
             Profile Not Found
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {error || 'The doctor profile you are looking for could not be found.'}
+            {message}
           </p>
           <button
             onClick={() => router.push('/')}

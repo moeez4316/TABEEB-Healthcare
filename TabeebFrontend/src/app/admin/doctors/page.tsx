@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useDeferredValue, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -18,6 +18,11 @@ import {
   ArrowUpDown,
   Users
 } from 'lucide-react';
+import { useAdminApiQuery } from '@/lib/hooks/useAdminApiQuery';
+import { apiFetchJson, ApiError } from '@/lib/api-client';
+import AdminLoading from '@/components/admin/AdminLoading';
+import AdminPageShell from '@/components/admin/AdminPageShell';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
 interface Doctor {
   uid: string;
@@ -38,135 +43,126 @@ interface Doctor {
 
 export default function AdminDoctorsPage() {
   const router = useRouter();
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [specializationFilter, setSpecializationFilter] = useState<string>('all');
   const [verificationFilter, setVerificationFilter] = useState<'all' | 'verified' | 'unverified'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'experience' | 'createdAt'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
 
-  const fetchDoctors = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  const {
+    data: doctorPayload,
+    isLoading,
+    error: queryError,
+  } = useAdminApiQuery<{ doctors?: Doctor[] } | Doctor[]>({
+    queryKey: ['admin', 'doctors'],
+    queryFn: () =>
+      apiFetchJson<{ doctors?: Doctor[] } | Doctor[]>(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/doctors`, {
+        token: adminToken,
+      }),
+    enabled: !!adminToken,
+    staleTime: 30 * 1000,
+  });
 
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const adminToken = localStorage.getItem('adminToken');
-
-      const response = await fetch(`${API_URL}/api/admin/doctors`, {
-        headers: {
-          'Authorization': `Bearer ${adminToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('adminUser');
-          router.push('/admin/login');
-          return;
-        }
-        throw new Error('Failed to fetch doctors');
-      }
-
-      const data = await response.json();
-      setDoctors(data.doctors || data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load doctors');
-      console.error('Error fetching doctors:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+  const doctors = useMemo(
+    () => (Array.isArray(doctorPayload) ? doctorPayload : doctorPayload?.doctors || []),
+    [doctorPayload]
+  );
 
   useEffect(() => {
-    const adminToken = localStorage.getItem('adminToken');
     if (!adminToken) {
       router.push('/admin/login');
       return;
     }
+  }, [adminToken, router]);
 
-    fetchDoctors();
-  }, [fetchDoctors, router]);
+  useEffect(() => {
+    const status = (queryError as ApiError | undefined)?.status;
+    if (status === 401) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      router.push('/admin/login');
+      return;
+    }
+    if (queryError) {
+      setError('Failed to load doctors');
+    } else {
+      setError('');
+    }
+  }, [queryError, router]);
+
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   // Get unique specializations
-  const specializations = Array.from(new Set(doctors.map(d => d.specialization).filter(Boolean)));
+  const specializations = useMemo(
+    () => Array.from(new Set(doctors.map((doctor) => doctor.specialization).filter(Boolean))),
+    [doctors]
+  );
 
   // Filter and sort doctors
-  const filteredDoctors = doctors
-    .filter(doctor => {
-      const matchesSearch = 
-        `${doctor.firstName} ${doctor.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doctor.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doctor.specialization?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doctor.city?.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredDoctors = useMemo(() => {
+    const query = deferredSearchQuery.trim().toLowerCase();
+    const hasQuery = query.length > 0;
+    return doctors
+      .filter((doctor) => {
+        const matchesSearch =
+          !hasQuery ||
+          `${doctor.firstName} ${doctor.lastName}`.toLowerCase().includes(query) ||
+          doctor.email.toLowerCase().includes(query) ||
+          doctor.specialization?.toLowerCase().includes(query) ||
+          doctor.city?.toLowerCase().includes(query);
 
-      const matchesSpecialization = 
-        specializationFilter === 'all' || doctor.specialization === specializationFilter;
+        const matchesSpecialization =
+          specializationFilter === 'all' || doctor.specialization === specializationFilter;
 
-      const matchesVerification = 
-        verificationFilter === 'all' ||
-        (verificationFilter === 'verified' && doctor.isVerified) ||
-        (verificationFilter === 'unverified' && !doctor.isVerified);
+        const matchesVerification =
+          verificationFilter === 'all' ||
+          (verificationFilter === 'verified' && doctor.isVerified) ||
+          (verificationFilter === 'unverified' && !doctor.isVerified);
 
-      return matchesSearch && matchesSpecialization && matchesVerification;
-    })
-    .sort((a, b) => {
-      let comparison = 0;
+        return matchesSearch && matchesSpecialization && matchesVerification;
+      })
+      .sort((a, b) => {
+        let comparison = 0;
 
-      switch (sortBy) {
-        case 'name':
-          comparison = `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
-          break;
-        case 'experience':
-          comparison = (b.experience || 0) - (a.experience || 0);
-          break;
-        case 'createdAt':
-          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-          break;
-      }
+        switch (sortBy) {
+          case 'name':
+            comparison = `${a.firstName} ${a.lastName}`.localeCompare(
+              `${b.firstName} ${b.lastName}`
+            );
+            break;
+          case 'experience':
+            comparison = (b.experience || 0) - (a.experience || 0);
+            break;
+          case 'createdAt':
+            comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            break;
+        }
 
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+  }, [doctors, deferredSearchQuery, specializationFilter, verificationFilter, sortBy, sortOrder]);
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-20 h-20 mx-auto mb-4">
-            <div className="w-full h-full border-4 border-cyan-200 dark:border-cyan-800 border-t-cyan-500 rounded-full animate-spin"></div>
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Loading Doctors</h3>
-          <p className="text-gray-600 dark:text-gray-400">Fetching doctor profiles...</p>
-        </div>
-      </div>
+      <AdminLoading title="Loading Doctors" subtitle="Fetching doctor profiles..." />
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Stethoscope className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
-                All Doctors
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {filteredDoctors.length} doctor{filteredDoctors.length !== 1 ? 's' : ''} found
-              </p>
-            </div>
+    <AdminPageShell>
+      <AdminPageHeader
+        title="All Doctors"
+        subtitle="Search, filter, and manage doctor accounts across the platform."
+        meta={
+          <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <Stethoscope className="w-4 h-4" />
+            <span>{filteredDoctors.length} doctor{filteredDoctors.length !== 1 ? 's' : ''} found</span>
           </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0 space-y-6">
+        }
+      />
+      <div className="space-y-6">
           {/* Search and Filters */}
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md border border-gray-200 dark:border-slate-700 p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -352,8 +348,7 @@ export default function AdminDoctorsPage() {
               ))}
             </div>
           )}
-        </div>
-      </main>
-    </div>
+      </div>
+    </AdminPageShell>
   );
 }

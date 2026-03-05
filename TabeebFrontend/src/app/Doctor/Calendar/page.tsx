@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaUser, FaClock } from 'react-icons/fa';
 import Link from 'next/link';
 import { Clock, ChevronRight } from 'lucide-react';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { useDoctorAppointments } from '@/lib/hooks/useAppointments';
+import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { apiFetchJson } from '@/lib/api-client';
 
 interface Availability {
   id: string;
@@ -21,59 +23,34 @@ interface Availability {
 export default function DoctorCalendarPage() {
   const { token } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [availabilities, setAvailabilities] = useState<Availability[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  
+  const {
+    data: appointmentsData,
+    isLoading: appointmentsLoading,
+    error: appointmentsError,
+    refetch: refetchAppointments,
+  } = useDoctorAppointments(token, 100, true);
 
-  const fetchData = useCallback(async () => {
-    if (!token) return;
-    
-    setLoading(true);
-    setError(null);
+  const {
+    data: availabilityData,
+    isLoading: availabilityLoading,
+    error: availabilityError,
+    refetch: refetchAvailability,
+  } = useApiQuery<Availability[]>({
+    queryKey: ['doctor', 'availability', 'calendar'],
+    queryFn: () =>
+      apiFetchJson<Availability[]>(`${process.env.NEXT_PUBLIC_API_URL}/api/availability/doctor`, {
+        token,
+      }),
+    enabled: !!token,
+    staleTime: 30 * 1000,
+  });
 
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      // Fetch both appointments and availability
-      const [appointmentsResponse, availabilityResponse] = await Promise.all([
-        fetchWithRateLimit(`${API_URL}/api/appointments/doctor`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }),
-        fetchWithRateLimit(`${API_URL}/api/availability/doctor`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
-      ]);
-
-      if (!appointmentsResponse.ok || !availabilityResponse.ok) {
-        throw new Error('Failed to fetch data');
-      }
-
-      const appointmentsData = await appointmentsResponse.json();
-      const availabilityData = await availabilityResponse.json();
-      
-      console.log('Fetched appointments for calendar:', appointmentsData);
-      console.log('Fetched availability for calendar:', availabilityData);
-      
-      setAppointments(appointmentsData.appointments || []);
-      setAvailabilities(Array.isArray(availabilityData) ? availabilityData : []);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      setError('Failed to load calendar data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const appointments = (appointmentsData || []) as Appointment[];
+  const availabilities = Array.isArray(availabilityData) ? availabilityData : [];
+  const loading = appointmentsLoading || availabilityLoading;
+  const error = appointmentsError || availabilityError;
 
   const getAppointmentsForDate = (date: Date) => {
     return appointments.filter(appointment => {
@@ -194,9 +171,14 @@ export default function DoctorCalendarPage() {
         {/* Error Display */}
         {error && (
           <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 shadow-lg">
-            <div className="text-red-800 dark:text-red-400">{error}</div>
+            <div className="text-red-800 dark:text-red-400">
+              {error instanceof Error ? error.message : 'Failed to load calendar data. Please try again.'}
+            </div>
             <button
-              onClick={fetchData}
+              onClick={() => {
+                void refetchAppointments();
+                void refetchAvailability();
+              }}
               className="mt-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
             >
               Try Again
