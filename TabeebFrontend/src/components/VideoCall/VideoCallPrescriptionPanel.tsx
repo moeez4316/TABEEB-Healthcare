@@ -24,7 +24,7 @@ import {
 
 const MIN_PANEL_WIDTH = 320;
 const MAX_PANEL_WIDTH = 700;
-const DEFAULT_PANEL_WIDTH = 420;
+const DEFAULT_PANEL_WIDTH = 500;
 
 interface VideoCallPrescriptionPanelProps {
   appointmentId: string;
@@ -304,27 +304,27 @@ export default function VideoCallPrescriptionPanel({
       {/* Toggle Tab — fixed to right edge */}
       <button
         onClick={onToggle}
-        className={`absolute right-0 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1.5 rounded-l-xl shadow-lg transition-all duration-300 ${
+        className={`absolute right-0 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 rounded-l-xl shadow-lg transition-all duration-300 ${
           isOpen
-            ? 'bg-teal-700 text-white hover:bg-teal-800 px-1.5 py-3'
-            : 'bg-gradient-to-b from-teal-500 to-teal-700 text-white hover:from-teal-400 hover:to-teal-600 px-2 py-4 sm:px-2 sm:py-5'
+            ? 'bg-teal-700 text-white hover:bg-teal-800 px-2 py-4'
+            : 'bg-gradient-to-b from-teal-500 to-teal-700 text-white hover:from-teal-400 hover:to-teal-600 px-3 py-5 sm:px-3 sm:py-6'
         }`}
         title={isOpen ? 'Close prescription panel' : 'Open prescription panel'}
       >
         {isOpen ? (
-          <FaChevronRight className="w-4 h-4" />
+          <FaChevronRight className="w-5 h-5" />
         ) : (
           <>
             {/* Glowing dot indicator */}
-            <span className="relative flex h-3 w-3">
+            <span className="relative flex h-3.5 w-3.5">
               <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75 animate-ping" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400" />
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400" />
             </span>
-            <FaPrescriptionBottleAlt className="w-4 h-4" />
-            <span className="text-[10px] font-bold tracking-wider" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+            <FaPrescriptionBottleAlt className="w-5 h-5" />
+            <span className="text-xs font-bold tracking-wider" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
               Rx
             </span>
-            <FaChevronLeft className="w-3 h-3 opacity-70" />
+            <FaChevronLeft className="w-4 h-4 opacity-70" />
           </>
         )}
       </button>
@@ -337,13 +337,13 @@ export default function VideoCallPrescriptionPanel({
         style={{ width: typeof window !== 'undefined' && window.innerWidth < 640 ? '100%' : `${panelWidth}px` }}
       >
         <div className="h-full bg-white dark:bg-slate-800 border-l border-gray-200 dark:border-slate-700 shadow-2xl flex flex-col relative">
-          {/* Resize Handle (hidden on mobile — full width there) */}
+          {/* Resize Handle (hidden on mobile — full width there), positioned at top */}
           <div
             onMouseDown={startResize}
             onTouchStart={startResize}
-            className="hidden sm:flex absolute left-0 top-0 bottom-0 w-2 cursor-col-resize items-center justify-center z-10 group hover:bg-teal-500/10 active:bg-teal-500/20 transition-colors"
+            className="hidden sm:flex absolute left-0 top-0 w-2.5 h-16 cursor-col-resize items-center justify-center z-10 group hover:bg-teal-500/10 active:bg-teal-500/20 transition-colors rounded-br-lg"
           >
-            <div className="w-1 h-10 rounded-full bg-gray-300 dark:bg-slate-600 group-hover:bg-teal-500 group-active:bg-teal-400 transition-colors" />
+            <FaGripLinesVertical className="w-3 h-3 text-gray-400 dark:text-slate-500 group-hover:text-teal-500 group-active:text-teal-400 transition-colors" />
           </div>
 
           {/* Panel Header */}

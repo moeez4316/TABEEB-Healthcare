@@ -51,7 +51,7 @@ export default function DoctorVideoCallModal({
   const [error, setError] = useState<string | null>(null);
   const [jitsiLoaded, setJitsiLoaded] = useState(false);
   const [prescriptionPanelOpen, setPrescriptionPanelOpen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(420);
+  const [panelWidth, setPanelWidth] = useState(500);
 
   const handlePanelWidthChange = useCallback((width: number) => {
     setPanelWidth(width);
