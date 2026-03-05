@@ -816,26 +816,6 @@ export const authenticateAdminLogin = async (
     };
   }
 
-  // Allow skipping 2FA for local development (set ADMIN_SKIP_2FA=true in .env)
-  if (process.env.ADMIN_SKIP_2FA === 'true') {
-    const session = await createSession(admin, meta, {
-      requiresTwoFactor: false,
-      twoFactorVerified: true,
-    });
-
-    await prisma.adminUser.update({
-      where: { id: admin.id },
-      data: { lastLoginAt: new Date() },
-    });
-
-    return {
-      kind: 'success',
-      token: issueAccessToken(admin, session),
-      admin: toPublicAdminProfile(admin),
-      permissions: resolvePermissions(admin),
-    };
-  }
-
   const session = await createSession(admin, meta, {
     requiresTwoFactor: true,
     twoFactorVerified: false,
