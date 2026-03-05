@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import {
   useCreatePrescription,
@@ -19,12 +19,18 @@ import {
   FaChevronRight,
   FaChevronLeft,
   FaCheck,
+  FaGripLinesVertical,
 } from 'react-icons/fa';
+
+const MIN_PANEL_WIDTH = 320;
+const MAX_PANEL_WIDTH = 700;
+const DEFAULT_PANEL_WIDTH = 420;
 
 interface VideoCallPrescriptionPanelProps {
   appointmentId: string;
   isOpen: boolean;
   onToggle: () => void;
+  onWidthChange?: (width: number) => void;
 }
 
 const emptyMedicine: MedicineFormData = {
@@ -41,8 +47,59 @@ export default function VideoCallPrescriptionPanel({
   appointmentId,
   isOpen,
   onToggle,
+  onWidthChange,
 }: VideoCallPrescriptionPanelProps) {
   const { token } = useAuth();
+
+  // --- Resizable panel logic ---
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const isResizing = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(DEFAULT_PANEL_WIDTH);
+
+  const handleResizeMove = useCallback((e: MouseEvent | TouchEvent) => {
+    if (!isResizing.current) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const delta = startX.current - clientX; // dragging left = bigger
+    const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, startWidth.current + delta));
+    setPanelWidth(newWidth);
+    onWidthChange?.(newWidth);
+  }, [onWidthChange]);
+
+  const handleResizeEnd = useCallback(() => {
+    isResizing.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+    document.addEventListener('touchmove', handleResizeMove);
+    document.addEventListener('touchend', handleResizeEnd);
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+      document.removeEventListener('touchmove', handleResizeMove);
+      document.removeEventListener('touchend', handleResizeEnd);
+    };
+  }, [handleResizeMove, handleResizeEnd]);
+
+  const startResize = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    startX.current = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    startWidth.current = panelWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  // Notify parent of width on open
+  useEffect(() => {
+    if (isOpen) {
+      onWidthChange?.(panelWidth);
+    }
+  }, [isOpen, panelWidth, onWidthChange]);
 
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -244,40 +301,66 @@ export default function VideoCallPrescriptionPanel({
 
   return (
     <>
-      {/* Toggle Tab (always visible on the right edge of the video call) */}
+      {/* Toggle Tab — fixed to right edge */}
       <button
         onClick={onToggle}
-        className={`absolute right-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1 px-2 py-5 sm:px-1.5 sm:py-4 rounded-l-lg shadow-lg transition-all duration-300 ${
+        className={`absolute right-0 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1.5 rounded-l-xl shadow-lg transition-all duration-300 ${
           isOpen
-            ? 'bg-teal-700 text-white hover:bg-teal-800'
-            : 'bg-teal-600 text-white hover:bg-teal-700 animate-pulse hover:animate-none'
+            ? 'bg-teal-700 text-white hover:bg-teal-800 px-1.5 py-3'
+            : 'bg-gradient-to-b from-teal-500 to-teal-700 text-white hover:from-teal-400 hover:to-teal-600 px-2 py-4 sm:px-2 sm:py-5'
         }`}
         title={isOpen ? 'Close prescription panel' : 'Open prescription panel'}
       >
-        {isOpen ? <FaChevronRight className="w-4 h-4" /> : <FaChevronLeft className="w-4 h-4" />}
-        {!isOpen && (
-          <span className="writing-mode-vertical text-xs font-semibold tracking-wide" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
-            Rx
-          </span>
+        {isOpen ? (
+          <FaChevronRight className="w-4 h-4" />
+        ) : (
+          <>
+            {/* Glowing dot indicator */}
+            <span className="relative flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75 animate-ping" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400" />
+            </span>
+            <FaPrescriptionBottleAlt className="w-4 h-4" />
+            <span className="text-[10px] font-bold tracking-wider" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+              Rx
+            </span>
+            <FaChevronLeft className="w-3 h-3 opacity-70" />
+          </>
         )}
       </button>
 
       {/* Sliding Panel */}
       <div
-        className={`absolute top-0 right-0 h-full z-20 transition-transform duration-300 ease-in-out w-full sm:w-[min(420px,45vw)] ${
+        className={`absolute top-0 right-0 h-full z-20 transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
+        style={{ width: typeof window !== 'undefined' && window.innerWidth < 640 ? '100%' : `${panelWidth}px` }}
       >
-        <div className="h-full bg-white dark:bg-slate-800 border-l border-gray-200 dark:border-slate-700 shadow-2xl flex flex-col">
+        <div className="h-full bg-white dark:bg-slate-800 border-l border-gray-200 dark:border-slate-700 shadow-2xl flex flex-col relative">
+          {/* Resize Handle (hidden on mobile — full width there) */}
+          <div
+            onMouseDown={startResize}
+            onTouchStart={startResize}
+            className="hidden sm:flex absolute left-0 top-0 bottom-0 w-2 cursor-col-resize items-center justify-center z-10 group hover:bg-teal-500/10 active:bg-teal-500/20 transition-colors"
+          >
+            <div className="w-1 h-10 rounded-full bg-gray-300 dark:bg-slate-600 group-hover:bg-teal-500 group-active:bg-teal-400 transition-colors" />
+          </div>
+
           {/* Panel Header */}
-          <div className="flex items-center justify-between px-4 py-3 sm:py-3 bg-teal-600 dark:bg-teal-700 text-white shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 bg-teal-600 dark:bg-teal-700 text-white shrink-0">
             <div className="flex items-center gap-2">
               <FaPrescriptionBottleAlt className="w-4 h-4" />
               <h3 className="font-semibold text-sm sm:text-base">Prescription</h3>
             </div>
-            <button onClick={onToggle} className="p-1.5 hover:bg-white/20 rounded transition-colors">
-              <FaTimes className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              {/* Width indicator on larger screens */}
+              <span className="hidden sm:inline text-[10px] opacity-60 mr-1">
+                {panelWidth}px
+              </span>
+              <button onClick={onToggle} className="p-1.5 hover:bg-white/20 rounded transition-colors">
+                <FaTimes className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Panel Content - scrollable */}

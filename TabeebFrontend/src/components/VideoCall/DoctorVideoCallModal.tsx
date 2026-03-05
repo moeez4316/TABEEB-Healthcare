@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { FaTimes, FaSpinner } from 'react-icons/fa';
 import VideoCallPrescriptionPanel from './VideoCallPrescriptionPanel';
 
@@ -51,6 +51,11 @@ export default function DoctorVideoCallModal({
   const [error, setError] = useState<string | null>(null);
   const [jitsiLoaded, setJitsiLoaded] = useState(false);
   const [prescriptionPanelOpen, setPrescriptionPanelOpen] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(420);
+
+  const handlePanelWidthChange = useCallback((width: number) => {
+    setPanelWidth(width);
+  }, []);
 
   // Load Jitsi External API script
   useEffect(() => {
@@ -368,7 +373,8 @@ export default function DoctorVideoCallModal({
 
           <div
             ref={jitsiContainer}
-            className={`h-full transition-all duration-300 ease-in-out ${prescriptionPanelOpen ? 'hidden sm:block sm:mr-[min(420px,45vw)]' : 'w-full'}`}
+            className={`h-full transition-all duration-300 ease-in-out ${prescriptionPanelOpen ? 'hidden sm:block' : 'w-full'}`}
+            style={prescriptionPanelOpen ? { marginRight: `${panelWidth}px` } : undefined}
           />
 
           {/* Prescription Side Panel */}
@@ -376,6 +382,7 @@ export default function DoctorVideoCallModal({
             appointmentId={appointmentId}
             isOpen={prescriptionPanelOpen}
             onToggle={() => setPrescriptionPanelOpen((prev) => !prev)}
+            onWidthChange={handlePanelWidthChange}
           />
         </div>
 
