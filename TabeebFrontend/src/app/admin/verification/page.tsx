@@ -243,7 +243,8 @@ export default function AdminVerificationPage() {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to fetch PMDC data');
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody?.message || `Server returned ${response.status}`);
       }
 
       const result = await response.json();
@@ -258,10 +259,21 @@ export default function AdminVerificationPage() {
             'info'
           );
         }
+      } else {
+        // Backend returned success:false or missing data
+        showNotification(
+          result?.error || result?.message || 'Unexpected response from server. Try refreshing.',
+          'error'
+        );
       }
     } catch (error) {
       console.error('Error fetching PMDC data:', error);
-      showNotification('Failed to fetch PMDC data. Please try again or verify manually.', 'error');
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('ERR_CONNECTION')) {
+        showNotification('Cannot reach the backend server. Make sure it is running on port 5002.', 'error');
+      } else {
+        showNotification(`Failed to fetch PMDC data: ${msg || 'Unknown error'}. Try the Refresh button or verify manually on pmdc.pk.`, 'error');
+      }
     } finally {
       setPmdcLookupLoading(prev => ({ ...prev, [pmdcNumber]: false }));
     }

@@ -59,8 +59,9 @@ export interface PmdcDoctorInfo {
   fromCache: boolean;
 }
 
-// Cache duration: 7 days (PMDC data rarely changes)
-const CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+// Cache duration: 7 days for successful lookups, 15 minutes for failures
+const CACHE_DURATION_SUCCESS_MS = 7 * 24 * 60 * 60 * 1000;
+const CACHE_DURATION_FAILURE_MS = 15 * 60 * 1000;
 
 // Common headers to mimic the pmdc.pk website's own AJAX requests
 const API_HEADERS = {
@@ -101,7 +102,7 @@ export async function lookupPmdcNumber(pmdcNumber: string): Promise<PmdcDoctorIn
     };
   }
 
-  // 3. Cache the result (even failures, to avoid hammering the API)
+  // 3. Cache the result (failures cached for shorter duration to allow retries)
   await cacheLookupResult(normalizedPmdc, result);
 
   return result;
@@ -148,15 +149,28 @@ async function queryPmdcApi(pmdcNumber: string): Promise<PmdcDoctorInfo> {
     FatherName: '',
   }).toString();
 
-  const searchResponse = await axios.post(PMDC_SEARCH_URL, searchBody, {
-    headers: API_HEADERS,
-    timeout: 15000,
-  });
+  let searchResponse;
+  try {
+    searchResponse = await axios.post(PMDC_SEARCH_URL, searchBody, {
+      headers: API_HEADERS,
+      timeout: 20000,
+    });
+  } catch (err) {
+    // Retry once on timeout or network error
+    console.warn('[PMDC Service] First attempt failed, retrying...');
+    searchResponse = await axios.post(PMDC_SEARCH_URL, searchBody, {
+      headers: API_HEADERS,
+      timeout: 25000,
+    });
+  }
 
   const searchData = searchResponse.data;
 
   if (!searchData || searchData.status !== true || !searchData.data || searchData.data.length === 0) {
-    baseResult.errorMessage = searchData?.message || 'No doctor found with this PMDC registration number.';
+    baseResult.errorMessage = searchData?.message 
+      ? `PMDC says: ${searchData.message}` 
+      : 'No doctor found with this PMDC registration number. Verify the number format (e.g. 100327-P) and try again.';
+    console.log('[PMDC Service] No results for', pmdcNumber, '- API message:', searchData?.message);
     return baseResult;
   }
 
@@ -269,7 +283,9 @@ async function getCachedLookup(pmdcNumber: string): Promise<PmdcDoctorInfo | nul
 
 async function cacheLookupResult(pmdcNumber: string, result: PmdcDoctorInfo): Promise<void> {
   try {
-    const expiresAt = new Date(Date.now() + CACHE_DURATION_MS);
+    // Cache successes for 7 days, failures for only 15 minutes so retries work quickly
+    const cacheDuration = result.found ? CACHE_DURATION_SUCCESS_MS : CACHE_DURATION_FAILURE_MS;
+    const expiresAt = new Date(Date.now() + cacheDuration);
 
     await prisma.pmdcLookupCache.upsert({
       where: { pmdcNumber },
