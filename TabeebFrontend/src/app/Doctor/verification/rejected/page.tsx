@@ -258,10 +258,6 @@ export default function VerificationRejectedPage() {
                         <p className="font-semibold text-slate-700 dark:text-slate-300">Email Support</p>
                         <p className="text-slate-600 dark:text-slate-400">support@tabeebemail.me</p>
                       </div>
-                      <div>
-                        <p className="font-semibold text-slate-700 dark:text-slate-300">Phone Support</p>
-                        <p className="text-slate-600 dark:text-slate-400">+92-XXX-XXXXXXX</p>
-                      </div>
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-4">
                       If you believe this rejection was made in error, please contact our support team.

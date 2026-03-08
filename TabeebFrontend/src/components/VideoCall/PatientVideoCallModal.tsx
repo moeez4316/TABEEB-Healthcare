@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { FaTimes, FaSpinner } from 'react-icons/fa';
+import { FaSpinner } from 'react-icons/fa';
 
 interface PatientVideoCallModalProps {
   appointmentId: string;
@@ -299,28 +299,9 @@ export default function PatientVideoCallModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-      <div className="relative w-full h-full max-w-7xl max-h-screen m-4 bg-white dark:bg-slate-900 rounded-lg shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4 bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-700 dark:to-teal-800">
-          <div>
-            <h2 className="text-xl font-bold text-white">
-              🤒 Patient Video Consultation
-            </h2>
-            <p className="text-sm text-teal-100">
-              You&apos;ll wait in the lobby until the doctor admits you
-            </p>
-          </div>
-          <button
-            onClick={handleClose}
-            className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-            aria-label="Close video call"
-          >
-            <FaTimes className="w-6 h-6" />
-          </button>
-        </div>
-
+      <div className="relative w-full h-full bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
         {/* Video Call Container */}
-        <div className="w-full h-full pt-20 relative">
+        <div className="w-full h-full relative">
           {loading && !error && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white dark:bg-slate-900">
               <FaSpinner className="w-16 h-16 text-teal-600 animate-spin mb-4" />

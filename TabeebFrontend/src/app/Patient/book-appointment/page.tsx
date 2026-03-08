@@ -44,6 +44,8 @@ export default function BookAppointmentPage() {
     specialization: string;
     hourlyConsultationRate?: number;
     followUpPercentage?: number;
+    rating?: number | null;
+    reviewCount?: number;
     verification?: { isVerified: boolean };
   }> }>({
     queryKey: ['doctors', 'verified'],
@@ -59,7 +61,8 @@ export default function BookAppointmentPage() {
       specialization: doctor.specialization,
       consultationFees: doctor.hourlyConsultationRate || 1500,
       followUpPercentage: doctor.followUpPercentage ?? 50,
-      rating: 4.5,
+      rating: doctor.rating ?? undefined,
+      reviewCount: doctor.reviewCount ?? 0,
       isAvailable: doctor.verification?.isVerified || false,
     }));
   }, [doctorsPayload]);

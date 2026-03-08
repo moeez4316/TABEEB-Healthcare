@@ -97,10 +97,16 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
                 )}
                 
                 <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
-                  {doctor.rating && (
+                  {typeof doctor.rating === 'number' && (doctor.reviewCount ?? 0) > 0 ? (
                     <div className="flex items-center space-x-1">
                       <FaStar className="w-4 h-4 text-yellow-500" />
-                      <span className="font-medium">{doctor.rating}</span>
+                      <span className="font-medium">{doctor.rating.toFixed(1)}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">({doctor.reviewCount})</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-1 text-gray-500 dark:text-gray-400">
+                      <span aria-hidden="true">•</span>
+                      <span className="text-xs font-medium">No reviews</span>
                     </div>
                   )}
                   

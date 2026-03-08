@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Mail, Lock, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff, Phone, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff, Phone, ArrowLeft, LogOut } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -93,7 +93,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const { user, signUp, signIn, signInWithGoogle, signUpWithPhone, signInWithPhonePassword } = useAuth();
+  const { user, signUp, signIn, signInWithGoogle, signUpWithPhone, signInWithPhonePassword, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -114,6 +114,7 @@ export default function AuthPage() {
   const [verifyEmail, setVerifyEmail] = useState('');
   const [verifyOtpCode, setVerifyOtpCode] = useState('');
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     // Check if user was redirected due to deactivated account
@@ -569,6 +570,24 @@ export default function AuthPage() {
     }
   };
 
+  const handleVerifyScreenSignOut = async () => {
+    setSigningOut(true);
+    try {
+      setError('');
+      setSuccess('');
+      await signOut();
+      localStorage.clear();
+      setShowEmailVerify(false);
+      setVerifyOtpCode('');
+      setVerifyEmail('');
+      router.push('/landing-page');
+    } catch {
+      setError('Failed to sign out. Please try again.');
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
   if (showEmailVerify) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
@@ -580,13 +599,15 @@ export default function AuthPage() {
             </p>
             {/* Back to Landing Page Button */}
             <div className="flex justify-start pt-2">
-              <Link
-                href="/landing-page"
+              <button
+                type="button"
+                onClick={handleVerifyScreenSignOut}
+                disabled={verifyLoading || signingOut}
                 className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
               >
                 <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
                 <span>Back to Home</span>
-              </Link>
+              </button>
             </div>
           </div>
 
@@ -638,10 +659,24 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={handleSendVerifyOtp}
-                disabled={verifyLoading}
+                disabled={verifyLoading || signingOut}
                 className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors disabled:opacity-50"
               >
                 Resend verification code
+              </button>
+              <button
+                type="button"
+                onClick={handleVerifyScreenSignOut}
+                disabled={verifyLoading || signingOut}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-lg shadow-sm hover:shadow-md hover:bg-red-100 dark:hover:bg-red-900/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border border-red-200 dark:border-red-800/30"
+                title="Sign out and switch accounts"
+              >
+                <span className="text-sm font-medium">Sign Out</span>
+                {signingOut ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="h-4 w-4" />
+                )}
               </button>
             </div>
           </div>

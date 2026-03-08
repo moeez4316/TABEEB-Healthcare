@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { FaTimes, FaSpinner } from 'react-icons/fa';
+import { FaSpinner } from 'react-icons/fa';
 import VideoCallPrescriptionPanel from './VideoCallPrescriptionPanel';
 
 interface DoctorVideoCallModalProps {
@@ -301,28 +301,9 @@ export default function DoctorVideoCallModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-      <div className="relative w-full h-full max-h-screen bg-white dark:bg-slate-900 shadow-2xl overflow-hidden sm:m-2 md:m-3 lg:m-4 sm:rounded-lg">
-        {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-700 dark:to-teal-800">
-          <div className="min-w-0">
-            <h2 className="text-sm sm:text-base md:text-xl font-bold text-white truncate">
-              🩺 Doctor Video Consultation
-            </h2>
-            <p className="text-xs sm:text-sm text-teal-100 hidden sm:block">
-              Moderator Mode - You can admit patients from lobby
-            </p>
-          </div>
-          <button
-            onClick={handleClose}
-            className="p-1.5 sm:p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors shrink-0 ml-2"
-            aria-label="Close video call"
-          >
-            <FaTimes className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
-        </div>
-
+      <div className="relative w-full h-full bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
         {/* Video Call Container */}
-        <div className="w-full h-full pt-12 sm:pt-14 md:pt-20 relative overflow-hidden">
+        <div className="w-full h-full relative overflow-hidden">
           {loading && !error && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white dark:bg-slate-900">
               <FaSpinner className="w-16 h-16 text-teal-600 animate-spin mb-4" />

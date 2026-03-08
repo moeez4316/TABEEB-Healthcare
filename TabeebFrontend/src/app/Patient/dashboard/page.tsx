@@ -78,11 +78,12 @@ export default function DashboardPage() {
                   Your health journey at a glance
                 </p>
               </div>
-              <Link href="/Patient/book-appointment">
-                <button className="bg-white text-teal-600 hover:bg-teal-50 px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2">
-                  <Calendar className="w-5 h-5" />
-                  <span>Book Appointment</span>
-                </button>
+              <Link
+                href="/Patient/book-appointment"
+                className="bg-white text-teal-600 hover:bg-teal-50 px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-200 inline-flex items-center space-x-2"
+              >
+                <Calendar className="w-5 h-5" />
+                <span>Book Appointment</span>
               </Link>
             </div>
           </div>

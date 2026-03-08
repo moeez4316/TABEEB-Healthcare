@@ -89,6 +89,7 @@ export interface Doctor {
   consultationFees?: number;
   followUpPercentage?: number;
   rating?: number;
+  reviewCount?: number;
   isAvailable?: boolean;
 }
 
