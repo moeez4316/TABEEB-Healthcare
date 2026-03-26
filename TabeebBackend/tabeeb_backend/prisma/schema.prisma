@@ -39,16 +39,16 @@ model DoctorBreakTime {
 }
 
 model WeeklyAvailabilityTemplate {
-  id           String                            @id @default(cuid())
-  doctorUid    String                            @db.VarChar(255)
-  dayOfWeek    Int                               // 0 = Sunday, 1 = Monday, etc.
-  isActive     Boolean                           @default(false)
-  startTime    String                            @db.VarChar(8)
-  endTime      String                            @db.VarChar(8)
-  slotDuration Int                               @default(30)
-  createdAt    DateTime                          @default(now())
-  updatedAt    DateTime                          @updatedAt
-  doctor       doctor                            @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+  id           String                    @id @default(cuid())
+  doctorUid    String                    @db.VarChar(255)
+  dayOfWeek    Int // 0 = Sunday, 1 = Monday, etc.
+  isActive     Boolean                   @default(false)
+  startTime    String                    @db.VarChar(8)
+  endTime      String                    @db.VarChar(8)
+  slotDuration Int                       @default(30)
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  doctor       doctor                    @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
   breakTimes   WeeklyTemplateBreakTime[]
 
   @@unique([doctorUid, dayOfWeek])
@@ -57,41 +57,44 @@ model WeeklyAvailabilityTemplate {
 }
 
 model WeeklyTemplateBreakTime {
-  id         String                       @id @default(cuid())
+  id         String                     @id @default(cuid())
   templateId String
-  startTime  String                       @db.VarChar(8)
-  endTime    String                       @db.VarChar(8)
-  createdAt  DateTime                     @default(now())
-  template   WeeklyAvailabilityTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  startTime  String                     @db.VarChar(8)
+  endTime    String                     @db.VarChar(8)
+  createdAt  DateTime                   @default(now())
+  template   WeeklyAvailabilityTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@index([templateId])
   @@map("weekly_template_break_times")
 }
 
 model Appointment {
-  id                    String                      @id @default(cuid())
-  doctorUid             String                      @db.VarChar(255)
-  patientUid            String                      @db.VarChar(255)
-  appointmentDate       DateTime                    @db.Date
-  startTime             String                      @db.VarChar(8)
-  endTime               String                      @db.VarChar(8)
-  duration              Int                         @default(30)
-  status                AppointmentStatus           @default(PENDING)
-  patientNotes          String?                     @db.Text
-  doctorNotes           String?                     @db.Text
-  cancelReason          String?                     @db.Text
-  consultationFees      Decimal?                    @db.Decimal(10, 2)
-  isFollowUp            Boolean                     @default(false)
-  originalAppointmentId String?                     @db.VarChar(255)
-  createdAt             DateTime                    @default(now())
-  updatedAt             DateTime                    @updatedAt
-  completedAt           DateTime?
-  sharedDocuments       AppointmentSharedDocument[]
-  doctor                doctor                      @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
-  patient               patient                     @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
-  prescriptions         Prescription[]
-  videoCall             VideoCall?
-  review                Review?
+  id                      String                      @id @default(cuid())
+  doctorUid               String                      @db.VarChar(255)
+  patientUid              String                      @db.VarChar(255)
+  appointmentDate         DateTime                    @db.Date
+  startTime               String                      @db.VarChar(8)
+  endTime                 String                      @db.VarChar(8)
+  duration                Int                         @default(30)
+  status                  AppointmentStatus           @default(PENDING)
+  patientNotes            String?                     @db.Text
+  doctorNotes             String?                     @db.Text
+  cancelReason            String?                     @db.Text
+  consultationFees        Decimal?                    @db.Decimal(10, 2)
+  baseConsultationFees    Decimal?                    @db.Decimal(10, 2)
+  followUpDiscountPct     Int?
+  financialAidDiscountPct Int?
+  isFollowUp              Boolean                     @default(false)
+  originalAppointmentId   String?                     @db.VarChar(255)
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
+  completedAt             DateTime?
+  sharedDocuments         AppointmentSharedDocument[]
+  doctor                  doctor                      @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+  patient                 patient                     @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
+  prescriptions           Prescription[]
+  videoCall               VideoCall?
+  review                  Review?
 
   @@index([doctorUid])
   @@index([patientUid])
@@ -109,7 +112,7 @@ model MedicalRecord {
   publicId     String   @db.VarChar(500)
   resourceType String   @db.VarChar(50)
   fileName     String?  @db.VarChar(500)
-  tags         String?  @db.Text         // stored as comma-separated
+  tags         String?  @db.Text // stored as comma-separated
   notes        String?  @db.Text
   uploadedAt   DateTime @default(now())
 
@@ -216,81 +219,141 @@ model Review {
 }
 
 model doctor {
-  uid                     String               @id @db.VarChar(255)
-  firstName               String               @db.VarChar(100)
-  lastName                String               @db.VarChar(100)
-  name                    String               @db.VarChar(255)
-  email                   String?              @unique(map: "Doctor_email_key") @db.VarChar(255)
-  phone                   String?              @unique(map: "Doctor_phone_key") @db.VarChar(20)
-  dateOfBirth             DateTime?
-  gender                  String?              @db.VarChar(10)
-  profileImageUrl         String?              @db.VarChar(500)
-  profileImagePublicId    String?              @db.VarChar(255)
-  specialization          String               @db.VarChar(100)
-  qualification           String               @db.Text
-  experience              String?              @db.VarChar(50)
-  hourlyConsultationRate  Decimal?             @db.Decimal(10, 2)
-  followUpPercentage      Int?                 @default(50) // Percentage of consultation fee for follow-ups
-  addressStreet           String?              @db.VarChar(255)
-  addressCity             String?              @db.VarChar(100)
-  addressProvince         String?              @db.VarChar(100)
-  addressPostalCode       String?              @db.VarChar(10)
-  language                String               @default("English") @db.VarChar(50)
-  notificationsEmail      Boolean              @default(true)
-  notificationsSms        Boolean              @default(true)
-  notificationsPush       Boolean              @default(true)
-  privacyShareData        Boolean              @default(false)
-  privacyMarketing        Boolean              @default(false)
-  isActive                Boolean              @default(true)
-  averageRating           Float?               @default(0.0)
-  totalReviews            Int                  @default(0)
-  createdAt               DateTime             @default(now())
-  updatedAt               DateTime             @default(now()) @updatedAt
-  appointments            Appointment[]
-  user                    user                           @relation(fields: [uid], references: [uid], map: "Doctor_uid_fkey")
-  availability            DoctorAvailability[]
-  weeklyTemplate          WeeklyAvailabilityTemplate[]
-  prescriptions           Prescription[]
-  verification            verification?
-  blogs                   Blog[]
+  uid                    String                       @id @db.VarChar(255)
+  firstName              String                       @db.VarChar(100)
+  lastName               String                       @db.VarChar(100)
+  name                   String                       @db.VarChar(255)
+  email                  String?                      @unique(map: "Doctor_email_key") @db.VarChar(255)
+  phone                  String?                      @unique(map: "Doctor_phone_key") @db.VarChar(20)
+  dateOfBirth            DateTime?
+  gender                 String?                      @db.VarChar(10)
+  profileImageUrl        String?                      @db.VarChar(500)
+  profileImagePublicId   String?                      @db.VarChar(255)
+  specialization         String                       @db.VarChar(100)
+  qualification          String                       @db.Text
+  experience             String?                      @db.VarChar(50)
+  hourlyConsultationRate Decimal?                     @db.Decimal(10, 2)
+  followUpPercentage     Int?                         @default(50) // Percentage of consultation fee for follow-ups
+  addressStreet          String?                      @db.VarChar(255)
+  addressCity            String?                      @db.VarChar(100)
+  addressProvince        String?                      @db.VarChar(100)
+  addressPostalCode      String?                      @db.VarChar(10)
+  language               String                       @default("English") @db.VarChar(50)
+  notificationsEmail     Boolean                      @default(true)
+  notificationsSms       Boolean                      @default(true)
+  notificationsPush      Boolean                      @default(true)
+  privacyShareData       Boolean                      @default(false)
+  privacyMarketing       Boolean                      @default(false)
+  isActive               Boolean                      @default(true)
+  averageRating          Float?                       @default(0.0)
+  totalReviews           Int                          @default(0)
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @default(now()) @updatedAt
+  appointments           Appointment[]
+  user                   user                         @relation(fields: [uid], references: [uid], map: "Doctor_uid_fkey")
+  availability           DoctorAvailability[]
+  weeklyTemplate         WeeklyAvailabilityTemplate[]
+  prescriptions          Prescription[]
+  verification           verification?
+  blogs                  Blog[]
+  payoutMethods          DoctorPayoutMethod[]
 }
 
 model patient {
-  uid                          String         @id @db.VarChar(255)
-  firstName                    String         @db.VarChar(100)
-  lastName                     String         @db.VarChar(100)
-  email                        String?        @unique(map: "Patient_email_key") @db.VarChar(255)
-  phone                        String?        @unique(map: "Patient_phone_key") @db.VarChar(20)
-  cnic                         String?        @db.VarChar(15)
+  uid                          String                      @id @db.VarChar(255)
+  firstName                    String                      @db.VarChar(100)
+  lastName                     String                      @db.VarChar(100)
+  email                        String?                     @unique(map: "Patient_email_key") @db.VarChar(255)
+  phone                        String?                     @unique(map: "Patient_phone_key") @db.VarChar(20)
+  cnic                         String?                     @db.VarChar(15)
   dateOfBirth                  DateTime
-  gender                       String         @db.VarChar(10)
-  profileImageUrl              String?        @db.VarChar(500)
-  profileImagePublicId         String?        @db.VarChar(255)
-  bloodType                    String?        @db.VarChar(5)
-  height                       String?        @db.VarChar(10)
-  weight                       String?        @db.VarChar(10)
+  gender                       String                      @db.VarChar(10)
+  profileImageUrl              String?                     @db.VarChar(500)
+  profileImagePublicId         String?                     @db.VarChar(255)
+  bloodType                    String?                     @db.VarChar(5)
+  height                       String?                     @db.VarChar(10)
+  weight                       String?                     @db.VarChar(10)
   allergies                    Json?
   medications                  Json?
   medicalConditions            Json?
-  emergencyContactName         String?        @db.VarChar(255)
-  emergencyContactRelationship String?        @db.VarChar(100)
-  emergencyContactPhone        String?        @db.VarChar(20)
-  addressStreet                String?        @db.VarChar(255)
-  addressCity                  String?        @db.VarChar(100)
-  addressProvince              String?        @db.VarChar(100)
-  addressPostalCode            String?        @db.VarChar(10)
-  language                     String         @default("English") @db.VarChar(50)
-  notificationsEmail           Boolean        @default(true)
-  notificationsSms             Boolean        @default(true)
-  notificationsPush            Boolean        @default(true)
-  privacyShareData             Boolean        @default(false)
-  privacyMarketing             Boolean        @default(false)
-  isActive                     Boolean        @default(true)
-  createdAt                    DateTime       @default(now())
-  updatedAt                    DateTime       @default(now()) @updatedAt
+  emergencyContactName         String?                     @db.VarChar(255)
+  emergencyContactRelationship String?                     @db.VarChar(100)
+  emergencyContactPhone        String?                     @db.VarChar(20)
+  addressStreet                String?                     @db.VarChar(255)
+  addressCity                  String?                     @db.VarChar(100)
+  addressProvince              String?                     @db.VarChar(100)
+  addressPostalCode            String?                     @db.VarChar(10)
+  language                     String                      @default("English") @db.VarChar(50)
+  notificationsEmail           Boolean                     @default(true)
+  notificationsSms             Boolean                     @default(true)
+  notificationsPush            Boolean                     @default(true)
+  privacyShareData             Boolean                     @default(false)
+  privacyMarketing             Boolean                     @default(false)
+  isActive                     Boolean                     @default(true)
+  createdAt                    DateTime                    @default(now())
+  updatedAt                    DateTime                    @default(now()) @updatedAt
   appointments                 Appointment[]
-  user                         user           @relation(fields: [uid], references: [uid], map: "Patient_uid_fkey")
+  user                         user                        @relation(fields: [uid], references: [uid], map: "Patient_uid_fkey")
   prescriptions                Prescription[]
+  financialAidRequest          PatientFinancialAidRequest?
+}
+
+model PatientFinancialAidRequest {
+  id                       String                        @id @default(cuid())
+  patientUid               String                        @unique @db.VarChar(255)
+  status                   FinancialAidStatus            @default(PENDING)
+  requestedDiscountPercent Int                           @default(80)
+  adminComments            String?                       @db.Text
+  rejectionReason          String?                       @db.Text
+  submittedAt              DateTime                      @default(now())
+  reviewedAt               DateTime?
+  reviewedBy               String?                       @db.VarChar(255)
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
+  patient                  patient                       @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
+  documents                PatientFinancialAidDocument[]
+
+  @@index([status])
+  @@index([submittedAt])
+  @@map("patient_financial_aid_requests")
+}
+
+model PatientFinancialAidDocument {
+  id           String                     @id @default(cuid())
+  requestId    String
+  docType      String?                    @db.VarChar(100)
+  fileUrl      String                     @db.Text
+  publicId     String                     @db.VarChar(500)
+  resourceType String                     @db.VarChar(50)
+  fileType     String?                    @db.VarChar(100)
+  fileName     String?                    @db.VarChar(500)
+  uploadedAt   DateTime                   @default(now())
+  request      PatientFinancialAidRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("patient_financial_aid_documents")
+}
+
+model DoctorPayoutMethod {
+  id                String   @id @default(cuid())
+  doctorUid         String   @db.VarChar(255)
+  methodCode        String   @db.VarChar(50)
+  methodLabel       String?  @db.VarChar(100)
+  accountTitle      String?  @db.VarChar(255)
+  accountIdentifier String   @db.VarChar(255)
+  bankName          String?  @db.VarChar(255)
+  iban              String?  @db.VarChar(50)
+  instructions      String?  @db.Text
+  isPrimary         Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  doctor            doctor   @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
+
+  @@index([doctorUid])
+  @@index([methodCode])
+  @@index([isPrimary])
+  @@map("doctor_payout_methods")
 }
 
 model user {
@@ -339,53 +402,59 @@ enum VideoCallStatus {
   NO_SHOW
 }
 
+enum FinancialAidStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // Blog Models
 model Blog {
-  id                  String          @id @default(cuid())
-  title               String          @db.VarChar(500)
-  slug                String          @unique @db.VarChar(255)
-  contentHtml         String          @db.LongText
-  excerpt             String?         @db.VarChar(500)
-  
+  id          String  @id @default(cuid())
+  title       String  @db.VarChar(500)
+  slug        String  @unique @db.VarChar(255)
+  contentHtml String  @db.LongText
+  excerpt     String? @db.VarChar(500)
+
   // Images
-  coverImageUrl       String          @db.VarChar(500)
-  coverImagePublicId  String?         @db.VarChar(255)
-  
+  coverImageUrl      String  @db.VarChar(500)
+  coverImagePublicId String? @db.VarChar(255)
+
   // SEO
-  seoTitle            String?         @db.VarChar(70)
-  seoDescription      String?         @db.VarChar(160)
-  
+  seoTitle       String? @db.VarChar(70)
+  seoDescription String? @db.VarChar(160)
+
   // Metrics
-  readTime            Int             @default(5)
-  viewCount           Int             @default(0)
-  
+  readTime  Int @default(5)
+  viewCount Int @default(0)
+
   // Author Information
   authorType          BlogAuthorType
-  doctorUid           String?         @db.VarChar(255)
-  externalAuthorName  String?         @db.VarChar(200)
-  externalAuthorBio   String?         @db.Text
-  authorImageUrl      String?         @db.VarChar(500)
-  authorImagePublicId String?         @db.VarChar(255)
-  
+  doctorUid           String?        @db.VarChar(255)
+  externalAuthorName  String?        @db.VarChar(200)
+  externalAuthorBio   String?        @db.Text
+  authorImageUrl      String?        @db.VarChar(500)
+  authorImagePublicId String?        @db.VarChar(255)
+
   // External Source
-  externalSourceName  String?         @db.VarChar(200)
-  externalSourceUrl   String?         @db.VarChar(500)
-  canonicalUrl        String?         @db.VarChar(500)
-  
+  externalSourceName String? @db.VarChar(200)
+  externalSourceUrl  String? @db.VarChar(500)
+  canonicalUrl       String? @db.VarChar(500)
+
   // Status & Visibility
-  status              BlogStatus      @default(DRAFT)
-  isFeatured          Boolean         @default(false)
-  featuredOrder       Int?
-  
+  status        BlogStatus @default(DRAFT)
+  isFeatured    Boolean    @default(false)
+  featuredOrder Int?
+
   // Timestamps
-  publishedAt         DateTime?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   // Relations
-  doctor              doctor?         @relation(fields: [doctorUid], references: [uid], onDelete: SetNull)
-  tags                BlogTag[]
-  
+  doctor doctor?   @relation(fields: [doctorUid], references: [uid], onDelete: SetNull)
+  tags   BlogTag[]
+
   @@index([status])
   @@index([doctorUid])
   @@index([publishedAt])
@@ -400,7 +469,7 @@ model BlogTag {
   slug      String   @unique @db.VarChar(110)
   blogs     Blog[]
   createdAt DateTime @default(now())
-  
+
   @@map("blog_tags")
 }
 
@@ -429,20 +498,20 @@ model ContactMessage {
   subject     String               @db.VarChar(500)
   message     String               @db.Text
   htmlContent String?              @db.LongText
-  
+
   // Admin response
-  adminNotes  String?              @db.Text
-  adminReply  String?              @db.Text
-  repliedAt   DateTime?
-  repliedBy   String?              @db.VarChar(255)
-  
+  adminNotes String?   @db.Text
+  adminReply String?   @db.Text
+  repliedAt  DateTime?
+  repliedBy  String?   @db.VarChar(255)
+
   // Metadata
-  attachments Json?                // Array of { filename, contentType, url }
-  metadata    Json?                // Extra info like headers, IP, etc.
-  
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  
+  attachments Json? // Array of { filename, contentType, url }
+  metadata    Json? // Extra info like headers, IP, etc.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([type])
   @@index([status])
   @@index([createdAt])
@@ -451,10 +520,10 @@ model ContactMessage {
 }
 
 enum ContactMessageType {
-  CONTACT    // From contact form
-  SUPPORT    // Inbound email to support@
-  FEEDBACK   // Inbound email to feedback@
-  INBOUND    // Any other inbound email
+  CONTACT // From contact form
+  SUPPORT // Inbound email to support@
+  FEEDBACK // Inbound email to feedback@
+  INBOUND // Any other inbound email
 }
 
 // ========================================
@@ -520,29 +589,29 @@ model PmdcLookupCache {
 // ========================================
 
 model AdminUser {
-  id                String   @id @default(cuid())
-  username          String   @unique @db.VarChar(100)
-  displayName       String   @db.VarChar(200)
-  email             String   @unique @db.VarChar(255)
-  passwordHash      String   @db.VarChar(255)
-  mustChangePassword Boolean  @default(false)
-  role              AdminRole
-  isSeedAdmin       Boolean  @default(false)
-  isApproved        Boolean  @default(false)
-  approvedById      String?  @db.VarChar(191)
-  approvedAt        DateTime?
-  isActive          Boolean  @default(true)
-  isBlocked         Boolean  @default(false)
-  blockedAt         DateTime?
-  blockedReason     String?  @db.Text
-  twoFactorEnabled  Boolean  @default(true) // Legacy flag; TOTP is mandatory for all admins.
-  twoFactorEnforced Boolean  @default(true) // Legacy flag; kept for backward compatibility.
-  totpSecret        String?  @db.VarChar(191)
-  totpConfiguredAt  DateTime?
-  customPermissions Json?
-  lastLoginAt       DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  username           String    @unique @db.VarChar(100)
+  displayName        String    @db.VarChar(200)
+  email              String    @unique @db.VarChar(255)
+  passwordHash       String    @db.VarChar(255)
+  mustChangePassword Boolean   @default(false)
+  role               AdminRole
+  isSeedAdmin        Boolean   @default(false)
+  isApproved         Boolean   @default(false)
+  approvedById       String?   @db.VarChar(191)
+  approvedAt         DateTime?
+  isActive           Boolean   @default(true)
+  isBlocked          Boolean   @default(false)
+  blockedAt          DateTime?
+  blockedReason      String?   @db.Text
+  twoFactorEnabled   Boolean   @default(true) // Legacy flag; TOTP is mandatory for all admins.
+  twoFactorEnforced  Boolean   @default(true) // Legacy flag; kept for backward compatibility.
+  totpSecret         String?   @db.VarChar(191)
+  totpConfiguredAt   DateTime?
+  customPermissions  Json?
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   sessions AdminSession[]
 
