@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { loadPatientProfile } from '@/store/slices/patientSlice';
 import PatientProfileEditModal from '@/components/profile/PatientProfileEditModal';
+import PatientFinancialAidCard from '@/components/profile/PatientFinancialAidCard';
 import { calculateBMI, getBMIStatus } from '@/lib/profile-utils';
 import { formatHeightDisplay } from '@/lib/height-utils';
 import { calculateProfileCompletion } from '@/lib/profile-completion';
@@ -168,6 +169,8 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+
+          <PatientFinancialAidCard token={token} />
 
           {/* Quick Actions */}
           <div className="mb-6">

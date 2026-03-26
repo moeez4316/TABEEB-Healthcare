@@ -59,6 +59,9 @@ export interface Appointment {
   duration: number;
   status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   consultationFees: number;
+  baseConsultationFees?: number | null;
+  followUpDiscountPct?: number | null;
+  financialAidDiscountPct?: number | null;
   patientNotes?: string;
   isFollowUp?: boolean;
   originalAppointmentId?: string;

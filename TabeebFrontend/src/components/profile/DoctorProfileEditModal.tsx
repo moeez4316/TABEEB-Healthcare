@@ -162,6 +162,52 @@ interface DoctorProfileEditModalProps {
     initialTab?: string; // Optional prop to set initial tab
 }
 
+interface DoctorPayoutMethod {
+    id: string;
+    methodCode: string;
+    methodLabel: string | null;
+    accountTitle: string | null;
+    accountIdentifier: string;
+    bankName: string | null;
+    iban: string | null;
+    instructions: string | null;
+    isPrimary: boolean;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface PayoutMethodForm {
+    methodCode: string;
+    methodLabel: string;
+    accountTitle: string;
+    accountIdentifier: string;
+    bankName: string;
+    iban: string;
+    instructions: string;
+    isPrimary: boolean;
+}
+
+const payoutMethodOptions = [
+    { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
+    { value: 'JAZZCASH', label: 'JazzCash' },
+    { value: 'EASYPAISA', label: 'Easypaisa' },
+    { value: 'SADAPAY', label: 'SadaPay' },
+    { value: 'NAYAPAY', label: 'NayaPay' },
+    { value: 'OTHER', label: 'Other' },
+];
+
+const defaultPayoutForm: PayoutMethodForm = {
+    methodCode: 'BANK_TRANSFER',
+    methodLabel: '',
+    accountTitle: '',
+    accountIdentifier: '',
+    bankName: '',
+    iban: '',
+    instructions: '',
+    isPrimary: false,
+};
+
 export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: DoctorProfileEditModalProps) {
     const dispatch = useAppDispatch();
     const { profile } = useAppSelector((state) => state.doctor || { profile: null });
@@ -187,6 +233,11 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
     // Image upload progress state
     const [imageUploadProgress, setImageUploadProgress] = useState(0);
     const [imageUploadStatus, setImageUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
+    const [payoutMethods, setPayoutMethods] = useState<DoctorPayoutMethod[]>([]);
+    const [maxActivePayoutMethods, setMaxActivePayoutMethods] = useState(2);
+    const [payoutLoading, setPayoutLoading] = useState(false);
+    const [payoutSaving, setPayoutSaving] = useState(false);
+    const [newPayoutMethod, setNewPayoutMethod] = useState<PayoutMethodForm>(defaultPayoutForm);
 
     // Reset upload progress when modal opens/closes
     useEffect(() => {
@@ -195,6 +246,43 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
             setImageUploadStatus('idle');
         }
     }, [isOpen]);
+
+    const loadPayoutMethods = async () => {
+        if (!token) return;
+
+        setPayoutLoading(true);
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            const response = await fetch(`${API_URL}/api/doctor/payout-methods`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to fetch payout methods');
+            }
+
+            const data = await response.json();
+            setPayoutMethods(Array.isArray(data.methods) ? data.methods : []);
+            setMaxActivePayoutMethods(data.maxActiveMethods || 2);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch payout methods';
+            setToastMessage(errorMessage);
+            setToastType('error');
+            setShowToast(true);
+        } finally {
+            setPayoutLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen && token) {
+            void loadPayoutMethods();
+        }
+    }, [isOpen, token]);
 
     // Update activeTab ONLY when modal opens AND initialTab is explicitly provided
     // Set initial tab when opening (explicit initialTab overrides saved state)
@@ -382,6 +470,135 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                 [field]: value
             }
         });
+    };
+
+    const formatPayoutMethodLabel = (method: DoctorPayoutMethod) => {
+        if (method.methodCode === 'OTHER' && method.methodLabel) {
+            return method.methodLabel;
+        }
+        return method.methodCode.replace(/_/g, ' ');
+    };
+
+    const handleAddPayoutMethod = async () => {
+        if (!token) return;
+
+        if (!newPayoutMethod.accountIdentifier.trim()) {
+            setToastMessage('Account identifier is required');
+            setToastType('error');
+            setShowToast(true);
+            return;
+        }
+
+        if (newPayoutMethod.methodCode === 'OTHER' && !newPayoutMethod.methodLabel.trim()) {
+            setToastMessage('Please provide a method label when selecting Other');
+            setToastType('error');
+            setShowToast(true);
+            return;
+        }
+
+        setPayoutSaving(true);
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            const response = await fetch(`${API_URL}/api/doctor/payout-methods`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    methodCode: newPayoutMethod.methodCode,
+                    methodLabel: newPayoutMethod.methodCode === 'OTHER' ? newPayoutMethod.methodLabel : undefined,
+                    accountTitle: newPayoutMethod.accountTitle,
+                    accountIdentifier: newPayoutMethod.accountIdentifier,
+                    bankName: newPayoutMethod.bankName,
+                    iban: newPayoutMethod.iban,
+                    instructions: newPayoutMethod.instructions,
+                    isPrimary: newPayoutMethod.isPrimary,
+                }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to add payout method');
+            }
+
+            setToastMessage(data.message || 'Payout method added successfully');
+            setToastType('success');
+            setShowToast(true);
+            setNewPayoutMethod(defaultPayoutForm);
+            await loadPayoutMethods();
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to add payout method';
+            setToastMessage(errorMessage);
+            setToastType('error');
+            setShowToast(true);
+        } finally {
+            setPayoutSaving(false);
+        }
+    };
+
+    const handleSetPrimaryPayoutMethod = async (methodId: string) => {
+        if (!token) return;
+        setPayoutSaving(true);
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            const response = await fetch(`${API_URL}/api/doctor/payout-methods/${methodId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ isPrimary: true }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update primary payout method');
+            }
+
+            setToastMessage(data.message || 'Primary payout method updated');
+            setToastType('success');
+            setShowToast(true);
+            await loadPayoutMethods();
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to update payout method';
+            setToastMessage(errorMessage);
+            setToastType('error');
+            setShowToast(true);
+        } finally {
+            setPayoutSaving(false);
+        }
+    };
+
+    const handleRemovePayoutMethod = async (methodId: string) => {
+        if (!token) return;
+        setPayoutSaving(true);
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            const response = await fetch(`${API_URL}/api/doctor/payout-methods/${methodId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to remove payout method');
+            }
+
+            setToastMessage(data.message || 'Payout method removed successfully');
+            setToastType('success');
+            setShowToast(true);
+            await loadPayoutMethods();
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to remove payout method';
+            setToastMessage(errorMessage);
+            setToastType('error');
+            setShowToast(true);
+        } finally {
+            setPayoutSaving(false);
+        }
     };
 
     return (
@@ -837,6 +1054,180 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                             )}
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Payout Methods */}
+                                <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 space-y-4">
+                                    <div>
+                                        <h4 className="text-sm font-medium text-indigo-900 dark:text-indigo-100 mb-1">
+                                            Payment Receiving Methods
+                                        </h4>
+                                        <p className="text-xs text-indigo-800 dark:text-indigo-300">
+                                            Add up to {maxActivePayoutMethods} active payout methods. One method should be marked as primary.
+                                        </p>
+                                    </div>
+
+                                    {payoutLoading ? (
+                                        <p className="text-sm text-gray-600 dark:text-gray-300">Loading payout methods...</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {payoutMethods.length === 0 && (
+                                                <p className="text-sm text-gray-600 dark:text-gray-300">No payout method added yet.</p>
+                                            )}
+
+                                            {payoutMethods.map((method) => (
+                                                <div key={method.id} className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg p-3">
+                                                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                                {formatPayoutMethodLabel(method)}
+                                                                {method.isPrimary && (
+                                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                                                                        Primary
+                                                                    </span>
+                                                                )}
+                                                            </p>
+                                                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                                {method.accountIdentifier}
+                                                                {method.accountTitle ? ` • ${method.accountTitle}` : ''}
+                                                            </p>
+                                                            {(method.bankName || method.iban) && (
+                                                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                                    {method.bankName || 'Bank'}
+                                                                    {method.iban ? ` • ${method.iban}` : ''}
+                                                                </p>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex items-center gap-2">
+                                                            {!method.isPrimary && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleSetPrimaryPayoutMethod(method.id)}
+                                                                    disabled={payoutSaving}
+                                                                    className="px-2.5 py-1.5 text-xs rounded-md bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                                                                >
+                                                                    Set Primary
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemovePayoutMethod(method.id)}
+                                                                disabled={payoutSaving}
+                                                                className="px-2.5 py-1.5 text-xs rounded-md bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {payoutMethods.length < maxActivePayoutMethods && (
+                                        <div className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg p-4 space-y-3">
+                                            <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Add New Payout Method</h5>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Method</label>
+                                                    <select
+                                                        value={newPayoutMethod.methodCode}
+                                                        onChange={(e) => setNewPayoutMethod((prev) => ({ ...prev, methodCode: e.target.value }))}
+                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-slate-700 dark:text-white"
+                                                    >
+                                                        {payoutMethodOptions.map((option) => (
+                                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Account Identifier</label>
+                                                    <input
+                                                        type="text"
+                                                        value={newPayoutMethod.accountIdentifier}
+                                                        onChange={(e) => setNewPayoutMethod((prev) => ({ ...prev, accountIdentifier: e.target.value }))}
+                                                        placeholder="Account number / wallet number"
+                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-slate-700 dark:text-white"
+                                                    />
+                                                </div>
+
+                                                {newPayoutMethod.methodCode === 'OTHER' && (
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Method Label</label>
+                                                        <input
+                                                            type="text"
+                                                            value={newPayoutMethod.methodLabel}
+                                                            onChange={(e) => setNewPayoutMethod((prev) => ({ ...prev, methodLabel: e.target.value }))}
+                                                            placeholder="Enter method name"
+                                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-slate-700 dark:text-white"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Account Title (Optional)</label>
+                                                    <input
+                                                        type="text"
+                                                        value={newPayoutMethod.accountTitle}
+                                                        onChange={(e) => setNewPayoutMethod((prev) => ({ ...prev, accountTitle: e.target.value }))}
+                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-slate-700 dark:text-white"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Bank Name (Optional)</label>
+                                                    <input
+                                                        type="text"
+                                                        value={newPayoutMethod.bankName}
+                                                        onChange={(e) => setNewPayoutMethod((prev) => ({ ...prev, bankName: e.target.value }))}
+                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-slate-700 dark:text-white"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">IBAN (Optional)</label>
+                                                    <input
+                                                        type="text"
+                                                        value={newPayoutMethod.iban}
+                                                        onChange={(e) => setNewPayoutMethod((prev) => ({ ...prev, iban: e.target.value }))}
+                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-slate-700 dark:text-white"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Instructions (Optional)</label>
+                                                    <input
+                                                        type="text"
+                                                        value={newPayoutMethod.instructions}
+                                                        onChange={(e) => setNewPayoutMethod((prev) => ({ ...prev, instructions: e.target.value }))}
+                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-slate-700 dark:text-white"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={newPayoutMethod.isPrimary}
+                                                    onChange={(e) => setNewPayoutMethod((prev) => ({ ...prev, isPrimary: e.target.checked }))}
+                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                />
+                                                Set as primary payout method
+                                            </label>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleAddPayoutMethod}
+                                                disabled={payoutSaving}
+                                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                                            >
+                                                {payoutSaving ? 'Saving...' : 'Add Payout Method'}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Help Text */}

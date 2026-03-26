@@ -26,6 +26,66 @@ const emitAppointmentEvent = (params: {
   });
 };
 
+const roundCurrency = (value: number): number => Number(value.toFixed(2));
+
+const clampPercent = (value: number): number => Math.min(100, Math.max(0, Math.round(value)));
+
+const prismaWithFinancialAid = prisma as typeof prisma & {
+  patientFinancialAidRequest: {
+    findUnique: (args: {
+      where: { patientUid: string };
+      select: { status: true; requestedDiscountPercent: true };
+    }) => Promise<{ status: string; requestedDiscountPercent: number | null } | null>;
+  };
+};
+
+const getPatientFinancialAidDiscountPercent = async (patientUid: string): Promise<number> => {
+  const approvedRequest = await prismaWithFinancialAid.patientFinancialAidRequest.findUnique({
+    where: { patientUid },
+    select: {
+      status: true,
+      requestedDiscountPercent: true,
+    }
+  });
+
+  if (!approvedRequest || approvedRequest.status !== 'APPROVED') {
+    return 0;
+  }
+
+  const discount = approvedRequest.requestedDiscountPercent ?? 80;
+
+  return clampPercent(discount);
+};
+
+const buildAppointmentPricing = (params: {
+  baseFee: number;
+  isFollowUp: boolean;
+  followUpChargePercent?: number;
+  financialAidDiscountPercent: number;
+}) => {
+  const baseConsultationFees = roundCurrency(Math.max(0, params.baseFee));
+
+  const normalizedFollowUpChargePercent = params.isFollowUp
+    ? clampPercent(params.followUpChargePercent ?? 50)
+    : 100;
+
+  const followUpDiscountPct = params.isFollowUp
+    ? clampPercent(100 - normalizedFollowUpChargePercent)
+    : 0;
+
+  const amountAfterFollowUp = roundCurrency(baseConsultationFees * (normalizedFollowUpChargePercent / 100));
+  const financialAidDiscountPct = clampPercent(params.financialAidDiscountPercent);
+  const finalConsultationFees = roundCurrency(amountAfterFollowUp * ((100 - financialAidDiscountPct) / 100));
+
+  return {
+    baseConsultationFees,
+    followUpDiscountPct,
+    amountAfterFollowUp,
+    financialAidDiscountPct,
+    finalConsultationFees,
+  };
+};
+
 // Book appointment (updated to work without TimeSlot)
 export const bookAppointment = async (req: Request, res: Response) => {
   try {
@@ -134,17 +194,24 @@ export const bookAppointment = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Your account is deactivated' });
     }
 
-    // Calculate consultation fees based on doctor's hourly rate and appointment duration
-    let consultationFees = 1500; // Default fee PKR 1500
+    // Calculate base consultation fee from doctor's hourly rate and slot duration
+    let baseConsultationFees = 1500; // Default fee PKR 1500
     if (doctor.hourlyConsultationRate) {
       const hourlyRate = parseFloat(doctor.hourlyConsultationRate.toString());
       const durationMultiplier = availability.slotDuration / 60;
-      consultationFees = hourlyRate * durationMultiplier;
+      baseConsultationFees = hourlyRate * durationMultiplier;
     }
 
+    // Financial-aid discount is applied after follow-up logic (if any).
+    const financialAidDiscountPercent = await getPatientFinancialAidDiscountPercent(patientUid);
+    const pricing = buildAppointmentPricing({
+      baseFee: baseConsultationFees,
+      isFollowUp: false,
+      financialAidDiscountPercent,
+    });
+
     // Create appointment
-    const appointment = await prisma.appointment.create({
-      data: {
+    const appointmentData = {
         doctorUid,
         patientUid,
         appointmentDate: appointmentDateObj,
@@ -153,8 +220,14 @@ export const bookAppointment = async (req: Request, res: Response) => {
         duration: availability.slotDuration,
         status: 'PENDING',
         patientNotes,
-        consultationFees
-      },
+        consultationFees: pricing.finalConsultationFees,
+        baseConsultationFees: pricing.baseConsultationFees,
+        followUpDiscountPct: pricing.followUpDiscountPct,
+        financialAidDiscountPct: pricing.financialAidDiscountPct,
+      } as any;
+
+    const appointment = await prisma.appointment.create({
+      data: appointmentData,
       include: {
         doctor: {
           select: {
@@ -197,6 +270,7 @@ export const bookAppointment = async (req: Request, res: Response) => {
 
     res.status(201).json({
       appointment,
+      pricing,
       sharedDocumentsCount: sharedDocumentIds?.length || 0,
       message: 'Appointment booked successfully'
     });
@@ -226,7 +300,7 @@ export const bookAppointment = async (req: Request, res: Response) => {
         time: startTime,
         duration: availability.slotDuration,
         appointmentId: appointment.id,
-        consultationFees: consultationFees.toString(),
+        consultationFees: pricing.finalConsultationFees.toString(),
       }).catch(err => console.error('Failed to send patient confirmation email:', err));
     }
 
@@ -1178,21 +1252,27 @@ export const bookFollowUpAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Requested time slot is not available' });
     }
 
-    // Calculate discounted follow-up fees
+    // Calculate final fee by applying follow-up first, then financial-aid discount.
     const endTime = calculateEndTime(startTime, availability.slotDuration);
-    let consultationFees = 1500; // Default
+    let baseConsultationFees = 1500; // Default
+    const followUpChargePercent = doctor.followUpPercentage ?? 50;
     
     if (doctor.hourlyConsultationRate) {
       const hourlyRate = parseFloat(doctor.hourlyConsultationRate.toString());
       const durationMultiplier = availability.slotDuration / 60;
-      const fullFee = hourlyRate * durationMultiplier;
-      const followUpPercentage = doctor.followUpPercentage ?? 50;
-      consultationFees = fullFee * (followUpPercentage / 100);
+      baseConsultationFees = hourlyRate * durationMultiplier;
     }
 
+    const financialAidDiscountPercent = await getPatientFinancialAidDiscountPercent(patientUid);
+    const pricing = buildAppointmentPricing({
+      baseFee: baseConsultationFees,
+      isFollowUp: true,
+      followUpChargePercent,
+      financialAidDiscountPercent,
+    });
+
     // Create follow-up appointment
-    const appointment = await prisma.appointment.create({
-      data: {
+    const followUpAppointmentData = {
         doctorUid,
         patientUid,
         appointmentDate: appointmentDateObj,
@@ -1201,10 +1281,16 @@ export const bookFollowUpAppointment = async (req: Request, res: Response) => {
         duration: availability.slotDuration,
         status: 'PENDING',
         patientNotes,
-        consultationFees,
+        consultationFees: pricing.finalConsultationFees,
+        baseConsultationFees: pricing.baseConsultationFees,
+        followUpDiscountPct: pricing.followUpDiscountPct,
+        financialAidDiscountPct: pricing.financialAidDiscountPct,
         isFollowUp: true,
         originalAppointmentId
-      },
+      } as any;
+
+    const appointment = await prisma.appointment.create({
+      data: followUpAppointmentData,
       include: {
         doctor: { select: { name: true, specialization: true } },
         patient: { select: { firstName: true, lastName: true, phone: true } }
@@ -1214,8 +1300,9 @@ export const bookFollowUpAppointment = async (req: Request, res: Response) => {
     res.status(201).json({
       appointment,
       isFollowUp: true,
-      discountApplied: doctor.followUpPercentage ?? 50,
-      message: `Follow-up appointment booked successfully with ${doctor.followUpPercentage ?? 50}% discount`
+      discountApplied: pricing.followUpDiscountPct,
+      pricing,
+      message: `Follow-up appointment booked successfully with ${pricing.followUpDiscountPct}% follow-up discount${pricing.financialAidDiscountPct > 0 ? ` and ${pricing.financialAidDiscountPct}% financial-aid discount` : ''}`
     });
 
     emitAppointmentEvent({

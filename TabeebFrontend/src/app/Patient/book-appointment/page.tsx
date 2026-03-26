@@ -14,6 +14,20 @@ import { apiFetchJson } from '@/lib/api-client';
 
 type BookingStep = 'doctor' | 'date' | 'time' | 'details' | 'confirmation';
 
+interface BookingPricingBreakdown {
+  baseConsultationFees: number;
+  followUpDiscountPct: number;
+  amountAfterFollowUp: number;
+  financialAidDiscountPct: number;
+  finalConsultationFees: number;
+}
+
+interface BookingResponse {
+  appointment: Appointment;
+  discountApplied?: number;
+  pricing?: BookingPricingBreakdown;
+}
+
 export default function BookAppointmentPage() {
   const { token } = useAuth();
   const router = useRouter();
@@ -139,17 +153,27 @@ export default function BookAppointmentPage() {
         ? { ...bookingData, originalAppointmentId }
         : bookingData;
       
-      const result = await apiFetchJson<{ appointment: Appointment; discountApplied?: number }>(endpoint, {
+      const result = await apiFetchJson<BookingResponse>(endpoint, {
         method: 'POST',
         token,
         body: JSON.stringify(requestBody),
       });
       const appointment = result.appointment;
+      const pricing = result.pricing;
+      const finalAmount = pricing?.finalConsultationFees ?? appointment.consultationFees ?? 0;
+      const baseAmount = pricing?.baseConsultationFees ?? appointment.baseConsultationFees ?? finalAmount;
+      const amountAfterFollowUp = pricing?.amountAfterFollowUp ?? finalAmount;
+      const followUpDiscountPct = pricing?.followUpDiscountPct ?? appointment.followUpDiscountPct ?? 0;
+      const financialAidDiscountPct = pricing?.financialAidDiscountPct ?? appointment.financialAidDiscountPct ?? 0;
       
       // Redirect to payment page with appointment details
       const paymentParams = new URLSearchParams({
         appointmentId: appointment.id,
-        amount: appointment.consultationFees?.toString() || '0',
+        amount: finalAmount.toString(),
+        baseAmount: baseAmount.toString(),
+        amountAfterFollowUp: amountAfterFollowUp.toString(),
+        followUpDiscountPct: followUpDiscountPct.toString(),
+        financialAidDiscountPct: financialAidDiscountPct.toString(),
         doctorName: selectedDoctor?.name || 'Doctor',
         date: selectedDate ? new Date(selectedDate).toLocaleDateString('en-PK') : '',
         time: selectedSlot?.startTime || '',

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { FaUniversity, FaMobileAlt, FaCheckCircle, FaTimesCircle, FaClock, FaInfoCircle, FaCopy } from 'react-icons/fa';
+import { FaMobileAlt, FaCheckCircle, FaTimesCircle, FaClock, FaInfoCircle, FaCopy } from 'react-icons/fa';
 import { fetchWithRateLimit } from '@/lib/api-utils';
 
 export default function PaymentPage() {
@@ -13,10 +13,23 @@ export default function PaymentPage() {
 
   // Get payment details from URL params
   const amount = searchParams.get('amount') || '0';
+  const baseAmountParam = searchParams.get('baseAmount');
+  const amountAfterFollowUpParam = searchParams.get('amountAfterFollowUp');
+  const followUpDiscountPctParam = searchParams.get('followUpDiscountPct');
+  const financialAidDiscountPctParam = searchParams.get('financialAidDiscountPct');
   const appointmentId = searchParams.get('appointmentId') || '';
   const doctorName = searchParams.get('doctorName') || 'Doctor';
   const appointmentDate = searchParams.get('date') || '';
   const appointmentTime = searchParams.get('time') || '';
+
+  const finalAmount = Number.parseFloat(amount) || 0;
+  const baseAmount = Number.parseFloat(baseAmountParam || amount) || finalAmount;
+  const followUpDiscountPct = Number.parseFloat(followUpDiscountPctParam || '0') || 0;
+  const financialAidDiscountPct = Number.parseFloat(financialAidDiscountPctParam || '0') || 0;
+  const amountAfterFollowUp = Number.parseFloat(amountAfterFollowUpParam || `${baseAmount}`) || baseAmount;
+  const followUpDiscountAmount = Math.max(0, baseAmount - amountAfterFollowUp);
+  const financialAidDiscountAmount = Math.max(0, amountAfterFollowUp - finalAmount);
+  const showBreakdown = followUpDiscountPct > 0 || financialAidDiscountPct > 0 || baseAmount > finalAmount;
 
   // Clinic payment details
   const CLINIC_JAZZCASH = '+92 302 4400906';
@@ -73,7 +86,7 @@ export default function PaymentPage() {
         body: JSON.stringify({
           paymentMethod: 'manual_bank_transfer',
           phoneNumber: patientMobileNumber,
-          amount: parseFloat(amount),
+          amount: finalAmount,
           transactionId: `MAN${Date.now()}`,
         }),
       });
@@ -127,10 +140,43 @@ export default function PaymentPage() {
               <span className="font-medium text-gray-900 dark:text-white">{appointmentTime}</span>
             </div>
             <div className="border-t border-gray-200 dark:border-slate-600 pt-3 mt-3">
+              {showBreakdown && (
+                <div className="space-y-2 mb-3">
+                  <div className="flex justify-between text-sm sm:text-base">
+                    <span className="text-gray-600 dark:text-gray-400">Base Fee:</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      PKR {baseAmount.toLocaleString('en-PK')}
+                    </span>
+                  </div>
+
+                  {followUpDiscountPct > 0 && (
+                    <div className="flex justify-between text-sm sm:text-base">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Follow-up Discount ({followUpDiscountPct}%):
+                      </span>
+                      <span className="font-medium text-green-600 dark:text-green-400">
+                        - PKR {followUpDiscountAmount.toLocaleString('en-PK')}
+                      </span>
+                    </div>
+                  )}
+
+                  {financialAidDiscountPct > 0 && (
+                    <div className="flex justify-between text-sm sm:text-base">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Financial Aid Discount ({financialAidDiscountPct}%):
+                      </span>
+                      <span className="font-medium text-green-600 dark:text-green-400">
+                        - PKR {financialAidDiscountAmount.toLocaleString('en-PK')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-900 dark:text-white">Total Amount:</span>
                 <span className="text-xl sm:text-2xl font-bold text-teal-600 dark:text-teal-400">
-                  PKR {parseFloat(amount).toLocaleString('en-PK')}
+                  PKR {finalAmount.toLocaleString('en-PK')}
                 </span>
               </div>
             </div>

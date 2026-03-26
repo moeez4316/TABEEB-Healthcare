@@ -46,6 +46,26 @@ interface ComplaintReview {
   };
 }
 
+interface AdminDoctorPayoutMethod {
+  id: string;
+  methodCode: string;
+  methodLabel: string | null;
+  accountTitle: string | null;
+  accountIdentifier: string;
+  bankName: string | null;
+  iban: string | null;
+  instructions: string | null;
+  isPrimary: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AdminDoctorPayoutMethodsPayload {
+  methods: AdminDoctorPayoutMethod[];
+  maxActiveMethods: number;
+}
+
 export default function AdminDoctorProfilePage({ params }: { params: Promise<{ doctorUid: string }> }) {
   const router = useRouter();
   const { doctorUid } = use(params);
@@ -85,6 +105,21 @@ export default function AdminDoctorProfilePage({ params }: { params: Promise<{ d
     staleTime: 30 * 1000,
   });
 
+  const {
+    data: payoutPayload,
+  } = useAdminApiQuery<AdminDoctorPayoutMethodsPayload>({
+    queryKey: ['admin', 'doctor-payout-methods', doctorUid],
+    queryFn: () =>
+      apiFetchJson<AdminDoctorPayoutMethodsPayload>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/doctors/${doctorUid}/payout-methods`,
+        {
+          token: adminToken,
+        }
+      ),
+    enabled: !!adminToken && !!doctorUid,
+    staleTime: 30 * 1000,
+  });
+
   useEffect(() => {
     if (!adminToken) {
       router.push('/admin/login');
@@ -114,6 +149,15 @@ export default function AdminDoctorProfilePage({ params }: { params: Promise<{ d
         adminActionTaken: review.adminActionTaken,
       }));
   }, [complaintsPayload, doctorUid]);
+
+  const payoutMethods = payoutPayload?.methods || [];
+
+  const formatPayoutMethodLabel = (method: AdminDoctorPayoutMethod) => {
+    if (method.methodCode === 'OTHER' && method.methodLabel) {
+      return method.methodLabel;
+    }
+    return method.methodCode.replace(/_/g, ' ');
+  };
 
   // Loading State
   if (profileLoading) {
@@ -178,6 +222,59 @@ export default function AdminDoctorProfilePage({ params }: { params: Promise<{ d
           stats={profile.stats}
           experience={profile.experience}
         />
+
+        {/* Payout Methods - Admin Only */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+            Doctor Payout Methods
+          </h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+            {payoutMethods.length === 0 ? (
+              <p className="text-sm text-gray-600 dark:text-gray-300">No active payout methods configured.</p>
+            ) : (
+              <div className="space-y-3">
+                {payoutMethods.map((method) => (
+                  <div
+                    key={method.id}
+                    className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-700/40 p-4"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {formatPayoutMethodLabel(method)}
+                          {method.isPrimary && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                              Primary
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                          {method.accountIdentifier}
+                        </p>
+                        {method.accountTitle && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                            Account Title: {method.accountTitle}
+                          </p>
+                        )}
+                        {(method.bankName || method.iban) && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                            {method.bankName || 'Bank'}
+                            {method.iban ? ` • ${method.iban}` : ''}
+                          </p>
+                        )}
+                        {method.instructions && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                            Instructions: {method.instructions}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Complaints Section - Admin Only */}
         <ComplaintsSection
