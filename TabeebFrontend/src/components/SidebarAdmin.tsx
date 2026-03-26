@@ -120,6 +120,12 @@ export default function SidebarAdmin({ className = '', adminRole: adminRoleProp 
       description: 'Review Complaints'
     },
     {
+      name: 'Financial Aid',
+      href: '/admin/financial-aid',
+      icon: Activity,
+      description: 'Review Needy Requests'
+    },
+    {
       name: 'Inbox',
       href: '/admin/inbox',
       icon: Inbox,
