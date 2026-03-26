@@ -125,6 +125,7 @@ export default function PatientFinancialAidCard({ token }: PatientFinancialAidCa
   const request: FinancialAidRequest | null = summary?.request ?? null;
   const maxDocuments = summary?.maxDocuments ?? 3;
   const selectedFiles = useMemo(() => slots.filter((slot) => slot.file), [slots]);
+  const showApplicationForm = !request || request.status === 'REJECTED';
 
   const updateSlotDocType = (id: string, docType: string) => {
     setSlots((prev) => prev.map((slot) => (slot.id === id ? { ...slot, docType } : slot)));
@@ -256,64 +257,68 @@ export default function PatientFinancialAidCard({ token }: PatientFinancialAidCa
             </div>
           ) : (
             <>
-              {request && statusTheme && (
-                <div className={`rounded-xl border p-4 ${statusTheme.panel}`}>
-                  <p className={`font-semibold ${statusTheme.heading}`}>Request Status: {statusTheme.title}</p>
-                  <p className={`text-sm mt-1 ${statusTheme.body}`}>
-                    Submitted on {formatDate(request.submittedAt)}
-                    {request.reviewedAt ? ` • Reviewed on ${formatDate(request.reviewedAt)}` : ''}
+              {request?.status === 'APPROVED' ? (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20 px-3 py-2">
+                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                    Approved. Financial support is active.
                   </p>
-
-                  {request.status === 'APPROVED' && (
-                    <p className={`text-sm mt-2 ${statusTheme.body}`}>
-                      Discount is active. The 80% financial aid reduction is applied after follow-up discount rules.
+                </div>
+              ) : (
+                request && statusTheme && (
+                  <div className={`rounded-xl border p-4 ${statusTheme.panel}`}>
+                    <p className={`font-semibold ${statusTheme.heading}`}>Request Status: {statusTheme.title}</p>
+                    <p className={`text-sm mt-1 ${statusTheme.body}`}>
+                      Submitted on {formatDate(request.submittedAt)}
+                      {request.reviewedAt ? ` • Reviewed on ${formatDate(request.reviewedAt)}` : ''}
                     </p>
-                  )}
 
-                  {request.rejectionReason && (
-                    <p className="text-sm mt-2 text-rose-700 dark:text-rose-300">
-                      Rejection reason: {request.rejectionReason}
-                    </p>
-                  )}
+                    {request.rejectionReason && (
+                      <p className="text-sm mt-2 text-rose-700 dark:text-rose-300">
+                        Rejection reason: {request.rejectionReason}
+                      </p>
+                    )}
 
-                  {request.adminComments && (
-                    <p className="text-sm mt-1 text-slate-700 dark:text-slate-200">
-                      Admin comments: {request.adminComments}
-                    </p>
-                  )}
+                    {request.adminComments && (
+                      <p className="text-sm mt-1 text-slate-700 dark:text-slate-200">
+                        Admin comments: {request.adminComments}
+                      </p>
+                    )}
+                  </div>
+                )
+              )}
+
+              {showApplicationForm && (
+                <div className="rounded-xl border border-gray-200 dark:border-slate-700 p-4">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                    Do you want to apply as financially needy?
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="financialNeedChoice"
+                        checked={needyChoice === 'yes'}
+                        onChange={() => setNeedyChoice('yes')}
+                        className="text-teal-600 focus:ring-teal-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-200">Yes, apply now</span>
+                    </label>
+
+                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="financialNeedChoice"
+                        checked={needyChoice === 'no'}
+                        onChange={() => setNeedyChoice('no')}
+                        className="text-teal-600 focus:ring-teal-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-200">No, not right now</span>
+                    </label>
+                  </div>
                 </div>
               )}
 
-              <div className="rounded-xl border border-gray-200 dark:border-slate-700 p-4">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                  Do you want to apply as financially needy?
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="financialNeedChoice"
-                      checked={needyChoice === 'yes'}
-                      onChange={() => setNeedyChoice('yes')}
-                      className="text-teal-600 focus:ring-teal-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-200">Yes, apply now</span>
-                  </label>
-
-                  <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="financialNeedChoice"
-                      checked={needyChoice === 'no'}
-                      onChange={() => setNeedyChoice('no')}
-                      className="text-teal-600 focus:ring-teal-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-200">No, not right now</span>
-                  </label>
-                </div>
-              </div>
-
-              {needyChoice === 'yes' && (
+              {showApplicationForm && needyChoice === 'yes' && (
                 <div className="rounded-xl border border-gray-200 dark:border-slate-700 p-4 space-y-4">
                   <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
                     <AlertCircle className="w-4 h-4 mt-0.5 text-amber-600 dark:text-amber-400" />

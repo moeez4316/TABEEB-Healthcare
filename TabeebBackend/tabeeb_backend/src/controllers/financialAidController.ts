@@ -118,6 +118,23 @@ export const submitFinancialAidRequest = async (req: Request, res: Response) => 
       return res.status(403).json({ error: 'Account is deactivated' });
     }
 
+    const existingRequest = await prisma.patientFinancialAidRequest.findUnique({
+      where: { patientUid },
+      select: { status: true }
+    });
+
+    if (existingRequest?.status === 'PENDING') {
+      return res.status(409).json({
+        error: 'Your financial aid request is already under admin review.'
+      });
+    }
+
+    if (existingRequest?.status === 'APPROVED') {
+      return res.status(409).json({
+        error: 'Your financial aid request has already been approved.'
+      });
+    }
+
     const finalDiscount =
       typeof requestedDiscountPercent === 'number' && requestedDiscountPercent > 0
         ? Math.min(Math.round(requestedDiscountPercent), DEFAULT_DISCOUNT_PERCENT)
