@@ -417,8 +417,20 @@ export default function DoctorAppointmentsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredAppointments.map(appointment => (
-              <div key={appointment.id} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-gray-200 dark:border-slate-700">
+            {filteredAppointments.map(appointment => {
+              const finalFee = Number(appointment.consultationFees ?? 0);
+              const baseFee = Number(appointment.baseConsultationFees ?? appointment.consultationFees ?? 0);
+              const followUpDiscountPct = Number(appointment.followUpDiscountPct ?? 0);
+              const financialAidDiscountPct = Number(appointment.financialAidDiscountPct ?? 0);
+              const followUpDiscountAmount = followUpDiscountPct > 0 ? (baseFee * followUpDiscountPct) / 100 : 0;
+              const amountAfterFollowUp = Math.max(baseFee - followUpDiscountAmount, 0);
+              const financialAidDiscountAmount =
+                financialAidDiscountPct > 0 ? (amountAfterFollowUp * financialAidDiscountPct) / 100 : 0;
+              const hasDiscountBreakdown =
+                followUpDiscountPct > 0 || financialAidDiscountPct > 0 || baseFee > finalFee;
+
+              return (
+              <div key={appointment.id} className="bg-white dark:bg-slate-800/95 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-6 border border-slate-200 dark:border-slate-700 hover:border-teal-200 dark:hover:border-teal-700">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex items-start space-x-4 flex-1">
                     {/* Patient Avatar */}
@@ -470,11 +482,28 @@ export default function DoctorAppointmentsPage() {
                           </span>
                         </div>
                         
-                        {appointment.consultationFees && (
+                        {finalFee > 0 && (
                           <div className="flex items-center space-x-2">
-                            <span className="text-green-600 dark:text-green-400 font-medium">
-                              PKR {appointment.consultationFees.toLocaleString('en-PK')}
-                            </span>
+                            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 px-3 py-2">
+                              {hasDiscountBreakdown && (
+                                <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-0.5">
+                                  Base: PKR {baseFee.toLocaleString('en-PK')}
+                                </p>
+                              )}
+                              {followUpDiscountPct > 0 && (
+                                <p className="text-[11px] font-medium text-indigo-700 dark:text-indigo-300">
+                                  Follow-up ({followUpDiscountPct}%): -PKR {Math.round(followUpDiscountAmount).toLocaleString('en-PK')}
+                                </p>
+                              )}
+                              {financialAidDiscountPct > 0 && (
+                                <p className="text-[11px] font-medium text-teal-700 dark:text-teal-300">
+                                  Financial aid ({financialAidDiscountPct}%): -PKR {Math.round(financialAidDiscountAmount).toLocaleString('en-PK')}
+                                </p>
+                              )}
+                              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">
+                                Final: PKR {finalFee.toLocaleString('en-PK')}
+                              </p>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -716,7 +745,7 @@ export default function DoctorAppointmentsPage() {
                   </div>
                 )}
               </div>
-            ))}
+            );})}
           </div>
         )}
         </div>

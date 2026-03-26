@@ -1,17 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Doctor, TimeSlot, AppointmentBooking } from '@/types/appointment';
 import { formatTime, formatDate, formatDateForAPI } from '@/lib/dateUtils';
 import { DocumentSelector } from '@/components/appointment/DocumentSelector';
 import { CurrentMedicationsModal } from '@/components/appointment/CurrentMedicationsModal';
 import { FaPills } from 'react-icons/fa';
+import { useAuth } from '@/lib/auth-context';
+import { financialAidAPI } from '@/lib/financial-aid-api';
 
 interface BookingFormProps {
   doctor: Doctor;
   selectedDate: Date;
   selectedSlot: TimeSlot;
   onBookingSubmit: (booking: AppointmentBooking & { patientNotes: string; sharedDocumentIds?: string[] }) => Promise<void>;
+  isFollowUp?: boolean;
   loading?: boolean;
 }
 
@@ -20,17 +23,73 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   selectedDate,
   selectedSlot,
   onBookingSubmit,
+  isFollowUp = false,
   loading = false
 }) => {
+  const { token } = useAuth();
   const [patientNotes, setPatientNotes] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [showMedicationsModal, setShowMedicationsModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [financialAidDiscountPct, setFinancialAidDiscountPct] = useState(0);
 
   // Combined loading state to prevent double-clicks
   const isLoading = loading || isSubmitting;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadFinancialAidStatus = async () => {
+      if (!token) {
+        if (isMounted) setFinancialAidDiscountPct(0);
+        return;
+      }
+
+      try {
+        const response = await financialAidAPI.getMyFinancialAidRequest(token);
+        if (!isMounted) return;
+
+        if (response.request?.status === 'APPROVED') {
+          setFinancialAidDiscountPct(response.request.requestedDiscountPercent ?? response.discountPercent ?? 80);
+        } else {
+          setFinancialAidDiscountPct(0);
+        }
+      } catch {
+        if (isMounted) setFinancialAidDiscountPct(0);
+      }
+    };
+
+    void loadFinancialAidStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  const pricing = useMemo(() => {
+    if (!doctor.consultationFees) {
+      return null;
+    }
+
+    const roundCurrency = (value: number) => Number(value.toFixed(2));
+    const baseFee = roundCurrency(doctor.consultationFees * (selectedSlot.duration / 60));
+    const followUpChargePercent = isFollowUp ? Math.max(0, Math.min(100, doctor.followUpPercentage ?? 50)) : 100;
+    const followUpDiscount = isFollowUp ? 100 - followUpChargePercent : 0;
+    const amountAfterFollowUp = roundCurrency(baseFee * (followUpChargePercent / 100));
+    const financialAidDiscountAmount = roundCurrency(amountAfterFollowUp * (financialAidDiscountPct / 100));
+    const finalEstimate = roundCurrency(amountAfterFollowUp - financialAidDiscountAmount);
+
+    return {
+      baseFee,
+      followUpDiscount,
+      amountAfterFollowUp,
+      financialAidDiscountPct,
+      financialAidDiscountAmount,
+      finalEstimate,
+    };
+  }, [doctor.consultationFees, doctor.followUpPercentage, selectedSlot.duration, isFollowUp, financialAidDiscountPct]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,44 +120,75 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-6 shadow-lg">
+    <div className="bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-lg">
       <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Appointment Details</h3>
       
       {/* Appointment Summary */}
-      <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-700 rounded-lg p-4 mb-6">
-        <h4 className="font-medium text-teal-900 dark:text-teal-400 mb-3">Booking Summary</h4>
+      <div className="bg-white/80 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4 mb-6">
+        <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-3">Booking Summary</h4>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-teal-700 dark:text-teal-300">Doctor:</span>
-            <div className="font-medium text-teal-900 dark:text-teal-200">Dr. {doctor.name}</div>
-            <div className="text-teal-700 dark:text-teal-400">{doctor.specialization}</div>
+            <span className="text-slate-600 dark:text-slate-300">Doctor:</span>
+            <div className="font-medium text-slate-900 dark:text-slate-100">Dr. {doctor.name}</div>
+            <div className="text-teal-700 dark:text-teal-300">{doctor.specialization}</div>
           </div>
           
           <div>
-            <span className="text-teal-700 dark:text-teal-300">Date & Time:</span>
-            <div className="font-medium text-teal-900 dark:text-teal-200">
+            <span className="text-slate-600 dark:text-slate-300">Date & Time:</span>
+            <div className="font-medium text-slate-900 dark:text-slate-100">
               {formatDate(selectedDate)}
             </div>
-            <div className="text-teal-700 dark:text-teal-400">
+            <div className="text-slate-600 dark:text-slate-300">
               {formatTime(selectedSlot.startTime)} - {formatTime(selectedSlot.endTime)}
             </div>
           </div>
           
           <div>
-            <span className="text-teal-700 dark:text-teal-300">Duration:</span>
-            <div className="font-medium text-teal-900 dark:text-teal-200">{selectedSlot.duration} minutes</div>
+            <span className="text-slate-600 dark:text-slate-300">Duration:</span>
+            <div className="font-medium text-slate-900 dark:text-slate-100">{selectedSlot.duration} minutes</div>
           </div>
           
-          {doctor.consultationFees && (
+          {pricing && (
             <div>
-              <span className="text-teal-700 dark:text-teal-300">Consultation Fee:</span>
-              <div className="font-medium text-green-600 dark:text-green-400">
-                PKR {Math.round(doctor.consultationFees * (selectedSlot.duration / 60)).toLocaleString('en-PK')}
+              <span className="text-slate-600 dark:text-slate-300">Estimated Final Fee:</span>
+              <div className="font-semibold text-emerald-600 dark:text-emerald-400">
+                PKR {pricing.finalEstimate.toLocaleString('en-PK')}
               </div>
             </div>
           )}
         </div>
+
+        {pricing && (
+          <div className="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+            <h5 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2">Fee Breakdown</h5>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                <span>Base consultation fee</span>
+                <span>PKR {pricing.baseFee.toLocaleString('en-PK')}</span>
+              </div>
+
+              {pricing.followUpDiscount > 0 && (
+                <div className="flex items-center justify-between text-indigo-700 dark:text-indigo-300">
+                  <span>Follow-up discount ({pricing.followUpDiscount}%)</span>
+                  <span>- PKR {(pricing.baseFee - pricing.amountAfterFollowUp).toLocaleString('en-PK')}</span>
+                </div>
+              )}
+
+              {pricing.financialAidDiscountPct > 0 && (
+                <div className="flex items-center justify-between text-teal-700 dark:text-teal-300">
+                  <span>Financial aid discount ({pricing.financialAidDiscountPct}%)</span>
+                  <span>- PKR {pricing.financialAidDiscountAmount.toLocaleString('en-PK')}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-slate-100">
+                <span>Estimated payable</span>
+                <span>PKR {pricing.finalEstimate.toLocaleString('en-PK')}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Booking Form */}
@@ -193,9 +283,9 @@ export const BookingForm: React.FC<BookingFormProps> = ({
         </div>
 
         {/* Important Notes */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h5 className="font-medium text-yellow-800 mb-2">Important Notes:</h5>
-          <ul className="text-sm text-yellow-700 space-y-1">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+          <h5 className="font-medium text-amber-800 dark:text-amber-300 mb-2">Important Notes:</h5>
+          <ul className="text-sm text-amber-700 dark:text-amber-200 space-y-1">
             <li>• Please arrive 15 minutes before your scheduled appointment</li>
             <li>• Bring a valid ID and insurance card if applicable</li>
             <li>• You will receive a confirmation notification once the doctor approves your appointment</li>

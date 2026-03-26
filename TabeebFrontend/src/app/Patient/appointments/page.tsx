@@ -174,12 +174,12 @@ export default function PatientAppointmentsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'completed': return 'bg-gray-100 text-gray-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'confirmed': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
+      case 'pending': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
+      case 'in_progress': return 'bg-sky-100 dark:bg-sky-900/30 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800';
+      case 'completed': return 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600';
+      case 'cancelled': return 'bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800';
+      default: return 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600';
     }
   };
 
@@ -385,8 +385,20 @@ export default function PatientAppointmentsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredAppointments.map(appointment => (
-              <div key={appointment.id} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 hover:shadow-xl transition-all duration-200 p-6">
+            {filteredAppointments.map(appointment => {
+              const finalFee = Number(appointment.consultationFees ?? 0);
+              const baseFee = Number(appointment.baseConsultationFees ?? appointment.consultationFees ?? 0);
+              const followUpDiscountPct = Number(appointment.followUpDiscountPct ?? 0);
+              const financialAidDiscountPct = Number(appointment.financialAidDiscountPct ?? 0);
+              const followUpDiscountAmount = followUpDiscountPct > 0 ? (baseFee * followUpDiscountPct) / 100 : 0;
+              const amountAfterFollowUp = Math.max(baseFee - followUpDiscountAmount, 0);
+              const financialAidDiscountAmount =
+                financialAidDiscountPct > 0 ? (amountAfterFollowUp * financialAidDiscountPct) / 100 : 0;
+              const hasDiscountBreakdown =
+                followUpDiscountPct > 0 || financialAidDiscountPct > 0 || baseFee > finalFee;
+
+              return (
+              <div key={appointment.id} className="bg-white dark:bg-slate-800/95 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-teal-200 dark:hover:border-teal-700 transition-all duration-200 p-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex items-start space-x-4 flex-1">
                     {/* Doctor Avatar */}
@@ -420,7 +432,7 @@ export default function PatientAppointmentsPage() {
                         )}
                       </div>
                       
-                      <p className="text-teal-600 dark:text-teal-400 font-medium mb-3">
+                      <p className="text-teal-700 dark:text-teal-300 font-semibold mb-3">
                         {appointment.doctor?.specialization || 'General Practice'}
                       </p>
                       
@@ -439,17 +451,34 @@ export default function PatientAppointmentsPage() {
                           </span>
                         </div>
                         
-                        {appointment.consultationFees && (
+                        {finalFee > 0 && (
                           <div className="flex items-center space-x-2">
-                            <span className="text-green-600 dark:text-green-400 font-medium">
-                              PKR {appointment.consultationFees.toLocaleString('en-PK')}
-                            </span>
+                            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 px-3 py-2">
+                              {hasDiscountBreakdown && (
+                                <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-0.5">
+                                  Base: PKR {baseFee.toLocaleString('en-PK')}
+                                </p>
+                              )}
+                              {followUpDiscountPct > 0 && (
+                                <p className="text-[11px] font-medium text-indigo-700 dark:text-indigo-300">
+                                  Follow-up ({followUpDiscountPct}%): -PKR {Math.round(followUpDiscountAmount).toLocaleString('en-PK')}
+                                </p>
+                              )}
+                              {financialAidDiscountPct > 0 && (
+                                <p className="text-[11px] font-medium text-teal-700 dark:text-teal-300">
+                                  Financial aid ({financialAidDiscountPct}%): -PKR {Math.round(financialAidDiscountAmount).toLocaleString('en-PK')}
+                                </p>
+                              )}
+                              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">
+                                Final: PKR {finalFee.toLocaleString('en-PK')}
+                              </p>
+                            </div>
                           </div>
                         )}
                       </div>
                       
                       {appointment.patientNotes && (
-                        <div className="mt-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                        <div className="mt-3 p-3 bg-teal-50/70 dark:bg-slate-700 rounded-lg border border-teal-100 dark:border-slate-600">
                           <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">Your Notes:</p>
                           <p className="text-sm text-gray-800 dark:text-gray-300">{appointment.patientNotes}</p>
                         </div>
@@ -719,7 +748,7 @@ export default function PatientAppointmentsPage() {
                   </div>
                 )}
               </div>
-            ))}
+            );})}
           </div>
         )}
         </div>

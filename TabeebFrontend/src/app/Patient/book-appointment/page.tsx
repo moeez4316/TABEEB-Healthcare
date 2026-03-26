@@ -279,6 +279,7 @@ export default function BookAppointmentPage() {
             selectedDate={selectedDate}
             selectedSlot={selectedSlot}
             onBookingSubmit={handleBookingSubmit}
+            isFollowUp={isFollowUp}
             loading={bookingLoading}
           />
         ) : null;
