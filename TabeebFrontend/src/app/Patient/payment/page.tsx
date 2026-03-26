@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { FaUniversity, FaMobileAlt, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaUniversity, FaMobileAlt, FaCheckCircle, FaTimesCircle, FaClock, FaInfoCircle, FaCopy } from 'react-icons/fa';
 import { fetchWithRateLimit } from '@/lib/api-utils';
 
 export default function PaymentPage() {
@@ -18,11 +18,16 @@ export default function PaymentPage() {
   const appointmentDate = searchParams.get('date') || '';
   const appointmentTime = searchParams.get('time') || '';
 
-  const [paymentMethod, setPaymentMethod] = useState('jazzcash');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
+  // Clinic payment details
+  const CLINIC_BANK_ACCOUNT = 'PK36 ABCD 0123 4567 8901 2345';
+  const CLINIC_MOBILE = '+92-300-1234567';
+  const CLINIC_NAME = 'TABEEB Healthcare';
+
+  const [patientMobileNumber, setPatientMobileNumber] = useState('');
+  const [acknowledged, setAcknowledged] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   useEffect(() => {
     // Redirect if no amount or appointment data
@@ -31,105 +36,101 @@ export default function PaymentPage() {
     }
   }, [amount, appointmentId, router]);
 
-  const handlePayment = async () => {
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const handleConfirm = async () => {
     setError('');
+
+    // Validate mobile number
+    if (!patientMobileNumber) {
+      setError('Please enter your mobile number');
+      return;
+    }
+
+    if (patientMobileNumber.length < 11) {
+      setError('Please enter a valid 11-digit mobile number');
+      return;
+    }
+
+    if (!acknowledged) {
+      setError('Please acknowledge that you understand the payment instructions');
+      return;
+    }
+
     setProcessing(true);
 
-    // Basic validation
-    if (paymentMethod === 'bank' && !accountNumber) {
-      setError('Please enter your IBAN or Account Number');
-      setProcessing(false);
-      return;
-    }
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/${appointmentId}/confirm-payment`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentMethod: 'manual_bank_transfer',
+          phoneNumber: patientMobileNumber,
+          amount: parseFloat(amount),
+          transactionId: `MAN${Date.now()}`,
+        }),
+      });
 
-    if ((paymentMethod === 'jazzcash' || paymentMethod === 'easypaisa') && !phoneNumber) {
-      setError('Please enter your phone number');
-      setProcessing(false);
-      return;
-    }
-
-    if (phoneNumber && phoneNumber.length < 11) {
-      setError('Please enter a valid 11-digit phone number');
-      setProcessing(false);
-      return;
-    }
-
-    // Simulate payment processing
-    setTimeout(async () => {
-      try {
-        // TODO: Integrate with GoFast Pay or other Pakistani payment gateway
-        // For now, just confirm the appointment
-        const API_URL = process.env.NEXT_PUBLIC_API_URL;
-        const response = await fetchWithRateLimit(`${API_URL}/api/appointments/${appointmentId}/confirm-payment`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            paymentMethod,
-            phoneNumber: phoneNumber || null,
-            accountNumber: accountNumber || null,
-            amount: parseFloat(amount),
-            transactionId: `TXN${Date.now()}`, // Dummy transaction ID
-          }),
-        });
-
-        if (response.ok) {
-          // Payment successful - redirect to success page
-          router.push(`/Patient/payment/success?appointmentId=${appointmentId}&amount=${amount}`);
-        } else {
-          setError('Payment processing failed. Please try again.');
-          setProcessing(false);
-        }
-      } catch (err) {
-        console.error('Payment error:', err);
-        setError('An error occurred. Please try again.');
+      if (response.ok) {
+        router.push(`/Patient/payment/success?appointmentId=${appointmentId}&amount=${amount}`);
+      } else {
+        setError('Failed to process payment. Please try again.');
         setProcessing(false);
       }
-    }, 2000);
+    } catch (err) {
+      console.error('Payment error:', err);
+      setError('An error occurred. Please try again.');
+      setProcessing(false);
+    }
   };
 
   const handleCancel = () => {
-    // Cancel payment and return to booking
     router.push('/Patient/book-appointment');
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-6 sm:py-8 px-4 sm:px-6">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Complete Payment
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Payment Instructions
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Secure payment for your appointment
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+            Manual bank transfer for your appointment
           </p>
         </div>
 
         {/* Appointment Summary Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Appointment Details
           </h2>
           <div className="space-y-3">
-            <div className="flex justify-between">
+            <div className="flex justify-between text-sm sm:text-base">
               <span className="text-gray-600 dark:text-gray-400">Doctor:</span>
               <span className="font-medium text-gray-900 dark:text-white">Dr. {doctorName}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between text-sm sm:text-base">
               <span className="text-gray-600 dark:text-gray-400">Date:</span>
               <span className="font-medium text-gray-900 dark:text-white">{appointmentDate}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between text-sm sm:text-base">
               <span className="text-gray-600 dark:text-gray-400">Time:</span>
               <span className="font-medium text-gray-900 dark:text-white">{appointmentTime}</span>
             </div>
             <div className="border-t border-gray-200 dark:border-slate-600 pt-3 mt-3">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold text-gray-900 dark:text-white">Total Amount:</span>
-                <span className="text-2xl font-bold text-teal-600 dark:text-teal-400">
+                <span className="font-semibold text-gray-900 dark:text-white">Total Amount:</span>
+                <span className="text-xl sm:text-2xl font-bold text-teal-600 dark:text-teal-400">
                   PKR {parseFloat(amount).toLocaleString('en-PK')}
                 </span>
               </div>
@@ -137,159 +138,187 @@ export default function PaymentPage() {
           </div>
         </div>
 
-        {/* Payment Methods Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 mb-6 border border-gray-200 dark:border-slate-700">
+        {/* Payment Instructions Card */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="flex items-start gap-3">
+            <FaInfoCircle className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2 text-sm sm:text-base">
+                Payment Deadline
+              </h3>
+              <p className="text-blue-800 dark:text-blue-400 text-xs sm:text-sm leading-relaxed">
+                Please transfer the payment within <strong>1 day after your appointment is completed</strong>. The doctor will provide you with the exact payment details at the end of the appointment.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Bank Details Card */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Select Payment Method
+            Transfer Payment To
           </h2>
 
-          <div className="space-y-3">
-            {/* JazzCash */}
-            <button
-              onClick={() => setPaymentMethod('jazzcash')}
-              className={`w-full p-4 rounded-lg border-2 transition-all ${
-                paymentMethod === 'jazzcash'
-                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20'
-                  : 'border-gray-200 dark:border-slate-600 hover:border-teal-300'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <FaMobileAlt className="text-2xl text-red-600" />
-                <div className="text-left flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">JazzCash</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Pay with JazzCash Mobile Account</div>
+          {/* Bank Account Section */}
+          <div className="mb-5 sm:mb-6 pb-5 sm:pb-6 border-b border-gray-200 dark:border-slate-600">
+            <div className="flex items-center space-x-2 mb-3">
+              <FaUniversity className="text-teal-600 dark:text-teal-400" />
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Bank Account Number
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <div className="bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-3 font-mono text-sm sm:text-base text-gray-900 dark:text-white break-all">
+                  {CLINIC_BANK_ACCOUNT}
                 </div>
-                {paymentMethod === 'jazzcash' && (
-                  <FaCheckCircle className="text-teal-500 text-xl" />
-                )}
               </div>
-            </button>
-
-            {/* Easypaisa */}
-            <button
-              onClick={() => setPaymentMethod('easypaisa')}
-              className={`w-full p-4 rounded-lg border-2 transition-all ${
-                paymentMethod === 'easypaisa'
-                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20'
-                  : 'border-gray-200 dark:border-slate-600 hover:border-teal-300'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <FaMobileAlt className="text-2xl text-green-600" />
-                <div className="text-left flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">Easypaisa</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Pay with Easypaisa Mobile Account</div>
-                </div>
-                {paymentMethod === 'easypaisa' && (
-                  <FaCheckCircle className="text-teal-500 text-xl" />
-                )}
-              </div>
-            </button>
-
-            {/* Bank Transfer */}
-            <button
-              onClick={() => setPaymentMethod('bank')}
-              className={`w-full p-4 rounded-lg border-2 transition-all ${
-                paymentMethod === 'bank'
-                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20'
-                  : 'border-gray-200 dark:border-slate-600 hover:border-teal-300'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <FaUniversity className="text-2xl text-blue-600" />
-                <div className="text-left flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">Bank Transfer</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Direct bank account transfer</div>
-                </div>
-                {paymentMethod === 'bank' && (
-                  <FaCheckCircle className="text-teal-500 text-xl" />
-                )}
-              </div>
-            </button>
-
+              <button
+                onClick={() => copyToClipboard(CLINIC_BANK_ACCOUNT, 'bank')}
+                className="p-2 sm:p-3 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg hover:bg-teal-200 dark:hover:bg-teal-900/50 transition-colors flex-shrink-0"
+                title="Copy to clipboard"
+              >
+                <FaCopy className="text-sm" />
+              </button>
+            </div>
+            {copiedField === 'bank' && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-2">Copied to clipboard!</p>
+            )}
           </div>
 
-          {/* Payment Details Input - Mobile Number for JazzCash/Easypaisa */}
-          {(paymentMethod === 'jazzcash' || paymentMethod === 'easypaisa') && (
-            <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          {/* Mobile Number Section */}
+          <div className="mb-5 sm:mb-6">
+            <div className="flex items-center space-x-2 mb-3">
+              <FaMobileAlt className="text-teal-600 dark:text-teal-400" />
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Mobile Number
               </label>
-              <input
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 11))}
-                placeholder="03001234567"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Enter your 11-digit mobile number
-              </p>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <div className="bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-3 font-mono text-sm sm:text-base text-gray-900 dark:text-white">
+                  {CLINIC_MOBILE}
+                </div>
+              </div>
+              <button
+                onClick={() => copyToClipboard(CLINIC_MOBILE, 'mobile')}
+                className="p-2 sm:p-3 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg hover:bg-teal-200 dark:hover:bg-teal-900/50 transition-colors flex-shrink-0"
+                title="Copy to clipboard"
+              >
+                <FaCopy className="text-sm" />
+              </button>
+            </div>
+            {copiedField === 'mobile' && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-2">Copied to clipboard!</p>
+            )}
+          </div>
 
-          {/* IBAN/Account Number for Bank Transfer */}
-          {paymentMethod === 'bank' && (
-            <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                IBAN / Account Number
-              </label>
-              <input
-                type="text"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value.toUpperCase())}
-                placeholder="PK36ABCD0123456789012345"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Enter your IBAN or bank account number
-              </p>
+          {/* Account Name */}
+          <div>
+            <label className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 block mb-2">
+              Account Name
+            </label>
+            <div className="bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-3 text-sm sm:text-base text-gray-900 dark:text-white">
+              {CLINIC_NAME}
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* Patient Mobile Number Input */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-700">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            Your Mobile Number (for verification)
+          </label>
+          <input
+            type="tel"
+            value={patientMobileNumber}
+            onChange={(e) => setPatientMobileNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 11))}
+            placeholder="03001234567"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white text-sm sm:text-base"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Enter your 11-digit mobile number where you can be reached
+          </p>
+        </div>
+
+        {/* Warning & Acknowledgement */}
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="flex items-start gap-3">
+            <FaClock className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-1" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-900 dark:text-amber-300 mb-2 text-sm sm:text-base">
+                Important Reminders
+              </h3>
+              <ul className="text-amber-800 dark:text-amber-400 text-xs sm:text-sm space-y-1">
+                <li>• Payment must be completed within 1 day after your appointment</li>
+                <li>• Use the provided account details for the transfer</li>
+                <li>• Your appointment will be confirmed once payment is received</li>
+                <li>• Keep the transaction receipt for your records</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Acknowledgement Checkbox */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-700">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(e) => setAcknowledged(e.target.checked)}
+              className="w-5 h-5 text-teal-600 border-gray-300 rounded focus:ring-2 focus:ring-teal-500 mt-1 cursor-pointer dark:border-slate-600"
+            />
+            <span className="text-sm sm:text-base text-gray-700 dark:text-gray-300">
+              I acknowledge that I understand the payment instructions and will transfer the payment within 1 day after my appointment is completed
+            </span>
+          </label>
         </div>
 
         {/* Error Message */}
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
             <div className="flex items-center space-x-2">
-              <FaTimesCircle className="text-red-600 dark:text-red-400" />
-              <p className="text-red-800 dark:text-red-300">{error}</p>
+              <FaTimesCircle className="text-red-600 dark:text-red-400 flex-shrink-0" />
+              <p className="text-red-800 dark:text-red-300 text-sm sm:text-base">{error}</p>
             </div>
           </div>
         )}
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <button
             onClick={handleCancel}
             disabled={processing}
-            className="flex-1 px-6 py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
           >
             Cancel
           </button>
           <button
-            onClick={handlePayment}
-            disabled={processing}
-            className="flex-1 px-6 py-3 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            onClick={handleConfirm}
+            disabled={processing || !acknowledged}
+            className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             {processing ? (
               <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 <span>Processing...</span>
               </>
             ) : (
               <>
-                <span>Confirm Payment</span>
-                <span className="font-bold">PKR {parseFloat(amount).toLocaleString('en-PK')}</span>
+                <FaCheckCircle />
+                <span>I Acknowledge & Continue</span>
               </>
             )}
           </button>
         </div>
 
-        {/* Security Badge */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            🔒 Your payment information is secure and encrypted
+        {/* Support Info */}
+        <div className="text-center">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+            Need help? Contact us at{' '}
+            <a href="mailto:support@tabeebemail.me" className="text-teal-600 dark:text-teal-400 hover:underline">
+              support@tabeebemail.me
+            </a>
           </p>
         </div>
       </div>
