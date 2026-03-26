@@ -8,6 +8,10 @@ import {
   updatePatientProfileImage,
   deletePatientProfileImage,
 } from '../controllers/patientController';
+import {
+  getMyFinancialAidRequest,
+  submitFinancialAidRequest,
+} from '../controllers/financialAidController';
 import { verifyToken } from '../middleware/verifyToken';
 
 const router = express.Router();
@@ -23,5 +27,9 @@ router.post('/restore', verifyToken, restorePatient);
 router.post('/profile-image', verifyToken, updatePatientProfileImage);
 router.put('/profile-image', verifyToken, updatePatientProfileImage);
 router.delete('/profile-image', verifyToken, deletePatientProfileImage);
+
+// Financial aid request routes
+router.get('/financial-aid', verifyToken, getMyFinancialAidRequest);
+router.post('/financial-aid', verifyToken, submitFinancialAidRequest);
 
 export default router;

@@ -17,6 +17,12 @@ import {
   getAllDoctors,
 } from '../controllers/adminController';
 import {
+  getFinancialAidRequestsForAdmin,
+  approveFinancialAidRequest,
+  rejectFinancialAidRequest,
+} from '../controllers/financialAidController';
+import { getDoctorPayoutMethodsForAdmin } from '../controllers/doctorPayoutController';
+import {
   authenticateAdminFromHeaders,
   requireAnyAdminPermission,
   requireAdminPermission,
@@ -59,6 +65,12 @@ router.patch(
 
 // Doctor management routes
 router.get('/doctors', authenticateAdminFromHeaders, getAllDoctors);
+router.get('/doctors/:doctorUid/payout-methods', authenticateAdminFromHeaders, getDoctorPayoutMethodsForAdmin);
+
+// Financial aid review routes
+router.get('/financial-aid/requests', authenticateAdminFromHeaders, getFinancialAidRequestsForAdmin);
+router.patch('/financial-aid/requests/:requestId/approve', authenticateAdminFromHeaders, approveFinancialAidRequest);
+router.patch('/financial-aid/requests/:requestId/reject', authenticateAdminFromHeaders, rejectFinancialAidRequest);
 
 // Admin inbox routes
 router.get(

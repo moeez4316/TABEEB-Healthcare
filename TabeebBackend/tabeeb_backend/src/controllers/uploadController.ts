@@ -20,7 +20,14 @@ export const getUploadSignature = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Upload type is required' });
     }
 
-    const validTypes: UploadType[] = ['profile-image', 'medical-record', 'verification-doc', 'chat-media', 'blog-image'];
+    const validTypes: UploadType[] = [
+      'profile-image',
+      'medical-record',
+      'verification-doc',
+      'financial-aid-doc',
+      'chat-media',
+      'blog-image'
+    ];
     if (!validTypes.includes(type)) {
       return res.status(400).json({ 
         error: `Invalid upload type. Must be one of: ${validTypes.join(', ')}` 

@@ -12,7 +12,13 @@ cloudinary.config({
 // SIGNED UPLOAD - Client-side upload support
 // ============================================
 
-export type UploadType = 'profile-image' | 'medical-record' | 'verification-doc' | 'chat-media' | 'blog-image';
+export type UploadType =
+  | 'profile-image'
+  | 'medical-record'
+  | 'verification-doc'
+  | 'financial-aid-doc'
+  | 'chat-media'
+  | 'blog-image';
 
 interface UploadSignatureParams {
   type: UploadType;
@@ -69,6 +75,12 @@ export const generateUploadSignature = ({ type, userId, docType, mimeType }: Upl
       folder = 'tabeeb/verification';
       publicId = `tabeeb/verification/${userId}/${docType || 'document'}_${timestamp}`;
       // Use 'raw' for PDFs to ensure correct URL path, 'image' for images
+      resourceType = mimeType === 'application/pdf' ? 'raw' : 'image';
+      break;
+
+    case 'financial-aid-doc':
+      folder = 'tabeeb/financial-aid';
+      publicId = `tabeeb/financial-aid/${userId}/${docType || 'proof'}_${timestamp}`;
       resourceType = mimeType === 'application/pdf' ? 'raw' : 'image';
       break;
       
@@ -136,6 +148,7 @@ export const verifyPublicIdOwnership = (publicId: string, userId: string, type: 
     'profile-image': `tabeeb/profiles/${userId}/`,
     'medical-record': `tabeeb/medical-records/${userId}/`,
     'verification-doc': `tabeeb/verification/${userId}/`,
+    'financial-aid-doc': `tabeeb/financial-aid/${userId}/`,
     'chat-media': `tabeeb/chat/${userId}/`,
     'blog-image': `tabeeb/blogs/${userId}/`,
   };

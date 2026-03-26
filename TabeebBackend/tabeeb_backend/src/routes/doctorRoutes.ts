@@ -10,6 +10,12 @@ import {
   deleteDoctorProfileImage,
 } from '../controllers/doctorController';
 import {
+  getOwnDoctorPayoutMethods,
+  createDoctorPayoutMethod,
+  updateDoctorPayoutMethod,
+  deleteDoctorPayoutMethod,
+} from '../controllers/doctorPayoutController';
+import {
   getPublicDoctorProfile,
   getDoctorAvailabilitySummary
 } from '../controllers/publicDoctorController';
@@ -28,6 +34,12 @@ router.post('/restore', verifyToken, restoreDoctor);
 router.post('/profile-image', verifyToken, updateDoctorProfileImage);
 router.put('/profile-image', verifyToken, updateDoctorProfileImage);
 router.delete('/profile-image', verifyToken, deleteDoctorProfileImage);
+
+// Payout methods routes
+router.get('/payout-methods', verifyToken, getOwnDoctorPayoutMethods);
+router.post('/payout-methods', verifyToken, createDoctorPayoutMethod);
+router.put('/payout-methods/:methodId', verifyToken, updateDoctorPayoutMethod);
+router.delete('/payout-methods/:methodId', verifyToken, deleteDoctorPayoutMethod);
 
 // Public routes (no authentication required)
 router.get('/verified', getVerifiedDoctors); // Get all verified doctors
