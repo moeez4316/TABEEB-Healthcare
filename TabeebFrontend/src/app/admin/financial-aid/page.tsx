@@ -6,7 +6,6 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  DollarSign,
   Eye,
   FileText,
   Filter,
@@ -67,6 +66,8 @@ export default function AdminFinancialAidPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<UiFilter>('pending');
+  const [documentModalOpen, setDocumentModalOpen] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<{ url: string; title: string; isPdf: boolean } | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<FinancialAidRequest | null>(null);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewAction, setReviewAction] = useState<ReviewAction>('');
@@ -117,7 +118,7 @@ export default function AdminFinancialAidPage() {
   }, [fetchError, router]);
 
   useEffect(() => {
-    if (!reviewModalOpen) {
+    if (!reviewModalOpen && !documentModalOpen) {
       document.body.style.overflow = 'unset';
       return;
     }
@@ -126,7 +127,7 @@ export default function AdminFinancialAidPage() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [reviewModalOpen]);
+  }, [reviewModalOpen, documentModalOpen]);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToastMessage(message);
@@ -141,8 +142,21 @@ export default function AdminFinancialAidPage() {
     return fullName || `Patient ${request.patientUid.slice(0, 8)}...`;
   };
 
-  const openDocument = (fileUrl: string) => {
-    window.open(fileUrl, '_blank', 'noopener,noreferrer');
+  const openDocument = (doc: FinancialAidDocument) => {
+    const title = doc.fileName || doc.docType || 'Financial aid document';
+    const type = (doc.fileType || '').toLowerCase();
+    const isPdf = type.includes('pdf') || doc.fileUrl.includes('/raw/upload/');
+    setSelectedDocument({
+      url: doc.fileUrl,
+      title,
+      isPdf,
+    });
+    setDocumentModalOpen(true);
+  };
+
+  const closeDocumentModal = () => {
+    setDocumentModalOpen(false);
+    setSelectedDocument(null);
   };
 
   const openReviewModal = (request: FinancialAidRequest, action: Exclude<ReviewAction, ''>) => {
@@ -395,8 +409,7 @@ export default function AdminFinancialAidPage() {
 
                   <div className="text-right">
                     <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Requested Discount</p>
-                    <p className="text-2xl font-bold text-teal-700 dark:text-teal-300 inline-flex items-center gap-1">
-                      <DollarSign className="w-5 h-5" />
+                    <p className="text-2xl font-bold text-teal-700 dark:text-teal-300">
                       {request.requestedDiscountPercent}%
                     </p>
                   </div>
@@ -412,7 +425,7 @@ export default function AdminFinancialAidPage() {
                         <button
                           key={doc.id}
                           type="button"
-                          onClick={() => openDocument(doc.fileUrl)}
+                          onClick={() => openDocument(doc)}
                           className="text-left p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/40 hover:bg-slate-100 dark:hover:bg-slate-700"
                         >
                           <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
@@ -530,6 +543,47 @@ export default function AdminFinancialAidPage() {
                 >
                   {submitting ? 'Submitting...' : reviewAction === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {documentModalOpen && selectedDocument && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50" onClick={closeDocumentModal}>
+          <div className="relative w-full max-w-6xl h-[90vh] flex items-center justify-center p-4" onClick={(event) => event.stopPropagation()}>
+            <button
+              className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm text-white rounded-full p-3 hover:bg-white/20 focus:outline-none z-10 transition-all"
+              onClick={closeDocumentModal}
+              aria-label="Close preview"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="w-full h-full flex items-center justify-center bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-white/20 dark:border-slate-700/50">
+              <div className="relative w-full h-full flex flex-col">
+                <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-600 p-4 border-b border-slate-200 dark:border-slate-600">
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-white text-center">
+                    {selectedDocument.title}
+                  </h3>
+                </div>
+
+                <div className="flex-1 flex items-center justify-center overflow-hidden p-4 bg-slate-100 dark:bg-slate-900">
+                  {selectedDocument.isPdf ? (
+                    <iframe
+                      src={selectedDocument.url}
+                      title={selectedDocument.title}
+                      className="w-full h-full rounded-lg border-0 bg-white"
+                    />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={selectedDocument.url}
+                      alt={selectedDocument.title}
+                      className="max-h-full max-w-full object-contain rounded-xl shadow-lg"
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>
