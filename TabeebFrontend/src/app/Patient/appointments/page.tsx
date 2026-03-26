@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
-import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp, FaStar, FaRedo, FaComments } from 'react-icons/fa';
+import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp, FaStar, FaRedo, FaComments, FaInfoCircle } from 'react-icons/fa';
 import PatientVideoCallModal from '@/components/VideoCall/PatientVideoCallModal';
 import PatientReviewModal from '@/components/appointment/PatientReviewModal';
 import { Toast } from '@/components/Toast';
@@ -40,6 +40,8 @@ export default function PatientAppointmentsPage() {
   const [followUpEligibility, setFollowUpEligibility] = useState<Record<string, FollowUpEligibility>>({});
   const [showChat, setShowChat] = useState(false);
   const [chatAppointment, setChatAppointment] = useState<AppointmentWithDetails | null>(null);
+  const [showPaymentReminder, setShowPaymentReminder] = useState(false);
+  const [reminderAppointment, setReminderAppointment] = useState<AppointmentWithDetails | null>(null);
 
   const {
     data: appointmentsData,
@@ -682,6 +684,38 @@ export default function PatientAppointmentsPage() {
                         <p className="text-sm text-gray-700 dark:text-gray-300">{appointment.patientNotes}</p>
                       </div>
                     )}
+
+                    {appointment.status === 'COMPLETED' && (
+                      <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                        <h5 className="font-semibold text-amber-900 dark:text-amber-300 mb-3 flex items-center">
+                          <FaInfoCircle className="mr-2 text-amber-600 dark:text-amber-400" />
+                          Payment Reminder
+                        </h5>
+                        <div className="space-y-2 text-sm text-amber-800 dark:text-amber-400">
+                          <div>
+                            <span className="font-medium">📱 Payment Method:</span>
+                            <span className="ml-2">JazzCash</span>
+                          </div>
+                          <div>
+                            <span className="font-medium">💳 Account Number:</span>
+                            <span className="ml-2">+92 302 4400906</span>
+                          </div>
+                          <div>
+                            <span className="font-medium">👤 Account Name:</span>
+                            <span className="ml-2">TABEEB Healthcare</span>
+                          </div>
+                          <div>
+                            <span className="font-medium">⏱️ Deadline:</span>
+                            <span className="ml-2">24 hours after appointment completion</span>
+                          </div>
+                          <div className="mt-3 p-2 bg-amber-100 dark:bg-amber-900/30 rounded">
+                            <p className="text-xs font-medium text-amber-900 dark:text-amber-300">
+                              ⚠️ Late payments may result in additional charges and account suspensions
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -698,6 +732,13 @@ export default function PatientAppointmentsPage() {
           isOpen={showVideoCall}
           onClose={() => {
             setShowVideoCall(false);
+            // Find the appointment that was just in a call
+            const appointment = appointments.find(a => a.id === selectedAppointmentId);
+            if (appointment) {
+              // Show payment reminder after any video call ends
+              setReminderAppointment(appointment);
+              setShowPaymentReminder(true);
+            }
             setSelectedAppointmentId(null);
             // Refresh appointments to update status
             refetch();
@@ -740,6 +781,85 @@ export default function PatientAppointmentsPage() {
                 setChatAppointment(null);
               }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Payment Reminder Modal */}
+      {showPaymentReminder && reminderAppointment && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-slate-700 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 px-6 py-6 border-b border-amber-200 dark:border-amber-800">
+              <div className="flex items-center gap-3">
+                <div className="text-4xl">💰</div>
+                <div>
+                  <h2 className="text-xl font-bold text-amber-900 dark:text-amber-300">
+                    Payment Reminder
+                  </h2>
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    Your appointment is complete!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-6 space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                  <span className="font-semibold">Please transfer your payment</span> within <span className="font-bold text-amber-600 dark:text-amber-400">24 hours</span> to complete the appointment process.
+                </p>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-3">
+                  <span className="text-lg flex-shrink-0">📱</span>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">JazzCash Number</p>
+                    <p className="text-gray-600 dark:text-gray-400 font-mono">+92 302 4400906</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-lg flex-shrink-0">👤</span>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Account Name</p>
+                    <p className="text-gray-600 dark:text-gray-400">TABEEB Healthcare</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-lg flex-shrink-0">🆔</span>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Reference ID</p>
+                    <p className="text-gray-600 dark:text-gray-400 font-mono text-xs break-all">{reminderAppointment.id}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mt-4">
+                <p className="text-xs text-red-700 dark:text-red-400">
+                  <span className="font-bold">⚠️ Important:</span> Late payments may result in additional charges and account suspensions.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 dark:bg-slate-700/50 px-6 py-4 flex gap-3">
+              <button
+                onClick={() => setShowPaymentReminder(false)}
+                className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-slate-600 text-gray-900 dark:text-white rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors text-sm"
+              >
+                I'll Pay Later
+              </button>
+              <button
+                onClick={() => setShowPaymentReminder(false)}
+                className="flex-1 px-4 py-2.5 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors text-sm"
+              >
+                Got It! ✓
+              </button>
+            </div>
           </div>
         </div>
       )}
