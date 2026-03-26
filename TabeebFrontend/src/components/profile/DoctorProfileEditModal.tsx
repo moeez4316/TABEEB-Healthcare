@@ -188,6 +188,11 @@ interface PayoutMethodForm {
     isPrimary: boolean;
 }
 
+interface PayoutMethodValidationErrors {
+    accountIdentifier?: string;
+    methodLabel?: string;
+}
+
 const payoutMethodOptions = [
     { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
     { value: 'JAZZCASH', label: 'JazzCash' },
@@ -240,6 +245,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
     const [newPayoutMethod, setNewPayoutMethod] = useState<PayoutMethodForm>(defaultPayoutForm);
     const [editingMethodId, setEditingMethodId] = useState<string | null>(null);
     const [editingPayoutMethod, setEditingPayoutMethod] = useState<PayoutMethodForm>(defaultPayoutForm);
+    const [editingPayoutErrors, setEditingPayoutErrors] = useState<PayoutMethodValidationErrors>({});
 
     // Reset upload progress when modal opens/closes
     useEffect(() => {
@@ -541,6 +547,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
 
     const handleStartEditingPayoutMethod = (method: DoctorPayoutMethod) => {
         setEditingMethodId(method.id);
+        setEditingPayoutErrors({});
         setEditingPayoutMethod({
             methodCode: method.methodCode,
             methodLabel: method.methodCode === 'OTHER' ? (method.methodLabel || '') : '',
@@ -556,22 +563,28 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
     const handleCancelEditingPayoutMethod = () => {
         setEditingMethodId(null);
         setEditingPayoutMethod(defaultPayoutForm);
+        setEditingPayoutErrors({});
+    };
+
+    const validateEditingPayoutMethod = () => {
+        const errors: PayoutMethodValidationErrors = {};
+
+        if (!editingPayoutMethod.accountIdentifier.trim()) {
+            errors.accountIdentifier = 'Account identifier is required';
+        }
+
+        if (editingPayoutMethod.methodCode === 'OTHER' && !editingPayoutMethod.methodLabel.trim()) {
+            errors.methodLabel = 'Method label is required when selecting Other';
+        }
+
+        setEditingPayoutErrors(errors);
+        return Object.keys(errors).length === 0;
     };
 
     const handleUpdatePayoutMethod = async () => {
         if (!token || !editingMethodId) return;
 
-        if (!editingPayoutMethod.accountIdentifier.trim()) {
-            setToastMessage('Account identifier is required');
-            setToastType('error');
-            setShowToast(true);
-            return;
-        }
-
-        if (editingPayoutMethod.methodCode === 'OTHER' && !editingPayoutMethod.methodLabel.trim()) {
-            setToastMessage('Please provide a method label when selecting Other');
-            setToastType('error');
-            setShowToast(true);
+        if (!validateEditingPayoutMethod()) {
             return;
         }
 
@@ -606,6 +619,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
             setShowToast(true);
             setEditingMethodId(null);
             setEditingPayoutMethod(defaultPayoutForm);
+            setEditingPayoutErrors({});
             await loadPayoutMethods();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to update payout method';
@@ -673,6 +687,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
             if (editingMethodId === methodId) {
                 setEditingMethodId(null);
                 setEditingPayoutMethod(defaultPayoutForm);
+                setEditingPayoutErrors({});
             }
             await loadPayoutMethods();
         } catch (error) {
@@ -1220,7 +1235,18 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Method</label>
                                                                     <select
                                                                         value={editingPayoutMethod.methodCode}
-                                                                        onChange={(e) => setEditingPayoutMethod((prev) => ({ ...prev, methodCode: e.target.value }))}
+                                                                        onChange={(e) => {
+                                                                            const selectedMethod = e.target.value;
+                                                                            setEditingPayoutMethod((prev) => ({
+                                                                                ...prev,
+                                                                                methodCode: selectedMethod,
+                                                                                methodLabel: selectedMethod === 'OTHER' ? prev.methodLabel : '',
+                                                                            }));
+                                                                            setEditingPayoutErrors((prev) => ({
+                                                                                ...prev,
+                                                                                methodLabel: undefined,
+                                                                            }));
+                                                                        }}
                                                                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-slate-700 dark:text-white"
                                                                     >
                                                                         {payoutMethodOptions.map((option) => (
@@ -1234,10 +1260,19 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                                                     <input
                                                                         type="text"
                                                                         value={editingPayoutMethod.accountIdentifier}
-                                                                        onChange={(e) => setEditingPayoutMethod((prev) => ({ ...prev, accountIdentifier: e.target.value }))}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            setEditingPayoutMethod((prev) => ({ ...prev, accountIdentifier: value }));
+                                                                            if (value.trim()) {
+                                                                                setEditingPayoutErrors((prev) => ({ ...prev, accountIdentifier: undefined }));
+                                                                            }
+                                                                        }}
                                                                         placeholder="Account number / wallet number"
-                                                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-slate-700 dark:text-white"
+                                                                        className={`w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:text-white ${editingPayoutErrors.accountIdentifier ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
                                                                     />
+                                                                    {editingPayoutErrors.accountIdentifier && (
+                                                                        <p className="mt-1 text-xs text-red-600 dark:text-red-400">{editingPayoutErrors.accountIdentifier}</p>
+                                                                    )}
                                                                 </div>
 
                                                                 {editingPayoutMethod.methodCode === 'OTHER' && (
@@ -1246,10 +1281,19 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                                                         <input
                                                                             type="text"
                                                                             value={editingPayoutMethod.methodLabel}
-                                                                            onChange={(e) => setEditingPayoutMethod((prev) => ({ ...prev, methodLabel: e.target.value }))}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                setEditingPayoutMethod((prev) => ({ ...prev, methodLabel: value }));
+                                                                                if (value.trim()) {
+                                                                                    setEditingPayoutErrors((prev) => ({ ...prev, methodLabel: undefined }));
+                                                                                }
+                                                                            }}
                                                                             placeholder="Enter method name"
-                                                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-slate-700 dark:text-white"
+                                                                            className={`w-full px-3 py-2 border rounded-lg dark:bg-slate-700 dark:text-white ${editingPayoutErrors.methodLabel ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
                                                                         />
+                                                                        {editingPayoutErrors.methodLabel && (
+                                                                            <p className="mt-1 text-xs text-red-600 dark:text-red-400">{editingPayoutErrors.methodLabel}</p>
+                                                                        )}
                                                                     </div>
                                                                 )}
 
