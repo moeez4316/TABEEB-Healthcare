@@ -79,7 +79,7 @@ export default function PaymentSuccessPage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-semibold flex-shrink-0">3.</span>
-                  <span>After the appointment, transfer the payment amount <strong>within 1 day</strong> to the bank account provided by the doctor</span>
+                  <span>After the appointment, transfer the payment amount <strong>within 24 hours</strong> to the TABEEB Healthcare JazzCash account provided above</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-semibold flex-shrink-0">4.</span>
@@ -94,16 +94,16 @@ export default function PaymentSuccessPage() {
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
           <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-3 text-sm sm:text-base flex items-center gap-2">
             <FaClock className="text-blue-600 dark:text-blue-400" />
-            Payment Deadline
+            Payment Deadline & Details
           </h3>
           <p className="text-blue-800 dark:text-blue-400 text-xs sm:text-sm mb-3">
-            You have <strong>1 day after your appointment ends</strong> to complete the payment transfer.
+            You have <strong>24 hours after your appointment ends</strong> to complete the payment transfer to TABEEB Healthcare.
           </p>
           <ul className="text-blue-800 dark:text-blue-400 text-xs sm:text-sm space-y-2">
-            <li>• The doctor will provide complete bank transfer details at the end of the appointment</li>
-            <li>• Multiple payment methods are accepted (Bank Transfer, JazzCash, Easypaisa)</li>
+            <li>• JazzCash Number: <strong>+92 302 4400906</strong></li>
+            <li>• Account Name: <strong>TABEEB Healthcare</strong></li>
             <li>• Use the appointment ID as reference in your payment transfer</li>
-            <li>• Late payments may result in additional charges or appointment cancellation</li>
+            <li>• Late payments may result in additional charges and account suspensions</li>
           </ul>
         </div>
 
@@ -127,7 +127,7 @@ export default function PaymentSuccessPage() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5">✓</span>
-              <span>After the appointment, you'll have 1 day to complete the payment transfer</span>
+              <span>After the appointment, you'll have 24 hours to complete the payment transfer</span>
             </li>
           </ul>
         </div>

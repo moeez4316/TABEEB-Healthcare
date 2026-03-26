@@ -19,8 +19,7 @@ export default function PaymentPage() {
   const appointmentTime = searchParams.get('time') || '';
 
   // Clinic payment details
-  const CLINIC_BANK_ACCOUNT = 'PK36 ABCD 0123 4567 8901 2345';
-  const CLINIC_MOBILE = '+92-300-1234567';
+  const CLINIC_JAZZCASH = '+92 302 4400906';
   const CLINIC_NAME = 'TABEEB Healthcare';
 
   const [patientMobileNumber, setPatientMobileNumber] = useState('');
@@ -105,7 +104,7 @@ export default function PaymentPage() {
             Payment Instructions
           </h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            Manual bank transfer for your appointment
+            JazzCash transfer for your appointment
           </p>
         </div>
 
@@ -147,68 +146,41 @@ export default function PaymentPage() {
                 Payment Deadline
               </h3>
               <p className="text-blue-800 dark:text-blue-400 text-xs sm:text-sm leading-relaxed">
-                Please transfer the payment within <strong>1 day after your appointment is completed</strong>. The doctor will provide you with the exact payment details at the end of the appointment.
+                Please transfer the payment within <strong>24 hours after your appointment is completed</strong> to the TABEEB Healthcare account details provided below.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Bank Details Card */}
+        {/* Payment Instructions Card */}
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Transfer Payment To
+            Send Payment via JazzCash
           </h2>
 
-          {/* Bank Account Section */}
-          <div className="mb-5 sm:mb-6 pb-5 sm:pb-6 border-b border-gray-200 dark:border-slate-600">
-            <div className="flex items-center space-x-2 mb-3">
-              <FaUniversity className="text-teal-600 dark:text-teal-400" />
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Bank Account Number
-              </label>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <div className="bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-3 font-mono text-sm sm:text-base text-gray-900 dark:text-white break-all">
-                  {CLINIC_BANK_ACCOUNT}
-                </div>
-              </div>
-              <button
-                onClick={() => copyToClipboard(CLINIC_BANK_ACCOUNT, 'bank')}
-                className="p-2 sm:p-3 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg hover:bg-teal-200 dark:hover:bg-teal-900/50 transition-colors flex-shrink-0"
-                title="Copy to clipboard"
-              >
-                <FaCopy className="text-sm" />
-              </button>
-            </div>
-            {copiedField === 'bank' && (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-2">Copied to clipboard!</p>
-            )}
-          </div>
-
-          {/* Mobile Number Section */}
-          <div className="mb-5 sm:mb-6">
+          {/* JazzCash Number Section */}
+          <div>
             <div className="flex items-center space-x-2 mb-3">
               <FaMobileAlt className="text-teal-600 dark:text-teal-400" />
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Mobile Number
+                JazzCash Number
               </label>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <div className="bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-3 font-mono text-sm sm:text-base text-gray-900 dark:text-white">
-                  {CLINIC_MOBILE}
+                  {CLINIC_JAZZCASH}
                 </div>
               </div>
               <button
-                onClick={() => copyToClipboard(CLINIC_MOBILE, 'mobile')}
+                onClick={() => copyToClipboard(CLINIC_JAZZCASH, 'jazzcash')}
                 className="p-2 sm:p-3 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg hover:bg-teal-200 dark:hover:bg-teal-900/50 transition-colors flex-shrink-0"
                 title="Copy to clipboard"
               >
                 <FaCopy className="text-sm" />
               </button>
             </div>
-            {copiedField === 'mobile' && (
+            {copiedField === 'jazzcash' && (
               <p className="text-xs text-green-600 dark:text-green-400 mt-2">Copied to clipboard!</p>
             )}
           </div>
@@ -250,9 +222,8 @@ export default function PaymentPage() {
                 Important Reminders
               </h3>
               <ul className="text-amber-800 dark:text-amber-400 text-xs sm:text-sm space-y-1">
-                <li>• Payment must be completed within 1 day after your appointment</li>
-                <li>• Use the provided account details for the transfer</li>
-                <li>• Your appointment will be confirmed once payment is received</li>
+                <li>• Payment must be completed within 24 hours after your appointment</li>
+                <li>• Transfer payment to TABEEB Healthcare account provided above</li>
                 <li>• Keep the transaction receipt for your records</li>
               </ul>
             </div>
@@ -269,7 +240,7 @@ export default function PaymentPage() {
               className="w-5 h-5 text-teal-600 border-gray-300 rounded focus:ring-2 focus:ring-teal-500 mt-1 cursor-pointer dark:border-slate-600"
             />
             <span className="text-sm sm:text-base text-gray-700 dark:text-gray-300">
-              I acknowledge that I understand the payment instructions and will transfer the payment within 1 day after my appointment is completed
+              I acknowledge that I understand the payment instructions and will transfer the payment within 24 hours after my appointment is completed
             </span>
           </label>
         </div>
