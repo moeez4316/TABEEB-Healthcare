@@ -1144,11 +1144,11 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                                 className="w-full md:w-32 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-slate-700 dark:text-white text-lg font-semibold"
                                             />
                                             <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                                                Percentage of consultation fee for follow-up appointments (0-100%). Default: 50%
+                                                Follow-up discount percentage for appointments (0-100%). Default: 50%
                                             </p>
                                             {profile.hourlyConsultationRate && profile.hourlyConsultationRate > 0 && (
                                                 <p className="text-sm text-purple-700 dark:text-purple-300 mt-2 font-medium">
-                                                    Follow-up fee (30 min): PKR {((profile.hourlyConsultationRate * 0.5) * ((profile.followUpPercentage ?? 50) / 100)).toLocaleString('en-PK')}
+                                                    Follow-up fee (30 min): PKR {((profile.hourlyConsultationRate * 0.5) * ((100 - (profile.followUpPercentage ?? 50)) / 100)).toLocaleString('en-PK')}
                                                 </p>
                                             )}
                                         </div>

@@ -60,20 +60,16 @@ const getPatientFinancialAidDiscountPercent = async (patientUid: string): Promis
 const buildAppointmentPricing = (params: {
   baseFee: number;
   isFollowUp: boolean;
-  followUpChargePercent?: number;
+  followUpDiscountPercent?: number;
   financialAidDiscountPercent: number;
 }) => {
   const baseConsultationFees = roundCurrency(Math.max(0, params.baseFee));
 
-  const normalizedFollowUpChargePercent = params.isFollowUp
-    ? clampPercent(params.followUpChargePercent ?? 50)
-    : 100;
-
   const followUpDiscountPct = params.isFollowUp
-    ? clampPercent(100 - normalizedFollowUpChargePercent)
+    ? clampPercent(params.followUpDiscountPercent ?? 50)
     : 0;
 
-  const amountAfterFollowUp = roundCurrency(baseConsultationFees * (normalizedFollowUpChargePercent / 100));
+  const amountAfterFollowUp = roundCurrency(baseConsultationFees * ((100 - followUpDiscountPct) / 100));
   const financialAidDiscountPct = clampPercent(params.financialAidDiscountPercent);
   const finalConsultationFees = roundCurrency(amountAfterFollowUp * ((100 - financialAidDiscountPct) / 100));
 
@@ -1255,7 +1251,7 @@ export const bookFollowUpAppointment = async (req: Request, res: Response) => {
     // Calculate final fee by applying follow-up first, then financial-aid discount.
     const endTime = calculateEndTime(startTime, availability.slotDuration);
     let baseConsultationFees = 1500; // Default
-    const followUpChargePercent = doctor.followUpPercentage ?? 50;
+    const followUpDiscountPercent = doctor.followUpPercentage ?? 50;
     
     if (doctor.hourlyConsultationRate) {
       const hourlyRate = parseFloat(doctor.hourlyConsultationRate.toString());
@@ -1267,7 +1263,7 @@ export const bookFollowUpAppointment = async (req: Request, res: Response) => {
     const pricing = buildAppointmentPricing({
       baseFee: baseConsultationFees,
       isFollowUp: true,
-      followUpChargePercent,
+      followUpDiscountPercent,
       financialAidDiscountPercent,
     });
 

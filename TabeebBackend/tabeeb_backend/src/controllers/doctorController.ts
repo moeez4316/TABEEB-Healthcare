@@ -509,6 +509,7 @@ export const getVerifiedDoctors = async (req: Request, res: Response) => {
         qualification: true,
         experience: true,
         hourlyConsultationRate: true,
+        followUpPercentage: true,
         profileImageUrl: true,
         addressCity: true,
         addressProvince: true,

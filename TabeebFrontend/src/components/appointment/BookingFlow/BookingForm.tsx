@@ -75,9 +75,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
     const roundCurrency = (value: number) => Number(value.toFixed(2));
     const baseFee = roundCurrency(doctor.consultationFees * (selectedSlot.duration / 60));
-    const followUpChargePercent = isFollowUp ? Math.max(0, Math.min(100, doctor.followUpPercentage ?? 50)) : 100;
-    const followUpDiscount = isFollowUp ? 100 - followUpChargePercent : 0;
-    const amountAfterFollowUp = roundCurrency(baseFee * (followUpChargePercent / 100));
+    const followUpDiscount = isFollowUp ? Math.max(0, Math.min(100, doctor.followUpPercentage ?? 50)) : 0;
+    const amountAfterFollowUp = roundCurrency(baseFee * ((100 - followUpDiscount) / 100));
     const financialAidDiscountAmount = roundCurrency(amountAfterFollowUp * (financialAidDiscountPct / 100));
     const finalEstimate = roundCurrency(amountAfterFollowUp - financialAidDiscountAmount);
 
