@@ -18,6 +18,8 @@ import {
   unshareDocumentFromAppointment,
   getAppointmentSharedDocuments,
   confirmAppointmentPayment,
+  submitAppointmentPaymentProof,
+  getAppointmentPaymentStatus,
   checkFollowUpEligibility,
   bookFollowUpAppointment
 } from '../controllers/appointmentController';
@@ -51,5 +53,7 @@ router.get('/:id/shared-documents', validateCUID('id'), getAppointmentSharedDocu
 
 // Payment confirmation route (dummy for now)
 router.post('/:appointmentId/confirm-payment', confirmAppointmentPayment);
+router.post('/:appointmentId/payment-proof', validateCUID('appointmentId'), submitAppointmentPaymentProof);
+router.get('/:appointmentId/payment-status', validateCUID('appointmentId'), getAppointmentPaymentStatus);
 
 export default router;

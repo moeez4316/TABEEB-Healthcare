@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { generateAvailableSlots, isSlotAvailable, calculateEndTime, getSlotsStatistics } from '../utils/slotGenerator';
 import { sendAppointmentConfirmation, sendAppointmentNotificationToDoctor, sendAppointmentCancellation } from '../services/emailService';
 import { publishEvent } from '../realtime/realtime';
+import { buildCloudinaryUrl, verifyPublicIdOwnership } from '../services/uploadService';
 
 const emitAppointmentEvent = (params: {
   appointmentId: string;
@@ -29,6 +30,84 @@ const emitAppointmentEvent = (params: {
 const roundCurrency = (value: number): number => Number(value.toFixed(2));
 
 const clampPercent = (value: number): number => Math.min(100, Math.max(0, Math.round(value)));
+
+type AppointmentPaymentStatus = 'UNPAID' | 'IN_REVIEW' | 'PAID' | 'PAID_TO_DOCTOR' | 'DISPUTED';
+type VisiblePaymentStatus = 'UNPAID' | 'IN_PROGRESS' | 'CONFIRMED' | 'DISPUTED';
+
+const PAYMENT_TRANSITIONS: Record<AppointmentPaymentStatus, AppointmentPaymentStatus[]> = {
+  UNPAID: ['IN_REVIEW'],
+  IN_REVIEW: ['PAID', 'DISPUTED'],
+  PAID: ['PAID_TO_DOCTOR'],
+  PAID_TO_DOCTOR: [],
+  DISPUTED: ['IN_REVIEW'],
+};
+
+const prismaWithPayments = prisma as any;
+
+const canTransitionPaymentStatus = (
+  currentStatus: AppointmentPaymentStatus,
+  nextStatus: AppointmentPaymentStatus
+): boolean => PAYMENT_TRANSITIONS[currentStatus]?.includes(nextStatus) ?? false;
+
+const parsePaymentStatus = (value: unknown): AppointmentPaymentStatus | null => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.toUpperCase();
+  const validStatuses: AppointmentPaymentStatus[] = ['UNPAID', 'IN_REVIEW', 'PAID', 'PAID_TO_DOCTOR', 'DISPUTED'];
+  return validStatuses.includes(normalized as AppointmentPaymentStatus)
+    ? (normalized as AppointmentPaymentStatus)
+    : null;
+};
+
+const toVisiblePaymentStatus = (status: AppointmentPaymentStatus | undefined): VisiblePaymentStatus => {
+  if (status === 'DISPUTED') return 'DISPUTED';
+  if (status === 'IN_REVIEW') return 'IN_PROGRESS';
+  if (status === 'PAID' || status === 'PAID_TO_DOCTOR') return 'CONFIRMED';
+  return 'UNPAID';
+};
+
+const parseAppointmentEndDate = (appointmentDate: Date | string, endTime?: string | null): Date => {
+  const baseDate = new Date(appointmentDate);
+  const [hours, minutes] = String(endTime || '00:00').split(':').map((part) => parseInt(part, 10) || 0);
+  const end = new Date(baseDate);
+  end.setHours(hours, minutes, 0, 0);
+  return end;
+};
+
+const buildPaymentWindow = (params: {
+  appointmentDate: Date | string;
+  endTime?: string | null;
+  completedAt?: Date | null;
+}) => {
+  const now = new Date();
+  const anchor = params.completedAt ?? parseAppointmentEndDate(params.appointmentDate, params.endTime);
+  const dueAt = new Date(anchor);
+  dueAt.setHours(dueAt.getHours() + 24);
+
+  return {
+    dueAt,
+    now,
+    isOverdue: now > dueAt,
+    isWindowStarted: now >= anchor,
+  };
+};
+
+const ensureAppointmentPayment = async (appointmentId: string) => {
+  const existing = await prismaWithPayments.appointmentPayment.findUnique({
+    where: { appointmentId },
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  return prismaWithPayments.appointmentPayment.create({
+    data: {
+      appointmentId,
+      paymentStatus: 'UNPAID',
+      paymentMethod: 'manual_bank_transfer',
+    },
+  });
+};
 
 const prismaWithFinancialAid = prisma as typeof prisma & {
   patientFinancialAidRequest: {
@@ -361,6 +440,13 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
               createdAt: 'desc'
             },
             take: 1
+          },
+          payment: {
+            select: {
+              paymentStatus: true,
+              payoutSentAt: true,
+              proofUploadedAt: true,
+            }
           }
         },
         orderBy: [
@@ -373,8 +459,22 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
       prisma.appointment.count({ where: whereClause })
     ]);
 
+    const response = appointments.map((appointment: any) => {
+      const paymentStatus = (appointment?.payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
+      const visibleStatus = toVisiblePaymentStatus(paymentStatus);
+      return {
+        ...appointment,
+        doctorPayment: {
+          status: visibleStatus,
+          isPaidToDoctor: paymentStatus === 'PAID_TO_DOCTOR',
+          payoutSentAt: appointment?.payment?.payoutSentAt || null,
+          proofUploadedAt: appointment?.payment?.proofUploadedAt || null,
+        },
+      };
+    });
+
     res.json({
-      appointments,
+      appointments: response,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -429,6 +529,18 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
             createdAt: 'desc'
           },
           take: 1
+        },
+        payment: {
+          select: {
+            paymentStatus: true,
+            proofUrl: true,
+            proofUploadedAt: true,
+            patientReference: true,
+            reviewedAt: true,
+            reviewNotes: true,
+            payoutSentAt: true,
+            payoutReference: true,
+          }
         }
       },
       orderBy: [
@@ -437,7 +549,41 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
       ]
     });
 
-    res.json(appointments);
+    const response = appointments.map((appointment: any) => {
+      const paymentStatus = (appointment?.payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
+      const visibleStatus = toVisiblePaymentStatus(paymentStatus);
+      const window = buildPaymentWindow({
+        appointmentDate: appointment.appointmentDate,
+        endTime: appointment.endTime,
+        completedAt: appointment.completedAt ?? null,
+      });
+
+      return {
+        ...appointment,
+        patientPayment: {
+          status: visibleStatus,
+          isDisputed: paymentStatus === 'DISPUTED',
+          isPaidToDoctor: paymentStatus === 'PAID_TO_DOCTOR',
+          canPayNow:
+            paymentStatus !== 'PAID' &&
+            paymentStatus !== 'PAID_TO_DOCTOR' &&
+            !appointment?.payment?.proofUploadedAt &&
+            !appointment?.payment?.proofUrl,
+          dueAt: window.dueAt,
+          isOverdue: window.isOverdue,
+          isWindowStarted: window.isWindowStarted,
+          proofUrl: appointment?.payment?.proofUrl || null,
+          proofUploadedAt: appointment?.payment?.proofUploadedAt || null,
+          patientReference: appointment?.payment?.patientReference || null,
+          reviewedAt: appointment?.payment?.reviewedAt || null,
+          reviewNotes: appointment?.payment?.reviewNotes || null,
+          payoutSentAt: appointment?.payment?.payoutSentAt || null,
+          payoutReference: appointment?.payment?.payoutReference || null,
+        },
+      };
+    });
+
+    res.json(response);
 
   } catch (error) {
     console.error('Error fetching patient appointments:', error);
@@ -981,13 +1127,14 @@ export const getAppointmentSharedDocuments = async (req: Request, res: Response)
   }
 };
 
-// Confirm payment for appointment (dummy endpoint for now)
+// Confirm payment for appointment (manual transfer flow)
 export const confirmAppointmentPayment = async (req: Request, res: Response) => {
   try {
+    const patientUid = req.user!.uid;
     const { appointmentId } = req.params;
-    const { paymentMethod, phoneNumber, amount, transactionId } = req.body;
+    const { paymentMethod } = req.body;
 
-    // Validate appointment exists
+    // Validate appointment exists and belongs to patient
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId }
     });
@@ -996,40 +1143,540 @@ export const confirmAppointmentPayment = async (req: Request, res: Response) => 
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    // TODO: Integrate with actual payment gateway (GoFast Pay, JazzCash, Easypaisa, etc.)
-    // For now, just mark payment as received but keep appointment status as PENDING
-    // The appointment should remain PENDING until doctor accepts it
-    
-    const updatedAppointment = await prisma.appointment.update({
-      where: { id: appointmentId },
+    if (appointment.patientUid !== patientUid) {
+      return res.status(403).json({ error: 'You can only confirm payment for your own appointment' });
+    }
+
+    const existingPayment = await ensureAppointmentPayment(appointmentId);
+    const currentStatus = (existingPayment.paymentStatus || 'UNPAID') as AppointmentPaymentStatus;
+
+    if (!canTransitionPaymentStatus(currentStatus, 'IN_REVIEW') && currentStatus !== 'IN_REVIEW') {
+      return res.status(400).json({
+        error: `Cannot confirm payment while status is ${currentStatus}`,
+      });
+    }
+
+    const paymentRecord = await prismaWithPayments.appointmentPayment.update({
+      where: { appointmentId },
       data: {
-        // Keep status as PENDING - doctor needs to accept
-        // TODO: Add payment-related fields when schema is updated
-        // paymentMethod, transactionId, paymentStatus, paymentDate, etc.
-      }
+        paymentMethod: typeof paymentMethod === 'string' && paymentMethod.trim().length > 0
+          ? paymentMethod.trim()
+          : 'manual_bank_transfer',
+        paymentStatus: 'IN_REVIEW',
+      },
     });
 
     res.json({
       success: true,
-      message: 'Payment received successfully. Appointment pending doctor approval.',
-      appointment: updatedAppointment,
-      transactionId
+      message: 'Payment marked for review. Please upload proof for faster verification.',
+      payment: paymentRecord,
     });
 
     emitAppointmentEvent({
-      appointmentId: updatedAppointment.id,
+      appointmentId,
       doctorUid: appointment.doctorUid,
       patientUid: appointment.patientUid,
       actorRole: 'patient',
       actorUid: req.user?.uid,
       payload: {
-        action: 'payment_confirmed'
+        action: 'payment_confirmed',
+        paymentStatus: 'IN_REVIEW'
       }
     });
 
   } catch (error) {
     console.error('Error confirming payment:', error);
     res.status(500).json({ error: 'Failed to confirm payment' });
+  }
+};
+
+export const submitAppointmentPaymentProof = async (req: Request, res: Response) => {
+  try {
+    const patientUid = req.user!.uid;
+    const { appointmentId } = req.params;
+    const { publicId, resourceType } = req.body;
+
+    if (!publicId || typeof publicId !== 'string') {
+      return res.status(400).json({ error: 'publicId is required' });
+    }
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    if (appointment.patientUid !== patientUid) {
+      return res.status(403).json({ error: 'You can only submit proof for your own appointment' });
+    }
+
+    const isOwner = verifyPublicIdOwnership(publicId, patientUid, 'payment-proof' as any);
+    if (!isOwner) {
+      return res.status(403).json({ error: 'Uploaded file does not belong to this user' });
+    }
+
+    const payment = await ensureAppointmentPayment(appointmentId);
+    const currentStatus = (payment.paymentStatus || 'UNPAID') as AppointmentPaymentStatus;
+
+    if (payment.proofUploadedAt || payment.proofUrl) {
+      return res.status(409).json({ error: 'Payment proof has already been submitted for this appointment' });
+    }
+
+    if (!canTransitionPaymentStatus(currentStatus, 'IN_REVIEW') && currentStatus !== 'IN_REVIEW') {
+      return res.status(400).json({
+        error: `Cannot upload proof while status is ${currentStatus}`,
+      });
+    }
+
+    const normalizedResourceType = resourceType === 'raw' || resourceType === 'video' ? resourceType : 'image';
+    const proofUrl = buildCloudinaryUrl(publicId, normalizedResourceType);
+
+    const updated = await prismaWithPayments.appointmentPayment.update({
+      where: { appointmentId },
+      data: {
+        proofUrl,
+        proofUploadedAt: new Date(),
+        paymentStatus: 'IN_REVIEW',
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Payment proof uploaded and submitted for admin review',
+      payment: updated,
+    });
+
+    emitAppointmentEvent({
+      appointmentId,
+      doctorUid: appointment.doctorUid,
+      patientUid: appointment.patientUid,
+      actorRole: 'patient',
+      actorUid: patientUid,
+      payload: {
+        action: 'payment_proof_submitted',
+        paymentStatus: 'IN_REVIEW',
+      },
+    });
+  } catch (error) {
+    console.error('Error submitting payment proof:', error);
+    res.status(500).json({ error: 'Failed to submit payment proof' });
+  }
+};
+
+export const getAppointmentPaymentStatus = async (req: Request, res: Response) => {
+  try {
+    const userUid = req.user!.uid;
+    const { appointmentId } = req.params;
+
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        OR: [{ patientUid: userUid }, { doctorUid: userUid }],
+      },
+      select: {
+        id: true,
+        patientUid: true,
+        doctorUid: true,
+        consultationFees: true,
+        appointmentDate: true,
+        endTime: true,
+        completedAt: true,
+      },
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    const payment = await prismaWithPayments.appointmentPayment.findUnique({
+      where: { appointmentId },
+    });
+    const currentStatus = (payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
+    const visibleStatus = toVisiblePaymentStatus(currentStatus);
+    const window = buildPaymentWindow({
+      appointmentDate: appointment.appointmentDate,
+      endTime: (appointment as any).endTime,
+      completedAt: (appointment as any).completedAt ?? null,
+    });
+
+    const isPatientViewer = appointment.patientUid === userUid;
+    const isDoctorViewer = appointment.doctorUid === userUid;
+
+    if (isPatientViewer) {
+      return res.json({
+        appointmentId,
+        payment: {
+          status: visibleStatus,
+          isDisputed: currentStatus === 'DISPUTED',
+          canPayNow:
+            currentStatus !== 'PAID' &&
+            currentStatus !== 'PAID_TO_DOCTOR' &&
+            !payment?.proofUploadedAt &&
+            !payment?.proofUrl,
+          dueAt: window.dueAt,
+          isOverdue: window.isOverdue,
+          isWindowStarted: window.isWindowStarted,
+          proofUrl: payment?.proofUrl || null,
+          proofUploadedAt: payment?.proofUploadedAt || null,
+        },
+      });
+    }
+
+    if (isDoctorViewer) {
+      return res.json({
+        appointmentId,
+        payment: {
+          status: visibleStatus,
+          isPaidToDoctor: currentStatus === 'PAID_TO_DOCTOR',
+          dueAt: window.dueAt,
+          payoutSentAt: payment?.payoutSentAt || null,
+        },
+      });
+    }
+
+    return res.json({
+      appointmentId,
+      payment: payment || {
+        appointmentId,
+        paymentStatus: 'UNPAID',
+        paymentMethod: 'manual_bank_transfer',
+        proofUrl: null,
+        proofUploadedAt: null,
+        patientReference: null,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching payment status:', error);
+    res.status(500).json({ error: 'Failed to fetch payment status' });
+  }
+};
+
+export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response) => {
+  try {
+    const { status, search = '', page = 1, limit = 20, overdueUnpaid } = req.query;
+    const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
+    const isOverdueUnpaidOnly = ['true', '1', 'yes'].includes(String(overdueUnpaid || '').toLowerCase());
+
+    const where: any = {};
+    const parsedStatus = parsePaymentStatus(status);
+    if (parsedStatus) {
+      where.paymentStatus = parsedStatus;
+    }
+    if (isOverdueUnpaidOnly) {
+      where.paymentStatus = 'UNPAID';
+    }
+
+    const query = String(search).trim();
+    if (query.length > 0) {
+      where.OR = [
+        { appointmentId: { contains: query } },
+        {
+          appointment: {
+            patient: {
+              OR: [
+                { firstName: { contains: query } },
+                { lastName: { contains: query } },
+                { email: { contains: query } },
+              ],
+            },
+          },
+        },
+        {
+          appointment: {
+            doctor: {
+              OR: [
+                { firstName: { contains: query } },
+                { lastName: { contains: query } },
+                { name: { contains: query } },
+              ],
+            },
+          },
+        },
+      ];
+    }
+
+    const orderBy = [{ updatedAt: 'desc' }, { createdAt: 'desc' }] as const;
+    const fetchArgs: any = {
+      where,
+      include: {
+        appointment: {
+          select: {
+            id: true,
+            appointmentDate: true,
+            startTime: true,
+            endTime: true,
+            completedAt: true,
+            consultationFees: true,
+            status: true,
+            patient: {
+              select: {
+                uid: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+              },
+            },
+            doctor: {
+              select: {
+                uid: true,
+                firstName: true,
+                lastName: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy,
+    };
+
+    if (!isOverdueUnpaidOnly) {
+      fetchArgs.skip = skip;
+      fetchArgs.take = limitNum;
+    }
+
+    const fetchedPayments = await prismaWithPayments.appointmentPayment.findMany(fetchArgs);
+
+    const overdueFilteredPayments = isOverdueUnpaidOnly
+      ? fetchedPayments.filter((payment: any) => {
+          const window = buildPaymentWindow({
+            appointmentDate: payment.appointment.appointmentDate,
+            endTime: payment.appointment.endTime,
+            completedAt: payment.appointment.completedAt ?? null,
+          });
+          return window.isOverdue;
+        })
+      : fetchedPayments;
+
+    const payments = isOverdueUnpaidOnly ? overdueFilteredPayments.slice(skip, skip + limitNum) : overdueFilteredPayments;
+    const total = isOverdueUnpaidOnly
+      ? overdueFilteredPayments.length
+      : await prismaWithPayments.appointmentPayment.count({ where });
+
+    const [unpaid, inReview, paid, paidToDoctor, disputed, overdueUnpaidCountSource] = await Promise.all([
+      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'UNPAID' } }),
+      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'IN_REVIEW' } }),
+      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'PAID' } }),
+      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'PAID_TO_DOCTOR' } }),
+      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'DISPUTED' } }),
+      prismaWithPayments.appointmentPayment.findMany({
+        where: { paymentStatus: 'UNPAID' },
+        select: {
+          appointment: {
+            select: {
+              appointmentDate: true,
+              endTime: true,
+              completedAt: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const overdueUnpaidCount = overdueUnpaidCountSource.filter((payment: any) => {
+      const window = buildPaymentWindow({
+        appointmentDate: payment.appointment.appointmentDate,
+        endTime: payment.appointment.endTime,
+        completedAt: payment.appointment.completedAt ?? null,
+      });
+      return window.isOverdue;
+    }).length;
+
+    return res.json({
+      payments,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+      counts: {
+        unpaid,
+        inReview,
+        paid,
+        paidToDoctor,
+        disputed,
+        overdueUnpaid: overdueUnpaidCount,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching appointment payments for admin:', error);
+    res.status(500).json({ error: 'Failed to fetch appointment payments' });
+  }
+};
+
+export const reviewAppointmentPaymentByAdmin = async (req: Request, res: Response) => {
+  try {
+    const { appointmentId } = req.params;
+    const { status, reviewNotes } = req.body;
+    const admin = (req as any).admin;
+    const nextStatus = parsePaymentStatus(status);
+
+    if (!nextStatus || !['PAID', 'DISPUTED', 'IN_REVIEW'].includes(nextStatus)) {
+      return res.status(400).json({ error: 'Status must be one of: PAID, DISPUTED, IN_REVIEW' });
+    }
+
+    const existing = await ensureAppointmentPayment(appointmentId);
+    const currentStatus = (existing.paymentStatus || 'UNPAID') as AppointmentPaymentStatus;
+
+    if (!canTransitionPaymentStatus(currentStatus, nextStatus) && currentStatus !== nextStatus) {
+      return res.status(400).json({
+        error: `Invalid status transition from ${currentStatus} to ${nextStatus}`,
+      });
+    }
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: { doctorUid: true, patientUid: true },
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    const updated = await prismaWithPayments.appointmentPayment.update({
+      where: { appointmentId },
+      data: {
+        paymentStatus: nextStatus,
+        reviewedByAdminId: admin?.id || null,
+        reviewedAt: new Date(),
+        reviewNotes: typeof reviewNotes === 'string' && reviewNotes.trim().length > 0 ? reviewNotes.trim() : null,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Payment marked as ${nextStatus}`,
+      payment: updated,
+    });
+
+    emitAppointmentEvent({
+      appointmentId,
+      doctorUid: appointment.doctorUid,
+      patientUid: appointment.patientUid,
+      actorRole: 'admin',
+      actorUid: admin?.id,
+      payload: {
+        action: 'payment_reviewed',
+        paymentStatus: nextStatus,
+      },
+    });
+  } catch (error) {
+    console.error('Error reviewing appointment payment:', error);
+    res.status(500).json({ error: 'Failed to review appointment payment' });
+  }
+};
+
+export const markAppointmentPaymentPaidToDoctorByAdmin = async (req: Request, res: Response) => {
+  try {
+    const { appointmentId } = req.params;
+    const { payoutReference } = req.body;
+    const admin = (req as any).admin;
+
+    const payment = await ensureAppointmentPayment(appointmentId);
+    const currentStatus = (payment.paymentStatus || 'UNPAID') as AppointmentPaymentStatus;
+    if (!canTransitionPaymentStatus(currentStatus, 'PAID_TO_DOCTOR')) {
+      return res.status(400).json({
+        error: `Payment must be PAID before marking payout. Current status: ${currentStatus}`,
+      });
+    }
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: { doctorUid: true, patientUid: true },
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    const updated = await prismaWithPayments.appointmentPayment.update({
+      where: { appointmentId },
+      data: {
+        paymentStatus: 'PAID_TO_DOCTOR',
+        payoutReference:
+          typeof payoutReference === 'string' && payoutReference.trim().length > 0
+            ? payoutReference.trim()
+            : null,
+        payoutSentByAdminId: admin?.id || null,
+        payoutSentAt: new Date(),
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Payment marked as paid to doctor',
+      payment: updated,
+    });
+
+    emitAppointmentEvent({
+      appointmentId,
+      doctorUid: appointment.doctorUid,
+      patientUid: appointment.patientUid,
+      actorRole: 'admin',
+      actorUid: admin?.id,
+      payload: {
+        action: 'payment_paid_to_doctor',
+        paymentStatus: 'PAID_TO_DOCTOR',
+      },
+    });
+  } catch (error) {
+    console.error('Error marking payment paid to doctor:', error);
+    res.status(500).json({ error: 'Failed to mark payment paid to doctor' });
+  }
+};
+
+export const getAppointmentPaymentRevenueSummaryForAdmin = async (_req: Request, res: Response) => {
+  try {
+    const payments = await prismaWithPayments.appointmentPayment.findMany({
+      where: {
+        paymentStatus: {
+          in: ['PAID', 'PAID_TO_DOCTOR'],
+        },
+      },
+      include: {
+        appointment: {
+          select: {
+            consultationFees: true,
+          },
+        },
+      },
+    });
+
+    const totalRevenue = payments.reduce((sum: number, payment: any) => {
+      const fee = payment?.appointment?.consultationFees;
+      if (fee === null || fee === undefined) return sum;
+      const numeric = typeof fee === 'number' ? fee : parseFloat(String(fee));
+      return Number.isFinite(numeric) ? sum + numeric : sum;
+    }, 0);
+
+    const [unpaid, inReview, paid, paidToDoctor, disputed] = await Promise.all([
+      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'UNPAID' } }),
+      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'IN_REVIEW' } }),
+      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'PAID' } }),
+      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'PAID_TO_DOCTOR' } }),
+      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'DISPUTED' } }),
+    ]);
+
+    return res.json({
+      totalRevenue: Number(totalRevenue.toFixed(2)),
+      counts: {
+        unpaid,
+        inReview,
+        paid,
+        paidToDoctor,
+        disputed,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching payment revenue summary:', error);
+    res.status(500).json({ error: 'Failed to fetch payment revenue summary' });
   }
 };
 

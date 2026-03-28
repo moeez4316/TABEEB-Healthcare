@@ -3,8 +3,26 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { FaMobileAlt, FaCheckCircle, FaTimesCircle, FaClock, FaInfoCircle, FaCopy } from 'react-icons/fa';
-import { fetchWithRateLimit } from '@/lib/api-utils';
+import { FaCheckCircle, FaTimesCircle, FaClock, FaInfoCircle, FaCopy } from 'react-icons/fa';
+import { apiFetchJson } from '@/lib/api-client';
+import { LinearProgress, useUploadProgress } from '@/components/shared/UploadProgress';
+import { uploadFile, validateFile } from '@/lib/cloudinary-upload';
+
+type VisiblePaymentStatus = 'UNPAID' | 'IN_PROGRESS' | 'CONFIRMED' | 'DISPUTED';
+
+interface PaymentStatusResponse {
+  appointmentId: string;
+  payment: {
+    status: VisiblePaymentStatus;
+    isDisputed: boolean;
+    canPayNow: boolean;
+    dueAt?: string | null;
+    isOverdue?: boolean;
+    isWindowStarted?: boolean;
+    proofUrl?: string | null;
+    proofUploadedAt?: string | null;
+  };
+}
 
 export default function PaymentPage() {
   const router = useRouter();
@@ -35,11 +53,22 @@ export default function PaymentPage() {
   const CLINIC_JAZZCASH = '+92 302 4400906';
   const CLINIC_NAME = 'TABEEB Healthcare';
 
-  const [patientMobileNumber, setPatientMobileNumber] = useState('');
-  const [acknowledged, setAcknowledged] = useState(false);
+  const [selectedProof, setSelectedProof] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [deferring, setDeferring] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<VisiblePaymentStatus>('UNPAID');
+  const [isDisputed, setIsDisputed] = useState(false);
+  const [dueAt, setDueAt] = useState<string | null>(null);
+  const [isOverdue, setIsOverdue] = useState(false);
+  const [isWindowStarted, setIsWindowStarted] = useState(false);
+  const [proofUrl, setProofUrl] = useState<string | null>(null);
+  const uploadProgress = useUploadProgress();
+
+  const hasSubmittedProof = Boolean(proofUrl);
 
   useEffect(() => {
     // Redirect if no amount or appointment data
@@ -54,59 +83,115 @@ export default function PaymentPage() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  const loadStatus = async () => {
+    if (!appointmentId || !token) return;
+    setStatusLoading(true);
+    try {
+      const data = await apiFetchJson<PaymentStatusResponse>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/payment-status`,
+        { token }
+      );
+      setPaymentStatus(data.payment.status || 'UNPAID');
+      setIsDisputed(Boolean(data.payment.isDisputed));
+      setDueAt(data.payment.dueAt || null);
+      setIsOverdue(Boolean(data.payment.isOverdue));
+      setIsWindowStarted(Boolean(data.payment.isWindowStarted));
+      setProofUrl(data.payment.proofUrl || null);
+    } catch {
+      // Keep page usable even if status load fails.
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!appointmentId || !token) return;
+    void loadStatus();
+  }, [appointmentId, token]);
+
   const handleConfirm = async () => {
     setError('');
+    setSuccess('');
 
-    // Validate mobile number
-    if (!patientMobileNumber) {
-      setError('Please enter your mobile number');
+    if (!selectedProof) {
+      setError('Please select a payment screenshot first');
       return;
     }
 
-    if (patientMobileNumber.length < 11) {
-      setError('Please enter a valid 11-digit mobile number');
+    if (hasSubmittedProof) {
+      setError('Payment screenshot already submitted for this appointment');
       return;
     }
 
-    if (!acknowledged) {
-      setError('Please acknowledge that you understand the payment instructions');
+    const validation = validateFile(selectedProof, {
+      maxSizeMB: 5,
+      allowedTypes: ['image/*'],
+    });
+
+    if (!validation.valid) {
+      setError(validation.error || 'Invalid screenshot file');
       return;
     }
 
     setProcessing(true);
+    uploadProgress.startUpload();
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetchWithRateLimit(`${API_URL}/api/appointments/${appointmentId}/confirm-payment`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+      const uploaded = await uploadFile(selectedProof, 'payment-proof', token!, {
+        docType: appointmentId,
+        onProgress: (progress) => {
+          uploadProgress.updateProgress(progress.percentage || 0);
         },
+      });
+
+      uploadProgress.startProcessing();
+
+      await apiFetchJson(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/payment-proof`, {
+        method: 'POST',
+        token,
         body: JSON.stringify({
-          paymentMethod: 'manual_bank_transfer',
-          phoneNumber: patientMobileNumber,
-          amount: finalAmount,
-          transactionId: `MAN${Date.now()}`,
+          publicId: uploaded.publicId,
+          resourceType: uploaded.resourceType,
         }),
       });
 
-      if (response.ok) {
-        router.push(`/Patient/payment/success?appointmentId=${appointmentId}&amount=${amount}`);
-      } else {
-        setError('Failed to process payment. Please try again.');
-        setProcessing(false);
-      }
+      uploadProgress.complete();
+      setProofUrl(uploaded.secureUrl || uploaded.url);
+      setSelectedProof(null);
+      router.replace(`/Patient/payment/success?appointmentId=${appointmentId}&amount=${amount}`);
+      return;
     } catch (err) {
       console.error('Payment error:', err);
-      setError('An error occurred. Please try again.');
+      setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
+      uploadProgress.fail(err instanceof Error ? err.message : 'Upload failed');
       setProcessing(false);
+      return;
     }
+
+    setProcessing(false);
+  };
+
+  const handlePayLater = () => {
+    if (hasSubmittedProof) {
+      router.push('/Patient/appointments');
+      return;
+    }
+    setDeferring(true);
+    router.push('/Patient/appointments?payment=deferred');
   };
 
   const handleCancel = () => {
     router.push('/Patient/book-appointment');
   };
+
+  const statusLabel =
+    paymentStatus === 'IN_PROGRESS'
+      ? 'In Progress'
+      : paymentStatus === 'CONFIRMED'
+        ? 'Confirmed'
+        : paymentStatus === 'DISPUTED'
+          ? 'Disputed'
+          : 'Unpaid';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-6 sm:py-8 px-4 sm:px-6">
@@ -192,8 +277,24 @@ export default function PaymentPage() {
                 Payment Deadline
               </h3>
               <p className="text-blue-800 dark:text-blue-400 text-xs sm:text-sm leading-relaxed">
-                Please transfer the payment within <strong>24 hours after your appointment is completed</strong> to the TABEEB Healthcare account details provided below.
+                You can pay immediately or later. Final deadline is <strong>24 hours after appointment completion</strong>.
               </p>
+              <div className="mt-3 text-xs sm:text-sm text-blue-900 dark:text-blue-300">
+                <p>
+                  Payment Status: <strong>{statusLoading ? 'Loading...' : statusLabel}</strong>
+                </p>
+                {dueAt && (
+                  <p>
+                    Due By: <strong>{new Date(dueAt).toLocaleString('en-PK')}</strong>
+                  </p>
+                )}
+                {isWindowStarted && isOverdue && (
+                  <p className="mt-1 text-rose-700 dark:text-rose-300 font-semibold">Payment is overdue.</p>
+                )}
+                {isDisputed && (
+                  <p className="mt-1 text-rose-700 dark:text-rose-300 font-semibold">Payment is disputed. Contact support immediately.</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -207,7 +308,7 @@ export default function PaymentPage() {
           {/* JazzCash Number Section */}
           <div>
             <div className="flex items-center space-x-2 mb-3">
-              <FaMobileAlt className="text-teal-600 dark:text-teal-400" />
+              <FaInfoCircle className="text-teal-600 dark:text-teal-400" />
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 JazzCash Number
               </label>
@@ -242,24 +343,30 @@ export default function PaymentPage() {
           </div>
         </div>
 
-        {/* Patient Mobile Number Input */}
+        {/* Screenshot Upload */}
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-700">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-            Your Mobile Number (for verification)
+            Upload Payment Screenshot (required)
           </label>
           <input
-            type="tel"
-            value={patientMobileNumber}
-            onChange={(e) => setPatientMobileNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 11))}
-            placeholder="03001234567"
+            type="file"
+            accept="image/*"
+            disabled={hasSubmittedProof || processing}
+            onChange={(e) => setSelectedProof(e.target.files?.[0] || null)}
             className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white text-sm sm:text-base"
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            Enter your 11-digit mobile number where you can be reached
+            Only screenshot images are accepted. Max size: 5MB.
           </p>
+
+          {proofUrl && (
+            <p className="text-xs mt-2 text-teal-700 dark:text-teal-300">
+              Proof already uploaded. Submission is locked for security.
+            </p>
+          )}
         </div>
 
-        {/* Warning & Acknowledgement */}
+        {/* Warning */}
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
           <div className="flex items-start gap-3">
             <FaClock className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-1" />
@@ -270,26 +377,25 @@ export default function PaymentPage() {
               <ul className="text-amber-800 dark:text-amber-400 text-xs sm:text-sm space-y-1">
                 <li>• Payment must be completed within 24 hours after your appointment</li>
                 <li>• Transfer payment to TABEEB Healthcare account provided above</li>
-                <li>• Keep the transaction receipt for your records</li>
+                <li>• Upload payment screenshot after transfer for admin verification</li>
               </ul>
             </div>
           </div>
         </div>
 
-        {/* Acknowledgement Checkbox */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-700">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={acknowledged}
-              onChange={(e) => setAcknowledged(e.target.checked)}
-              className="w-5 h-5 text-teal-600 border-gray-300 rounded focus:ring-2 focus:ring-teal-500 mt-1 cursor-pointer dark:border-slate-600"
-            />
-            <span className="text-sm sm:text-base text-gray-700 dark:text-gray-300">
-              I acknowledge that I understand the payment instructions and will transfer the payment within 24 hours after my appointment is completed
-            </span>
-          </label>
-        </div>
+        {processing && (
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-700">
+            <div className="max-w-xl mx-auto">
+              <LinearProgress
+                progress={uploadProgress.progress}
+                status={uploadProgress.status}
+                fileName={selectedProof?.name || 'payment-screenshot'}
+                errorMessage={uploadProgress.error || undefined}
+                size="md"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Error Message */}
         {error && (
@@ -301,31 +407,50 @@ export default function PaymentPage() {
           </div>
         )}
 
+        {success && (
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 mb-6">
+            <div className="flex items-center space-x-2">
+              <FaCheckCircle className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <p className="text-emerald-800 dark:text-emerald-300 text-sm sm:text-base">{success}</p>
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <button
-            onClick={handleCancel}
-            disabled={processing}
+            onClick={handlePayLater}
+            disabled={processing || deferring || hasSubmittedProof}
             className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
           >
-            Cancel
+            {hasSubmittedProof ? 'Already Submitted' : deferring ? 'Saving...' : 'Pay Later'}
           </button>
           <button
             onClick={handleConfirm}
-            disabled={processing || !acknowledged}
+            disabled={processing || !selectedProof || hasSubmittedProof}
             className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             {processing ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Processing...</span>
+                <span>Submitting...</span>
               </>
             ) : (
               <>
                 <FaCheckCircle />
-                <span>I Acknowledge & Continue</span>
+                <span>Submit Payment Screenshot</span>
               </>
             )}
+          </button>
+        </div>
+
+        <div className="text-center">
+          <button
+            onClick={handleCancel}
+            disabled={processing || deferring}
+            className="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 underline"
+          >
+            Back to booking
           </button>
         </div>
 

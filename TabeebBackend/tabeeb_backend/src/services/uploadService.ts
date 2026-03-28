@@ -17,6 +17,7 @@ export type UploadType =
   | 'medical-record'
   | 'verification-doc'
   | 'financial-aid-doc'
+  | 'payment-proof'
   | 'chat-media'
   | 'blog-image';
 
@@ -81,6 +82,12 @@ export const generateUploadSignature = ({ type, userId, docType, mimeType }: Upl
     case 'financial-aid-doc':
       folder = 'tabeeb/financial-aid';
       publicId = `tabeeb/financial-aid/${userId}/${docType || 'proof'}_${timestamp}`;
+      resourceType = mimeType === 'application/pdf' ? 'raw' : 'image';
+      break;
+
+    case 'payment-proof':
+      folder = 'tabeeb/payment-proofs';
+      publicId = `tabeeb/payment-proofs/${userId}/${docType || 'payment'}_${timestamp}`;
       resourceType = mimeType === 'application/pdf' ? 'raw' : 'image';
       break;
       
@@ -149,6 +156,7 @@ export const verifyPublicIdOwnership = (publicId: string, userId: string, type: 
     'medical-record': `tabeeb/medical-records/${userId}/`,
     'verification-doc': `tabeeb/verification/${userId}/`,
     'financial-aid-doc': `tabeeb/financial-aid/${userId}/`,
+    'payment-proof': `tabeeb/payment-proofs/${userId}/`,
     'chat-media': `tabeeb/chat/${userId}/`,
     'blog-image': `tabeeb/blogs/${userId}/`,
   };

@@ -126,6 +126,12 @@ export default function SidebarAdmin({ className = '', adminRole: adminRoleProp 
       description: 'Review Needy Requests'
     },
     {
+      name: 'Appointment Payments',
+      href: '/admin/payments',
+      icon: Activity,
+      description: 'Review Payment Proofs'
+    },
+    {
       name: 'Inbox',
       href: '/admin/inbox',
       icon: Inbox,

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
@@ -28,6 +28,7 @@ interface FollowUpEligibility {
 export default function PatientAppointmentsPage() {
   const { token, user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'pending' | 'completed'>('upcoming');
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
   const [showVideoCall, setShowVideoCall] = useState(false);
@@ -160,6 +161,12 @@ export default function PatientAppointmentsPage() {
     setShowToast(true);
   };
 
+  useEffect(() => {
+    if (searchParams.get('payment') === 'deferred') {
+      showNotification('Payment deferred. You can complete it anytime before deadline.', 'info');
+    }
+  }, [searchParams]);
+
   const handleVideoCallClick = (appointment: Appointment, canStart: boolean) => {
     if (!canStart) {
       showNotification(
@@ -181,6 +188,13 @@ export default function PatientAppointmentsPage() {
       case 'cancelled': return 'bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800';
       default: return 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600';
     }
+  };
+
+  const getPaymentStatusClass = (status?: string) => {
+    if (status === 'CONFIRMED') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300';
+    if (status === 'IN_PROGRESS') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+    if (status === 'DISPUTED') return 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300';
+    return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
   };
 
   const filterAppointments = () => {
@@ -396,6 +410,10 @@ export default function PatientAppointmentsPage() {
                 financialAidDiscountPct > 0 ? (amountAfterFollowUp * financialAidDiscountPct) / 100 : 0;
               const hasDiscountBreakdown =
                 followUpDiscountPct > 0 || financialAidDiscountPct > 0 || baseFee > finalFee;
+              const paymentStatus = appointment.patientPayment?.status || 'UNPAID';
+              const canPayNow = Boolean(appointment.patientPayment?.canPayNow) && finalFee > 0;
+              const dueAt = appointment.patientPayment?.dueAt ? new Date(appointment.patientPayment.dueAt) : null;
+              const paymentIsOverdue = Boolean(appointment.patientPayment?.isOverdue);
 
               return (
               <div key={appointment.id} className="bg-white dark:bg-slate-800/95 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-teal-200 dark:hover:border-teal-700 transition-all duration-200 p-6">
@@ -472,6 +490,16 @@ export default function PatientAppointmentsPage() {
                               <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">
                                 Final: PKR {finalFee.toLocaleString('en-PK')}
                               </p>
+                              <p className="text-[11px] mt-1">
+                                <span className={`inline-flex rounded-full px-2 py-0.5 font-semibold ${getPaymentStatusClass(paymentStatus)}`}>
+                                  Payment: {paymentStatus.replaceAll('_', ' ')}
+                                </span>
+                              </p>
+                              {dueAt && (
+                                <p className={`text-[11px] mt-1 font-medium ${paymentIsOverdue ? 'text-rose-700 dark:text-rose-300' : 'text-slate-600 dark:text-slate-300'}`}>
+                                  Due: {dueAt.toLocaleString('en-PK')}
+                                </p>
+                              )}
                             </div>
                           </div>
                         )}
@@ -488,6 +516,29 @@ export default function PatientAppointmentsPage() {
                   
                   {/* Action Buttons */}
                   <div className="flex flex-col space-y-2 mt-4 sm:mt-0 sm:ml-4 flex-shrink-0 min-w-[160px]">
+                    {canPayNow && (
+                      <button
+                        onClick={() => {
+                          const params = new URLSearchParams({
+                            appointmentId: appointment.id,
+                            amount: String(finalFee),
+                            baseAmount: String(baseFee),
+                            amountAfterFollowUp: String(amountAfterFollowUp),
+                            followUpDiscountPct: String(followUpDiscountPct),
+                            financialAidDiscountPct: String(financialAidDiscountPct),
+                            doctorName: appointment.doctor?.name || 'Doctor',
+                            date: formatDate(new Date(appointment.appointmentDate)),
+                            time: `${formatTime(appointment.startTime)} - ${formatTime(appointment.endTime)}`,
+                          });
+                          router.push(`/Patient/payment?${params.toString()}`);
+                        }}
+                        className="flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-500 dark:to-indigo-600 text-white hover:from-indigo-700 hover:to-indigo-800 dark:hover:from-indigo-600 dark:hover:to-indigo-700 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                      >
+                        <FaClock className="w-4 h-4" />
+                        <span className="text-sm">Pay Now</span>
+                      </button>
+                    )}
+
                     {appointment.status === 'CONFIRMED' && (() => {
                       // Check timing restrictions
                       const now = new Date();

@@ -1,15 +1,35 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaCheckCircle, FaCalendarAlt, FaReceipt, FaClock, FaInfoCircle } from 'react-icons/fa';
+import { useAuth } from '@/lib/auth-context';
+import { apiFetchJson } from '@/lib/api-client';
+
+type VisiblePaymentStatus = 'UNPAID' | 'IN_PROGRESS' | 'CONFIRMED' | 'DISPUTED';
+
+interface PaymentStatusResponse {
+  appointmentId: string;
+  payment: {
+    status: VisiblePaymentStatus;
+    isDisputed: boolean;
+    proofUrl?: string | null;
+    proofUploadedAt?: string | null;
+    patientReference?: string | null;
+  };
+}
 
 export default function PaymentSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { token } = useAuth();
 
   const appointmentId = searchParams.get('appointmentId') || '';
   const amount = searchParams.get('amount') || '0';
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError, setStatusError] = useState('');
+  const [visibleStatus, setVisibleStatus] = useState<VisiblePaymentStatus>('UNPAID');
+  const [isDisputed, setIsDisputed] = useState(false);
 
   useEffect(() => {
     // Redirect if no data
@@ -17,6 +37,39 @@ export default function PaymentSuccessPage() {
       router.push('/Patient/appointments');
     }
   }, [appointmentId, router]);
+
+  const loadStatus = async () => {
+    if (!appointmentId || !token) return;
+
+    setStatusLoading(true);
+    setStatusError('');
+    try {
+      const data = await apiFetchJson<PaymentStatusResponse>(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/payment-status`,
+        { token }
+      );
+
+      setVisibleStatus(data.payment.status || 'UNPAID');
+      setIsDisputed(Boolean(data.payment.isDisputed));
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : 'Failed to load payment status');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadStatus();
+  }, [appointmentId, token]);
+
+  const statusLabel =
+    visibleStatus === 'IN_PROGRESS'
+      ? 'In Progress'
+      : visibleStatus === 'CONFIRMED'
+        ? 'Confirmed'
+        : visibleStatus === 'DISPUTED'
+          ? 'Disputed'
+          : 'Unpaid';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-teal-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-6 sm:py-12 px-4 sm:px-6">
@@ -27,10 +80,10 @@ export default function PaymentSuccessPage() {
             <FaCheckCircle className="text-4xl sm:text-6xl text-green-600 dark:text-green-400" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Appointment Confirmed!
+            Payment In Process
           </h1>
           <p className="text-sm sm:text-lg text-gray-600 dark:text-gray-400">
-            Payment instructions have been received
+            Your screenshot has been submitted and is under review.
           </p>
         </div>
 
@@ -50,17 +103,34 @@ export default function PaymentSuccessPage() {
                 <span className="font-mono text-gray-900 dark:text-white">{appointmentId}</span>
               </div>
               <div className="flex items-center justify-between text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Payment Status:</span>
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
-                  <FaClock className="text-xs" />
-                  Awaiting Payment
-                </span>
+                <span className="text-gray-600 dark:text-gray-400">Payment Progress:</span>
+                {statusLoading ? (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                    Loading...
+                  </span>
+                ) : isDisputed ? (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-300">
+                    Disputed
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300">
+                    {statusLabel}
+                  </span>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Payment Instructions Card */}
+        {isDisputed && (
+          <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+            <p className="text-rose-800 dark:text-rose-300 text-sm">
+              Your payment is currently marked as disputed. Please contact support to resolve this appointment payment.
+            </p>
+          </div>
+        )}
+
+        {/* Minimal Next Steps */}
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
           <div className="flex items-start gap-3">
             <FaInfoCircle className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-1" />
@@ -68,69 +138,19 @@ export default function PaymentSuccessPage() {
               <h3 className="font-semibold text-amber-900 dark:text-amber-300 mb-3 text-sm sm:text-base">
                 Next Steps
               </h3>
-              <ol className="text-amber-800 dark:text-amber-400 text-xs sm:text-sm space-y-2">
-                <li className="flex items-start gap-2">
-                  <span className="font-semibold flex-shrink-0">1.</span>
-                  <span>Your appointment has been confirmed by the system</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-semibold flex-shrink-0">2.</span>
-                  <span>Complete your appointment with the doctor at the scheduled date and time</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-semibold flex-shrink-0">3.</span>
-                  <span>After the appointment, transfer the payment amount <strong>within 24 hours</strong> to the TABEEB Healthcare JazzCash account provided above</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-semibold flex-shrink-0">4.</span>
-                  <span>Keep your transaction receipt as proof of payment</span>
-                </li>
-              </ol>
+              <ul className="text-amber-800 dark:text-amber-400 text-xs sm:text-sm space-y-2">
+                <li>• We will review your payment screenshot shortly.</li>
+                <li>• You can track payment progress from My Appointments.</li>
+              </ul>
             </div>
           </div>
         </div>
 
-        {/* Important Information Card */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
-          <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-3 text-sm sm:text-base flex items-center gap-2">
-            <FaClock className="text-blue-600 dark:text-blue-400" />
-            Payment Deadline & Details
-          </h3>
-          <p className="text-blue-800 dark:text-blue-400 text-xs sm:text-sm mb-3">
-            You have <strong>24 hours after your appointment ends</strong> to complete the payment transfer to TABEEB Healthcare.
-          </p>
-          <ul className="text-blue-800 dark:text-blue-400 text-xs sm:text-sm space-y-2">
-            <li>• JazzCash Number: <strong>+92 302 4400906</strong></li>
-            <li>• Account Name: <strong>TABEEB Healthcare</strong></li>
-            <li>• Use the appointment ID as reference in your payment transfer</li>
-            <li>• Late payments may result in additional charges and account suspensions</li>
-          </ul>
-        </div>
-
-        {/* What to Expect Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-slate-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-sm sm:text-base">
-            What to Expect
-          </h3>
-          <ul className="space-y-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-            <li className="flex items-start gap-2">
-              <span className="text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5">✓</span>
-              <span>Your appointment is confirmed and scheduled</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5">✓</span>
-              <span>You will receive an appointment reminder before the scheduled time</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5">✓</span>
-              <span>The doctor will be available for your consultation at the scheduled time</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5">✓</span>
-              <span>After the appointment, you'll have 24 hours to complete the payment transfer</span>
-            </li>
-          </ul>
-        </div>
+        {statusError && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4 sm:mb-6">
+            <p className="text-sm text-red-700 dark:text-red-300">{statusError}</p>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4">

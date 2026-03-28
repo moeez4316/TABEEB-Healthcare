@@ -25,6 +25,7 @@ export const getUploadSignature = async (req: Request, res: Response) => {
       'medical-record',
       'verification-doc',
       'financial-aid-doc',
+      'payment-proof',
       'chat-media',
       'blog-image'
     ];

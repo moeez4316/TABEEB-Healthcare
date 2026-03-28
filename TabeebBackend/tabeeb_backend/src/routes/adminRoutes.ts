@@ -23,6 +23,12 @@ import {
 } from '../controllers/financialAidController';
 import { getDoctorPayoutMethodsForAdmin } from '../controllers/doctorPayoutController';
 import {
+  getAppointmentPaymentsForAdmin,
+  reviewAppointmentPaymentByAdmin,
+  markAppointmentPaymentPaidToDoctorByAdmin,
+  getAppointmentPaymentRevenueSummaryForAdmin,
+} from '../controllers/appointmentController';
+import {
   authenticateAdminFromHeaders,
   requireAnyAdminPermission,
   requireAdminPermission,
@@ -71,6 +77,12 @@ router.get('/doctors/:doctorUid/payout-methods', authenticateAdminFromHeaders, g
 router.get('/financial-aid/requests', authenticateAdminFromHeaders, getFinancialAidRequestsForAdmin);
 router.patch('/financial-aid/requests/:requestId/approve', authenticateAdminFromHeaders, approveFinancialAidRequest);
 router.patch('/financial-aid/requests/:requestId/reject', authenticateAdminFromHeaders, rejectFinancialAidRequest);
+
+// Appointment payment review routes
+router.get('/appointments/payments', authenticateAdminFromHeaders, getAppointmentPaymentsForAdmin);
+router.get('/appointments/payments/revenue-summary', authenticateAdminFromHeaders, getAppointmentPaymentRevenueSummaryForAdmin);
+router.post('/appointments/:appointmentId/payments/review', authenticateAdminFromHeaders, reviewAppointmentPaymentByAdmin);
+router.post('/appointments/:appointmentId/payments/mark-paid-to-doctor', authenticateAdminFromHeaders, markAppointmentPaymentPaidToDoctorByAdmin);
 
 // Admin inbox routes
 router.get(

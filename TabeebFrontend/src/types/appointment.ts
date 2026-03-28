@@ -78,6 +78,28 @@ export interface Appointment {
     gender?: string;
     profileImageUrl?: string;
   };
+  patientPayment?: {
+    status: 'UNPAID' | 'IN_PROGRESS' | 'CONFIRMED' | 'DISPUTED';
+    isDisputed: boolean;
+    isPaidToDoctor: boolean;
+    canPayNow: boolean;
+    dueAt?: string | Date | null;
+    isOverdue?: boolean;
+    isWindowStarted?: boolean;
+    proofUrl?: string | null;
+    proofUploadedAt?: string | Date | null;
+    patientReference?: string | null;
+    reviewedAt?: string | Date | null;
+    reviewNotes?: string | null;
+    payoutSentAt?: string | Date | null;
+    payoutReference?: string | null;
+  };
+  doctorPayment?: {
+    status: 'UNPAID' | 'IN_PROGRESS' | 'CONFIRMED' | 'DISPUTED';
+    isPaidToDoctor: boolean;
+    payoutSentAt?: string | Date | null;
+    proofUploadedAt?: string | Date | null;
+  };
 }
 
 export interface Doctor {

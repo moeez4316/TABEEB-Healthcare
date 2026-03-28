@@ -503,6 +503,13 @@ export default function DoctorAppointmentsPage() {
                               <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">
                                 Final: PKR {finalFee.toLocaleString('en-PK')}
                               </p>
+                              {appointment.doctorPayment && (
+                                <p className="text-[11px] mt-1 text-slate-700 dark:text-slate-300">
+                                  <span className={`inline-flex rounded-full px-2 py-0.5 font-semibold ${appointment.doctorPayment.isPaidToDoctor ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'}`}>
+                                    Payout: {appointment.doctorPayment.isPaidToDoctor ? 'Paid To Doctor' : 'Pending'}
+                                  </span>
+                                </p>
+                              )}
                             </div>
                           </div>
                         )}

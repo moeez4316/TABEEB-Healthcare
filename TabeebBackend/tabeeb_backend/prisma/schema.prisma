@@ -93,6 +93,7 @@ model Appointment {
   doctor                  doctor                      @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
   patient                 patient                     @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
   prescriptions           Prescription[]
+  payment                 AppointmentPayment?
   videoCall               VideoCall?
   review                  Review?
 
@@ -102,6 +103,31 @@ model Appointment {
   @@index([status])
   @@index([startTime])
   @@map("appointments")
+}
+
+model AppointmentPayment {
+  id               String                   @id @default(cuid())
+  appointmentId    String                   @unique @db.VarChar(255)
+  paymentStatus    AppointmentPaymentStatus @default(UNPAID)
+  paymentMethod    String                   @default("manual_bank_transfer") @db.VarChar(50)
+  proofUrl         String?                  @db.Text
+  proofUploadedAt  DateTime?
+  patientReference String?                  @db.VarChar(255)
+  reviewedByAdminId String?                 @db.VarChar(255)
+  reviewedAt       DateTime?
+  reviewNotes      String?                  @db.Text
+  payoutReference  String?                  @db.VarChar(255)
+  payoutSentByAdminId String?               @db.VarChar(255)
+  payoutSentAt     DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  appointment      Appointment              @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentStatus])
+  @@index([proofUploadedAt])
+  @@index([reviewedAt])
+  @@index([payoutSentAt])
+  @@map("appointment_payments")
 }
 
 model MedicalRecord {
@@ -406,6 +432,14 @@ enum FinancialAidStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum AppointmentPaymentStatus {
+  UNPAID
+  IN_REVIEW
+  PAID
+  PAID_TO_DOCTOR
+  DISPUTED
 }
 
 // Blog Models
