@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FaCheckCircle, FaCalendarAlt, FaReceipt, FaClock, FaInfoCircle } from 'react-icons/fa';
+import { FaCheckCircle, FaCalendarAlt, FaReceipt, FaInfoCircle } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth-context';
 import { apiFetchJson } from '@/lib/api-client';
 
@@ -38,7 +38,7 @@ export default function PaymentSuccessPage() {
     }
   }, [appointmentId, router]);
 
-  const loadStatus = async () => {
+  const loadStatus = useCallback(async () => {
     if (!appointmentId || !token) return;
 
     setStatusLoading(true);
@@ -56,11 +56,11 @@ export default function PaymentSuccessPage() {
     } finally {
       setStatusLoading(false);
     }
-  };
+  }, [appointmentId, token]);
 
   useEffect(() => {
     void loadStatus();
-  }, [appointmentId, token]);
+  }, [loadStatus]);
 
   const statusLabel =
     visibleStatus === 'IN_PROGRESS'

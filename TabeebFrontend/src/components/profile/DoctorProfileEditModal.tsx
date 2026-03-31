@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Save, User, Stethoscope, MapPin, Settings, AlertCircle, Trash2, DollarSign } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -255,7 +255,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
         }
     }, [isOpen]);
 
-    const loadPayoutMethods = async () => {
+    const loadPayoutMethods = useCallback(async () => {
         if (!token) return;
 
         setPayoutLoading(true);
@@ -284,13 +284,13 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
         } finally {
             setPayoutLoading(false);
         }
-    };
+    }, [token]);
 
     useEffect(() => {
         if (isOpen && token) {
             void loadPayoutMethods();
         }
-    }, [isOpen, token]);
+    }, [isOpen, token, loadPayoutMethods]);
 
     // Update activeTab ONLY when modal opens AND initialTab is explicitly provided
     // Set initial tab when opening (explicit initialTab overrides saved state)

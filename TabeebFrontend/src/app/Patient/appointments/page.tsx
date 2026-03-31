@@ -931,7 +931,7 @@ export default function PatientAppointmentsPage() {
                 onClick={() => setShowPaymentReminder(false)}
                 className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-slate-600 text-gray-900 dark:text-white rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors text-sm"
               >
-                I'll Pay Later
+                I&apos;ll Pay Later
               </button>
               <button
                 onClick={() => setShowPaymentReminder(false)}

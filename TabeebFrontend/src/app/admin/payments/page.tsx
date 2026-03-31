@@ -1,6 +1,7 @@
 'use client';
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, Clock, Eye, RefreshCw, Search, XCircle } from 'lucide-react';
 import AdminLoading from '@/components/admin/AdminLoading';
@@ -550,8 +551,15 @@ export default function AdminPaymentsPage() {
                 Close
               </button>
             </div>
-            <div className="w-full h-[75vh] bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 overflow-hidden">
-              <img src={previewProofUrl} alt="Payment proof" className="w-full h-full object-contain" />
+            <div className="relative w-full h-[75vh] bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <Image
+                src={previewProofUrl}
+                alt="Payment proof"
+                fill
+                sizes="100vw"
+                className="object-contain"
+                unoptimized
+              />
             </div>
           </div>
         </div>

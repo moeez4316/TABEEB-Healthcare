@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { FaCheckCircle, FaTimesCircle, FaClock, FaInfoCircle, FaCopy } from 'react-icons/fa';
@@ -83,7 +83,7 @@ export default function PaymentPage() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const loadStatus = async () => {
+  const loadStatus = useCallback(async () => {
     if (!appointmentId || !token) return;
     setStatusLoading(true);
     try {
@@ -102,12 +102,12 @@ export default function PaymentPage() {
     } finally {
       setStatusLoading(false);
     }
-  };
+  }, [appointmentId, token]);
 
   useEffect(() => {
     if (!appointmentId || !token) return;
     void loadStatus();
-  }, [appointmentId, token]);
+  }, [appointmentId, token, loadStatus]);
 
   const handleConfirm = async () => {
     setError('');
