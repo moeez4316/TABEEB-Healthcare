@@ -1476,6 +1476,197 @@ export const getAppointmentPaymentStatus = async (req: Request, res: Response) =
   }
 };
 
+const fetchAppointmentsWithoutPaymentRecordsForAdmin = async (searchQuery?: string) => {
+  const query = String(searchQuery || '').trim();
+  const filters: string[] = [
+    "ap.`appointmentId` IS NULL",
+    "a.`status` NOT IN ('CANCELLED', 'NO_SHOW')",
+  ];
+  const params: any[] = [];
+
+  if (query.length > 0) {
+    const like = `%${query}%`;
+    filters.push(`(
+      a.\`id\` LIKE ? OR
+      p.\`firstName\` LIKE ? OR
+      p.\`lastName\` LIKE ? OR
+      p.\`email\` LIKE ? OR
+      d.\`firstName\` LIKE ? OR
+      d.\`lastName\` LIKE ? OR
+      d.\`name\` LIKE ?
+    )`);
+    params.push(like, like, like, like, like, like, like);
+  }
+
+  return prisma.$queryRawUnsafe<any[]>(
+    `SELECT
+      a.\`id\` AS \`appointmentId\`,
+      a.\`appointmentDate\` AS \`appointmentDate\`,
+      a.\`startTime\` AS \`startTime\`,
+      a.\`endTime\` AS \`endTime\`,
+      a.\`completedAt\` AS \`completedAt\`,
+      a.\`consultationFees\` AS \`consultationFees\`,
+      a.\`status\` AS \`appointmentStatus\`,
+      a.\`updatedAt\` AS \`appointmentUpdatedAt\`,
+      a.\`createdAt\` AS \`appointmentCreatedAt\`,
+      p.\`uid\` AS \`patientUid\`,
+      p.\`firstName\` AS \`patientFirstName\`,
+      p.\`lastName\` AS \`patientLastName\`,
+      p.\`email\` AS \`patientEmail\`,
+      p.\`phone\` AS \`patientPhone\`,
+      d.\`uid\` AS \`doctorUid\`,
+      d.\`firstName\` AS \`doctorFirstName\`,
+      d.\`lastName\` AS \`doctorLastName\`,
+      d.\`name\` AS \`doctorName\`,
+      d.\`email\` AS \`doctorEmail\`
+    FROM \`appointments\` a
+    LEFT JOIN \`appointment_payments\` ap ON ap.\`appointmentId\` = a.\`id\`
+    LEFT JOIN \`patient\` p ON p.\`uid\` = a.\`patientUid\`
+    LEFT JOIN \`doctor\` d ON d.\`uid\` = a.\`doctorUid\`
+    WHERE ${filters.join(' AND ')}
+    ORDER BY a.\`updatedAt\` DESC, a.\`createdAt\` DESC`,
+    ...params
+  );
+};
+
+const mapAppointmentWithoutPaymentToAdminPayment = (row: any) => ({
+  appointmentId: row.appointmentId,
+  paymentStatus: 'UNPAID',
+  paymentMethod: 'manual_bank_transfer',
+  proofUrl: null,
+  proofUploadedAt: null,
+  patientReference: null,
+  reviewNotes: null,
+  payoutReference: null,
+  updatedAt: row.appointmentUpdatedAt,
+  createdAt: row.appointmentCreatedAt,
+  appointment: {
+    id: row.appointmentId,
+    appointmentDate: row.appointmentDate,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    completedAt: row.completedAt,
+    consultationFees: row.consultationFees,
+    status: row.appointmentStatus,
+    patient: {
+      uid: row.patientUid,
+      firstName: row.patientFirstName,
+      lastName: row.patientLastName,
+      email: row.patientEmail,
+      phone: row.patientPhone,
+    },
+    doctor: {
+      uid: row.doctorUid,
+      firstName: row.doctorFirstName,
+      lastName: row.doctorLastName,
+      name: row.doctorName,
+      email: row.doctorEmail,
+    },
+  },
+});
+
+const fetchAppointmentPaymentsWithRecordsForAdmin = async (params: {
+  status?: AppointmentPaymentStatus;
+  searchQuery?: string;
+}) => {
+  const query = String(params.searchQuery || '').trim();
+  const filters: string[] = ['1=1'];
+  const values: any[] = [];
+
+  if (params.status) {
+    filters.push('ap.`paymentStatus` = ?');
+    values.push(params.status);
+  }
+
+  if (query.length > 0) {
+    const like = `%${query}%`;
+    filters.push(`(
+      ap.\`appointmentId\` LIKE ? OR
+      p.\`firstName\` LIKE ? OR
+      p.\`lastName\` LIKE ? OR
+      p.\`email\` LIKE ? OR
+      d.\`firstName\` LIKE ? OR
+      d.\`lastName\` LIKE ? OR
+      d.\`name\` LIKE ?
+    )`);
+    values.push(like, like, like, like, like, like, like);
+  }
+
+  return prisma.$queryRawUnsafe<any[]>(
+    `SELECT
+      ap.\`appointmentId\` AS \`appointmentId\`,
+      ap.\`paymentStatus\` AS \`paymentStatus\`,
+      ap.\`paymentMethod\` AS \`paymentMethod\`,
+      ap.\`proofUrl\` AS \`proofUrl\`,
+      ap.\`proofUploadedAt\` AS \`proofUploadedAt\`,
+      ap.\`patientReference\` AS \`patientReference\`,
+      ap.\`reviewNotes\` AS \`reviewNotes\`,
+      ap.\`payoutReference\` AS \`payoutReference\`,
+      ap.\`updatedAt\` AS \`updatedAt\`,
+      ap.\`createdAt\` AS \`createdAt\`,
+      a.\`id\` AS \`appointmentRecordId\`,
+      a.\`appointmentDate\` AS \`appointmentDate\`,
+      a.\`startTime\` AS \`startTime\`,
+      a.\`endTime\` AS \`endTime\`,
+      a.\`completedAt\` AS \`completedAt\`,
+      a.\`consultationFees\` AS \`consultationFees\`,
+      a.\`status\` AS \`appointmentStatus\`,
+      p.\`uid\` AS \`patientUid\`,
+      p.\`firstName\` AS \`patientFirstName\`,
+      p.\`lastName\` AS \`patientLastName\`,
+      p.\`email\` AS \`patientEmail\`,
+      p.\`phone\` AS \`patientPhone\`,
+      d.\`uid\` AS \`doctorUid\`,
+      d.\`firstName\` AS \`doctorFirstName\`,
+      d.\`lastName\` AS \`doctorLastName\`,
+      d.\`name\` AS \`doctorName\`,
+      d.\`email\` AS \`doctorEmail\`
+    FROM \`appointment_payments\` ap
+    INNER JOIN \`appointments\` a ON a.\`id\` = ap.\`appointmentId\`
+    LEFT JOIN \`patient\` p ON p.\`uid\` = a.\`patientUid\`
+    LEFT JOIN \`doctor\` d ON d.\`uid\` = a.\`doctorUid\`
+    WHERE ${filters.join(' AND ')}
+    ORDER BY ap.\`updatedAt\` DESC, ap.\`createdAt\` DESC`,
+    ...values
+  );
+};
+
+const mapAppointmentPaymentRecordToAdminPayment = (row: any) => ({
+  appointmentId: row.appointmentId,
+  paymentStatus: row.paymentStatus,
+  paymentMethod: row.paymentMethod,
+  proofUrl: row.proofUrl,
+  proofUploadedAt: row.proofUploadedAt,
+  patientReference: row.patientReference,
+  reviewNotes: row.reviewNotes,
+  payoutReference: row.payoutReference,
+  updatedAt: row.updatedAt,
+  createdAt: row.createdAt,
+  appointment: {
+    id: row.appointmentRecordId,
+    appointmentDate: row.appointmentDate,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    completedAt: row.completedAt,
+    consultationFees: row.consultationFees,
+    status: row.appointmentStatus,
+    patient: {
+      uid: row.patientUid,
+      firstName: row.patientFirstName,
+      lastName: row.patientLastName,
+      email: row.patientEmail,
+      phone: row.patientPhone,
+    },
+    doctor: {
+      uid: row.doctorUid,
+      firstName: row.doctorFirstName,
+      lastName: row.doctorLastName,
+      name: row.doctorName,
+      email: row.doctorEmail,
+    },
+  },
+});
+
 export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response) => {
   try {
     const { status, search = '', page = 1, limit = 20, overdueUnpaid } = req.query;
@@ -1559,15 +1750,42 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
       orderBy,
     };
 
-    if (!isOverdueUnpaidOnly) {
-      fetchArgs.skip = skip;
-      fetchArgs.take = limitNum;
+    const shouldMergeSyntheticUnpaid = isOverdueUnpaidOnly || !parsedStatus || parsedStatus === 'UNPAID';
+
+    let fetchedPayments: any[] = [];
+    if (appointmentPaymentDelegate) {
+      try {
+        fetchedPayments = await appointmentPaymentDelegate.findMany(fetchArgs);
+      } catch (delegateError) {
+        console.warn('Falling back to raw SQL for admin payments list:', delegateError);
+        const rawPayments = await fetchAppointmentPaymentsWithRecordsForAdmin({
+          status: where.paymentStatus,
+          searchQuery: query,
+        });
+        fetchedPayments = rawPayments.map(mapAppointmentPaymentRecordToAdminPayment);
+      }
+    } else {
+      const rawPayments = await fetchAppointmentPaymentsWithRecordsForAdmin({
+        status: where.paymentStatus,
+        searchQuery: query,
+      });
+      fetchedPayments = rawPayments.map(mapAppointmentPaymentRecordToAdminPayment);
     }
 
-    const fetchedPayments = await requireAppointmentPaymentDelegate().findMany(fetchArgs);
+    const syntheticUnpaidRows = shouldMergeSyntheticUnpaid
+      ? (await fetchAppointmentsWithoutPaymentRecordsForAdmin(query)).map(mapAppointmentWithoutPaymentToAdminPayment)
+      : [];
+
+    const mergedPayments = [...fetchedPayments, ...syntheticUnpaidRows];
+
+    const statusFilteredPayments = isOverdueUnpaidOnly
+      ? mergedPayments.filter((payment: any) => (payment?.paymentStatus || 'UNPAID') === 'UNPAID')
+      : parsedStatus === 'UNPAID'
+        ? mergedPayments.filter((payment: any) => (payment?.paymentStatus || 'UNPAID') === 'UNPAID')
+        : mergedPayments;
 
     const overdueFilteredPayments = isOverdueUnpaidOnly
-      ? fetchedPayments.filter((payment: any) => {
+      ? statusFilteredPayments.filter((payment: any) => {
           const window = buildPaymentWindow({
             appointmentDate: payment.appointment.appointmentDate,
             endTime: payment.appointment.endTime,
@@ -1575,32 +1793,96 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
           });
           return window.isOverdue;
         })
-      : fetchedPayments;
+      : statusFilteredPayments;
 
-    const payments = isOverdueUnpaidOnly ? overdueFilteredPayments.slice(skip, skip + limitNum) : overdueFilteredPayments;
-    const total = isOverdueUnpaidOnly
-      ? overdueFilteredPayments.length
-      : await requireAppointmentPaymentDelegate().count({ where });
+    const toSortEpoch = (payment: any) => {
+      const rawDate =
+        payment?.updatedAt ||
+        payment?.createdAt ||
+        payment?.appointment?.completedAt ||
+        payment?.appointment?.appointmentDate;
+      const parsed = new Date(rawDate as any).getTime();
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
 
-    const [unpaid, inReview, paid, paidToDoctor, disputed, overdueUnpaidCountSource] = await Promise.all([
-      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'UNPAID' } }),
-      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'IN_REVIEW' } }),
-      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'PAID' } }),
-      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'PAID_TO_DOCTOR' } }),
-      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'DISPUTED' } }),
-      requireAppointmentPaymentDelegate().findMany({
-        where: { paymentStatus: 'UNPAID' },
-        select: {
-          appointment: {
+    const orderedPayments = [...overdueFilteredPayments].sort((a: any, b: any) => toSortEpoch(b) - toSortEpoch(a));
+
+    const payments = orderedPayments.slice(skip, skip + limitNum);
+    const total = orderedPayments.length;
+
+    const unpaidAppointmentsWithoutPaymentRows = await fetchAppointmentsWithoutPaymentRecordsForAdmin();
+    const syntheticOverdueUnpaidCount = unpaidAppointmentsWithoutPaymentRows.filter((row: any) => {
+      const window = buildPaymentWindow({
+        appointmentDate: row.appointmentDate,
+        endTime: row.endTime,
+        completedAt: row.completedAt ?? null,
+      });
+      return window.isOverdue;
+    }).length;
+
+    let unpaid = 0;
+    let inReview = 0;
+    let paid = 0;
+    let paidToDoctor = 0;
+    let disputed = 0;
+    let overdueUnpaidCountSource: Array<{ appointment: { appointmentDate: Date | string; endTime: string | null; completedAt: Date | null } }> = [];
+
+    if (appointmentPaymentDelegate) {
+      try {
+        [unpaid, inReview, paid, paidToDoctor, disputed, overdueUnpaidCountSource] = await Promise.all([
+          appointmentPaymentDelegate.count({ where: { paymentStatus: 'UNPAID' } }),
+          appointmentPaymentDelegate.count({ where: { paymentStatus: 'IN_REVIEW' } }),
+          appointmentPaymentDelegate.count({ where: { paymentStatus: 'PAID' } }),
+          appointmentPaymentDelegate.count({ where: { paymentStatus: 'PAID_TO_DOCTOR' } }),
+          appointmentPaymentDelegate.count({ where: { paymentStatus: 'DISPUTED' } }),
+          appointmentPaymentDelegate.findMany({
+            where: { paymentStatus: 'UNPAID' },
             select: {
-              appointmentDate: true,
-              endTime: true,
-              completedAt: true,
+              appointment: {
+                select: {
+                  appointmentDate: true,
+                  endTime: true,
+                  completedAt: true,
+                },
+              },
             },
-          },
+          }),
+        ]);
+      } catch (delegateError) {
+        console.warn('Falling back to raw SQL for admin payment counts:', delegateError);
+      }
+    }
+
+    if (!appointmentPaymentDelegate || (unpaid === 0 && inReview === 0 && paid === 0 && paidToDoctor === 0 && disputed === 0 && overdueUnpaidCountSource.length === 0)) {
+      const [statusCountRows, overdueUnpaidRows] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          "SELECT `paymentStatus`, COUNT(*) AS `count` FROM `appointment_payments` GROUP BY `paymentStatus`"
+        ),
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT a.\`appointmentDate\` AS \`appointmentDate\`, a.\`endTime\` AS \`endTime\`, a.\`completedAt\` AS \`completedAt\`
+           FROM \`appointment_payments\` ap
+           INNER JOIN \`appointments\` a ON a.\`id\` = ap.\`appointmentId\`
+           WHERE ap.\`paymentStatus\` = 'UNPAID'`
+        ),
+      ]);
+
+      const statusCountMap = new Map<string, number>(
+        statusCountRows.map((row: any) => [String(row.paymentStatus), Number(row.count) || 0])
+      );
+
+      unpaid = statusCountMap.get('UNPAID') || 0;
+      inReview = statusCountMap.get('IN_REVIEW') || 0;
+      paid = statusCountMap.get('PAID') || 0;
+      paidToDoctor = statusCountMap.get('PAID_TO_DOCTOR') || 0;
+      disputed = statusCountMap.get('DISPUTED') || 0;
+      overdueUnpaidCountSource = overdueUnpaidRows.map((row: any) => ({
+        appointment: {
+          appointmentDate: row.appointmentDate,
+          endTime: row.endTime,
+          completedAt: row.completedAt,
         },
-      }),
-    ]);
+      }));
+    }
 
     const overdueUnpaidCount = overdueUnpaidCountSource.filter((payment: any) => {
       const window = buildPaymentWindow({
@@ -1609,7 +1891,7 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
         completedAt: payment.appointment.completedAt ?? null,
       });
       return window.isOverdue;
-    }).length;
+    }).length + syntheticOverdueUnpaidCount;
 
     return res.json({
       payments,
@@ -1620,7 +1902,7 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
         totalPages: Math.ceil(total / limitNum),
       },
       counts: {
-        unpaid,
+        unpaid: unpaid + unpaidAppointmentsWithoutPaymentRows.length,
         inReview,
         paid,
         paidToDoctor,
