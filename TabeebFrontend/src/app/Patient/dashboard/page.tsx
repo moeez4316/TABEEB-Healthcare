@@ -210,6 +210,23 @@ export default function DashboardPage() {
                 </div>
               </Link>
 
+              <Link href="/Patient/ai-chat?tab=medicine">
+                <div className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/10 dark:to-slate-800 rounded-lg shadow-md p-5 border border-amber-200 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-amber-500 dark:bg-amber-600 p-2.5 rounded-lg group-hover:bg-amber-600 dark:group-hover:bg-amber-500 transition-colors">
+                        <Pill className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="text-base font-semibold text-gray-900 dark:text-white">Find Cheap medicine alternatives</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Compare alternative brands</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-amber-400 dark:text-amber-500 group-hover:text-amber-600 dark:group-hover:text-amber-400 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                  </div>
+                </div>
+              </Link>
+
               <Link href="/Patient/medical-records">
                 <div className="bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/10 dark:to-slate-800 rounded-lg shadow-md p-5 border border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer group">
                   <div className="flex items-center justify-between">

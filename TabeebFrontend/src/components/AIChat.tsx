@@ -108,6 +108,14 @@ export default function AIChat() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
 
+  const getInitialTabFromParams = (): TabMode => {
+    const tab = searchParams.get('tab');
+    if (tab === 'chat' || tab === 'summarize' || tab === 'medicine') {
+      return tab;
+    }
+    return 'chat';
+  };
+
   const getToken = async (): Promise<string | null> => {
     try {
       if (user) return await user.getIdToken(true);
@@ -120,7 +128,7 @@ export default function AIChat() {
   };
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<TabMode>('chat');
+  const [activeTab, setActiveTab] = useState<TabMode>(getInitialTabFromParams);
 
   // Session state
   const [sessions, setSessions] = useState<AISession[]>([]);
@@ -726,7 +734,7 @@ export default function AIChat() {
               TABEEB AI Assistant
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Medical information, document summarization &amp; medicine search
+              Medical information, document summarization &amp; find cheap medicine alternatives
             </p>
           </div>
         </div>
@@ -882,7 +890,7 @@ export default function AIChat() {
                 }`}
               >
                 <Pill className="w-4 h-4" />
-                Medicine Search
+                Find Cheap medicine alternatives
               </button>
             </div>
 
@@ -1159,7 +1167,7 @@ export default function AIChat() {
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-4 sm:p-6">
                   <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 mb-2">
                     <Pill className="w-5 h-5 text-teal-500" />
-                    Medicine Alternative Search
+                    Find Cheap medicine alternatives
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     Enter a medicine name to find alternative brands and their latest estimated prices in Pakistan.
