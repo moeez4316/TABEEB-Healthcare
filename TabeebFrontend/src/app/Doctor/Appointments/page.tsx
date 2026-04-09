@@ -418,16 +418,21 @@ export default function DoctorAppointmentsPage() {
         ) : (
           <div className="space-y-4">
             {filteredAppointments.map(appointment => {
-              const finalFee = Number(appointment.consultationFees ?? 0);
-              const baseFee = Number(appointment.baseConsultationFees ?? appointment.consultationFees ?? 0);
-              const followUpDiscountPct = Number(appointment.followUpDiscountPct ?? 0);
-              const financialAidDiscountPct = Number(appointment.financialAidDiscountPct ?? 0);
+              const toSafeNumber = (value: unknown) => {
+                const parsed = Number(value ?? 0);
+                return Number.isFinite(parsed) ? parsed : 0;
+              };
+              const finalFee = toSafeNumber(appointment.consultationFees);
+              const baseFee = toSafeNumber(appointment.baseConsultationFees ?? appointment.consultationFees);
+              const followUpDiscountPct = toSafeNumber(appointment.followUpDiscountPct);
+              const financialAidDiscountPct = toSafeNumber(appointment.financialAidDiscountPct);
               const followUpDiscountAmount = followUpDiscountPct > 0 ? (baseFee * followUpDiscountPct) / 100 : 0;
               const amountAfterFollowUp = Math.max(baseFee - followUpDiscountAmount, 0);
               const financialAidDiscountAmount =
                 financialAidDiscountPct > 0 ? (amountAfterFollowUp * financialAidDiscountPct) / 100 : 0;
               const hasDiscountBreakdown =
                 followUpDiscountPct > 0 || financialAidDiscountPct > 0 || baseFee > finalFee;
+              const showPricingCard = finalFee > 0 || baseFee > 0 || followUpDiscountPct > 0 || financialAidDiscountPct > 0;
 
               return (
               <div key={appointment.id} className="bg-white dark:bg-slate-800/95 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-6 border border-slate-200 dark:border-slate-700 hover:border-teal-200 dark:hover:border-teal-700">
@@ -482,7 +487,7 @@ export default function DoctorAppointmentsPage() {
                           </span>
                         </div>
                         
-                        {finalFee > 0 && (
+                        {showPricingCard && (
                           <div className="flex items-center space-x-2">
                             <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 px-3 py-2">
                               {hasDiscountBreakdown && (

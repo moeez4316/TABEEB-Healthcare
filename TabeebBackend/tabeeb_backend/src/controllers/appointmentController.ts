@@ -43,6 +43,14 @@ const PAYMENT_TRANSITIONS: Record<AppointmentPaymentStatus, AppointmentPaymentSt
 };
 
 const prismaWithPayments = prisma as any;
+const appointmentPaymentDelegate = prismaWithPayments.appointmentPayment;
+
+const requireAppointmentPaymentDelegate = () => {
+  if (!appointmentPaymentDelegate) {
+    throw new Error('Prisma model appointmentPayment is unavailable. Run prisma generate and restart the backend server.');
+  }
+  return appointmentPaymentDelegate;
+};
 
 const canTransitionPaymentStatus = (
   currentStatus: AppointmentPaymentStatus,
@@ -92,7 +100,9 @@ const buildPaymentWindow = (params: {
 };
 
 const ensureAppointmentPayment = async (appointmentId: string) => {
-  const existing = await prismaWithPayments.appointmentPayment.findUnique({
+  const paymentModel = requireAppointmentPaymentDelegate();
+
+  const existing = await paymentModel.findUnique({
     where: { appointmentId },
   });
 
@@ -100,7 +110,7 @@ const ensureAppointmentPayment = async (appointmentId: string) => {
     return existing;
   }
 
-  return prismaWithPayments.appointmentPayment.create({
+  return paymentModel.create({
     data: {
       appointmentId,
       paymentStatus: 'UNPAID',
@@ -418,7 +428,7 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
     }
 
     const [appointments, total] = await Promise.all([
-      prismaWithPayments.appointment.findMany({
+      prisma.appointment.findMany({
         where: whereClause,
         include: {
           patient: {
@@ -440,13 +450,6 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
               createdAt: 'desc'
             },
             take: 1
-          },
-          payment: {
-            select: {
-              paymentStatus: true,
-              payoutSentAt: true,
-              proofUploadedAt: true,
-            }
           }
         },
         orderBy: [
@@ -459,16 +462,38 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
       prisma.appointment.count({ where: whereClause })
     ]);
 
+    const appointmentIds = appointments.map((appointment: any) => appointment.id);
+    const appointmentPayments = appointmentIds.length && appointmentPaymentDelegate
+      ? await appointmentPaymentDelegate.findMany({
+          where: {
+            appointmentId: {
+              in: appointmentIds,
+            },
+          },
+          select: {
+            appointmentId: true,
+            paymentStatus: true,
+            payoutSentAt: true,
+            proofUploadedAt: true,
+          },
+        })
+      : [];
+
+    const paymentByAppointmentId = new Map(
+      appointmentPayments.map((payment: any) => [payment.appointmentId, payment])
+    );
+
     const response = appointments.map((appointment: any) => {
-      const paymentStatus = (appointment?.payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
+      const payment = paymentByAppointmentId.get(appointment.id) as any;
+      const paymentStatus = (payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
       const visibleStatus = toVisiblePaymentStatus(paymentStatus);
       return {
         ...appointment,
         doctorPayment: {
           status: visibleStatus,
           isPaidToDoctor: paymentStatus === 'PAID_TO_DOCTOR',
-          payoutSentAt: appointment?.payment?.payoutSentAt || null,
-          proofUploadedAt: appointment?.payment?.proofUploadedAt || null,
+          payoutSentAt: payment?.payoutSentAt || null,
+          proofUploadedAt: payment?.proofUploadedAt || null,
         },
       };
     });
@@ -507,7 +532,7 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
       };
     }
 
-    const appointments = await prismaWithPayments.appointment.findMany({
+    const appointments = await prisma.appointment.findMany({
       where: whereClause,
       include: {
         doctor: {
@@ -529,18 +554,6 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
             createdAt: 'desc'
           },
           take: 1
-        },
-        payment: {
-          select: {
-            paymentStatus: true,
-            proofUrl: true,
-            proofUploadedAt: true,
-            patientReference: true,
-            reviewedAt: true,
-            reviewNotes: true,
-            payoutSentAt: true,
-            payoutReference: true,
-          }
         }
       },
       orderBy: [
@@ -549,8 +562,35 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
       ]
     });
 
+    const appointmentIds = appointments.map((appointment: any) => appointment.id);
+    const appointmentPayments = appointmentIds.length && appointmentPaymentDelegate
+      ? await appointmentPaymentDelegate.findMany({
+          where: {
+            appointmentId: {
+              in: appointmentIds,
+            },
+          },
+          select: {
+            appointmentId: true,
+            paymentStatus: true,
+            proofUrl: true,
+            proofUploadedAt: true,
+            patientReference: true,
+            reviewedAt: true,
+            reviewNotes: true,
+            payoutSentAt: true,
+            payoutReference: true,
+          },
+        })
+      : [];
+
+    const paymentByAppointmentId = new Map(
+      appointmentPayments.map((payment: any) => [payment.appointmentId, payment])
+    );
+
     const response = appointments.map((appointment: any) => {
-      const paymentStatus = (appointment?.payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
+      const payment = paymentByAppointmentId.get(appointment.id) as any;
+      const paymentStatus = (payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
       const visibleStatus = toVisiblePaymentStatus(paymentStatus);
       const window = buildPaymentWindow({
         appointmentDate: appointment.appointmentDate,
@@ -567,18 +607,18 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
           canPayNow:
             paymentStatus !== 'PAID' &&
             paymentStatus !== 'PAID_TO_DOCTOR' &&
-            !appointment?.payment?.proofUploadedAt &&
-            !appointment?.payment?.proofUrl,
+            !payment?.proofUploadedAt &&
+            !payment?.proofUrl,
           dueAt: window.dueAt,
           isOverdue: window.isOverdue,
           isWindowStarted: window.isWindowStarted,
-          proofUrl: appointment?.payment?.proofUrl || null,
-          proofUploadedAt: appointment?.payment?.proofUploadedAt || null,
-          patientReference: appointment?.payment?.patientReference || null,
-          reviewedAt: appointment?.payment?.reviewedAt || null,
-          reviewNotes: appointment?.payment?.reviewNotes || null,
-          payoutSentAt: appointment?.payment?.payoutSentAt || null,
-          payoutReference: appointment?.payment?.payoutReference || null,
+          proofUrl: payment?.proofUrl || null,
+          proofUploadedAt: payment?.proofUploadedAt || null,
+          patientReference: payment?.patientReference || null,
+          reviewedAt: payment?.reviewedAt || null,
+          reviewNotes: payment?.reviewNotes || null,
+          payoutSentAt: payment?.payoutSentAt || null,
+          payoutReference: payment?.payoutReference || null,
         },
       };
     });
@@ -1156,7 +1196,7 @@ export const confirmAppointmentPayment = async (req: Request, res: Response) => 
       });
     }
 
-    const paymentRecord = await prismaWithPayments.appointmentPayment.update({
+    const paymentRecord = await requireAppointmentPaymentDelegate().update({
       where: { appointmentId },
       data: {
         paymentMethod: typeof paymentMethod === 'string' && paymentMethod.trim().length > 0
@@ -1233,7 +1273,7 @@ export const submitAppointmentPaymentProof = async (req: Request, res: Response)
     const normalizedResourceType = resourceType === 'raw' || resourceType === 'video' ? resourceType : 'image';
     const proofUrl = buildCloudinaryUrl(publicId, normalizedResourceType);
 
-    const updated = await prismaWithPayments.appointmentPayment.update({
+    const updated = await requireAppointmentPaymentDelegate().update({
       where: { appointmentId },
       data: {
         proofUrl,
@@ -1290,7 +1330,7 @@ export const getAppointmentPaymentStatus = async (req: Request, res: Response) =
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    const payment = await prismaWithPayments.appointmentPayment.findUnique({
+    const payment = await requireAppointmentPaymentDelegate().findUnique({
       where: { appointmentId },
     });
     const currentStatus = (payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
@@ -1441,7 +1481,7 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
       fetchArgs.take = limitNum;
     }
 
-    const fetchedPayments = await prismaWithPayments.appointmentPayment.findMany(fetchArgs);
+    const fetchedPayments = await requireAppointmentPaymentDelegate().findMany(fetchArgs);
 
     const overdueFilteredPayments = isOverdueUnpaidOnly
       ? fetchedPayments.filter((payment: any) => {
@@ -1457,15 +1497,15 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
     const payments = isOverdueUnpaidOnly ? overdueFilteredPayments.slice(skip, skip + limitNum) : overdueFilteredPayments;
     const total = isOverdueUnpaidOnly
       ? overdueFilteredPayments.length
-      : await prismaWithPayments.appointmentPayment.count({ where });
+      : await requireAppointmentPaymentDelegate().count({ where });
 
     const [unpaid, inReview, paid, paidToDoctor, disputed, overdueUnpaidCountSource] = await Promise.all([
-      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'UNPAID' } }),
-      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'IN_REVIEW' } }),
-      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'PAID' } }),
-      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'PAID_TO_DOCTOR' } }),
-      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'DISPUTED' } }),
-      prismaWithPayments.appointmentPayment.findMany({
+      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'UNPAID' } }),
+      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'IN_REVIEW' } }),
+      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'PAID' } }),
+      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'PAID_TO_DOCTOR' } }),
+      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'DISPUTED' } }),
+      requireAppointmentPaymentDelegate().findMany({
         where: { paymentStatus: 'UNPAID' },
         select: {
           appointment: {
@@ -1540,7 +1580,7 @@ export const reviewAppointmentPaymentByAdmin = async (req: Request, res: Respons
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    const updated = await prismaWithPayments.appointmentPayment.update({
+    const updated = await requireAppointmentPaymentDelegate().update({
       where: { appointmentId },
       data: {
         paymentStatus: nextStatus,
@@ -1596,7 +1636,7 @@ export const markAppointmentPaymentPaidToDoctorByAdmin = async (req: Request, re
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    const updated = await prismaWithPayments.appointmentPayment.update({
+    const updated = await requireAppointmentPaymentDelegate().update({
       where: { appointmentId },
       data: {
         paymentStatus: 'PAID_TO_DOCTOR',
@@ -1634,7 +1674,7 @@ export const markAppointmentPaymentPaidToDoctorByAdmin = async (req: Request, re
 
 export const getAppointmentPaymentRevenueSummaryForAdmin = async (_req: Request, res: Response) => {
   try {
-    const payments = await prismaWithPayments.appointmentPayment.findMany({
+    const payments = await requireAppointmentPaymentDelegate().findMany({
       where: {
         paymentStatus: {
           in: ['PAID', 'PAID_TO_DOCTOR'],
@@ -1657,11 +1697,11 @@ export const getAppointmentPaymentRevenueSummaryForAdmin = async (_req: Request,
     }, 0);
 
     const [unpaid, inReview, paid, paidToDoctor, disputed] = await Promise.all([
-      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'UNPAID' } }),
-      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'IN_REVIEW' } }),
-      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'PAID' } }),
-      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'PAID_TO_DOCTOR' } }),
-      prismaWithPayments.appointmentPayment.count({ where: { paymentStatus: 'DISPUTED' } }),
+      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'UNPAID' } }),
+      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'IN_REVIEW' } }),
+      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'PAID' } }),
+      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'PAID_TO_DOCTOR' } }),
+      requireAppointmentPaymentDelegate().count({ where: { paymentStatus: 'DISPUTED' } }),
     ]);
 
     return res.json({
