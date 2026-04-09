@@ -99,11 +99,11 @@ When you receive scraped data, format it in EXACTLY this markdown structure:
 
 ---
 
-### Alternative Medicines in Pakistan (Live Prices from DVAGO.pk)
+### Alternative Medicines in Pakistan
 
-| # | Brand Name | Manufacturer | Strength & Form | Pack Size | Price (PKR) | Link |
-|---|-----------|-------------|-----------------|-----------|-------------|------|
-| 1 | ... | ... | ... | ... | Rs. XX | [View](url) |
+| # | Brand Name | Manufacturer | Strength & Form | Pack Size | Price (PKR) | Source |
+|---|-----------|-------------|-----------------|-----------|-------------|--------|
+| 1 | ... | ... | ... | ... | Rs. XX | Dvago |
 
 ### 💡 Key Notes
 - [Add 2-3 relevant notes about the medicines, generic alternatives, or availability]
@@ -120,12 +120,13 @@ IMPORTANT RULES:
 3. Extract Strength & Form from the product title (e.g. "500Mg Tablets", "120Ml Syrup")
 4. Extract Pack Size from the title parentheses (e.g. "1 Strip = 10 Tablets", "120Ml")
 5. Show the discounted price as the primary price. If MRP differs, show as strikethrough: "Rs. 34.50 ~~Rs. 36.35~~"
-6. Include the [View](url) link for each product so users can buy online
+6. Use a **Source** column instead of links. For scraped/live data rows, source must be exactly **Dvago**
 7. If NO scraped data is provided or it is empty, use your knowledge to list alternatives with estimated prices — clearly mark these as "ESTIMATED" prices
-8. You may identify the generic name and drug class from your own knowledge — this is the one area where you should augment the data
-9. Keep the Generic Name out of the table since all alternatives share the same generic — state it once at the top
-10. Sort by price (lowest first) to help users find affordable options
-11. If the searched medicine itself appears in the data, list it FIRST (highlighted), then alternatives below it`;
+8. If fallback/estimated data is used, source must be exactly **Google Gemini**
+9. You may identify the generic name and drug class from your own knowledge — this is the one area where you should augment the data
+10. Keep the Generic Name out of the table since all alternatives share the same generic — state it once at the top
+11. Sort by price (lowest first) to help users find affordable options
+12. If the searched medicine itself appears in the data, list it FIRST (highlighted), then alternatives below it`;
 
 /**
  * Prompt used in Phase 1: ask the LLM to identify the generic name and

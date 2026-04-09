@@ -298,6 +298,25 @@ export const searchMedicineAlternatives = async (
   // ── Phase 3: Format with LLM ──
   console.log('[Medicine Search] Phase 3: Formatting results with LLM');
 
+  const normalizeMedicineSearchOutput = (markdown: string, sourceLabel: 'Dvago' | 'Google Gemini') => {
+    let normalized = markdown;
+
+    // Standardize table header to Source
+    normalized = normalized.replace(/\|\s*Link\s*\|/gi, '| Source |');
+
+    // Replace common markdown link cells with source label
+    normalized = normalized.replace(/\[[^\]]*\]\((https?:\/\/[^)]+)\)/gi, sourceLabel);
+
+    // Replace plain URL cells in markdown tables with source label
+    normalized = normalized.replace(/\|\s*https?:\/\/[^\s|]+\s*\|/gi, `| ${sourceLabel} |`);
+
+    // Normalize known source names for consistency
+    normalized = normalized.replace(/\|\s*dvago(?:\.pk)?\s*\|/gi, '| Dvago |');
+    normalized = normalized.replace(/\|\s*google\s*gemini\s*\|/gi, '| Google Gemini |');
+
+    return normalized;
+  };
+
   const model = getModel(MEDICINE_SEARCH_SYSTEM_PROMPT);
 
   const history: Content[] = [];
@@ -309,7 +328,7 @@ export const searchMedicineAlternatives = async (
       },
       {
         role: 'model',
-        parts: [{ text: 'Understood. I will format the medicine data using the exact markdown template with real price data from dvago.pk.' }],
+        parts: [{ text: 'Understood. I will format the medicine data using the exact markdown template and include a Source column.' }],
       },
     );
   }
@@ -330,11 +349,11 @@ export const searchMedicineAlternatives = async (
   if (scrapedDataText) {
     userPrompt = `Find alternatives for: **${medicineName}**${genericName ? ` (Generic: ${genericName})` : ''}
 
-Here is REAL-TIME scraped data from dvago.pk — use these EXACT prices and product names:
+Here is scraped data from dvago.pk — use these EXACT prices and product names:
 
 ${scrapedDataText}
 
-Format this data into a beautiful markdown response following your template. Use the real prices and real product names from above. Include the [View](url) links. Identify the generic name and drug class yourself. Sort by price (cheapest first).`;
+Format this data into a beautiful markdown response following your template. Use the real prices and real product names from above. Use a **Source** column with value **Dvago** for each row. Identify the generic name and drug class yourself. Sort by price (cheapest first).`;
   } else {
     // Fallback: no scraped data — ask LLM to do its best
     userPrompt = `Find all alternative medicines and their estimated prices in Pakistan for: **${medicineName}**
@@ -343,7 +362,8 @@ Format this data into a beautiful markdown response following your template. Use
 
 Respond with:
 1. The generic name, drug class, and common uses
-2. A markdown table of alternatives with columns: Brand Name, Manufacturer, Strength & Form, Pack Size, Estimated Price in PKR
+2. A markdown table of alternatives with columns: #, Brand Name, Manufacturer, Strength & Form, Pack Size, Estimated Price in PKR, Source
+  - Source must be exactly: Google Gemini
 3. Key notes about availability
 4. Disclaimer about verifying prices`;
   }
@@ -367,5 +387,6 @@ Respond with:
     return 'Unable to generate results. Please try again.';
   }
 
-  return resultText;
+  const sourceLabel = scrapedDataText ? 'Dvago' : 'Google Gemini';
+  return normalizeMedicineSearchOutput(resultText, sourceLabel);
 };
