@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Mail, Calendar, Stethoscope, Clock, AlertTriangle, CheckCircle, Edit3, Phone, ChevronRight, Star, PenSquare } from 'lucide-react';
+import { Mail, Calendar, Stethoscope, Clock, AlertTriangle, CheckCircle, Edit3, Phone, ChevronRight, Star, PenSquare, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -451,6 +451,40 @@ export default function DoctorDashboard() {
                     }
                   </p>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Support Information */}
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 mt-6">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Support Information</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900/30 rounded-lg flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Email</p>
+                  <p className="text-gray-600 dark:text-gray-300">support@tabeebemail.me</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                  <MapPin className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Location</p>
+                  <p className="text-gray-600 dark:text-gray-300">Lahore, Pakistan</p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  We&apos;re here to help! Reach out for any questions or support.
+                </p>
               </div>
             </div>
           </div>
