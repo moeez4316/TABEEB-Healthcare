@@ -149,6 +149,37 @@ const updateAppointmentPaymentByAppointmentId = async (
   return updated;
 };
 
+const fetchAppointmentPaymentsByAppointmentIds = async (appointmentIds: string[]) => {
+  if (!appointmentIds.length) {
+    return [];
+  }
+
+  if (appointmentPaymentDelegate) {
+    try {
+      const delegateRows = await appointmentPaymentDelegate.findMany({
+        where: {
+          appointmentId: {
+            in: appointmentIds,
+          },
+        },
+      });
+
+      // If delegate returns no rows but IDs exist, verify via SQL before assuming unpaid.
+      if (delegateRows.length > 0) {
+        return delegateRows;
+      }
+    } catch (delegateError) {
+      console.warn('Falling back to raw SQL for appointment payment list:', delegateError);
+    }
+  }
+
+  const placeholders = appointmentIds.map(() => '?').join(', ');
+  return prisma.$queryRawUnsafe<any[]>(
+    `SELECT * FROM \`appointment_payments\` WHERE \`appointmentId\` IN (${placeholders})`,
+    ...appointmentIds
+  );
+};
+
 const canTransitionPaymentStatus = (
   currentStatus: AppointmentPaymentStatus,
   nextStatus: AppointmentPaymentStatus
@@ -554,21 +585,7 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
     ]);
 
     const appointmentIds = appointments.map((appointment: any) => appointment.id);
-    const appointmentPayments = appointmentIds.length && appointmentPaymentDelegate
-      ? await appointmentPaymentDelegate.findMany({
-          where: {
-            appointmentId: {
-              in: appointmentIds,
-            },
-          },
-          select: {
-            appointmentId: true,
-            paymentStatus: true,
-            payoutSentAt: true,
-            proofUploadedAt: true,
-          },
-        })
-      : [];
+    const appointmentPayments = await fetchAppointmentPaymentsByAppointmentIds(appointmentIds);
 
     const paymentByAppointmentId = new Map(
       appointmentPayments.map((payment: any) => [payment.appointmentId, payment])
@@ -654,26 +671,7 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
     });
 
     const appointmentIds = appointments.map((appointment: any) => appointment.id);
-    const appointmentPayments = appointmentIds.length && appointmentPaymentDelegate
-      ? await appointmentPaymentDelegate.findMany({
-          where: {
-            appointmentId: {
-              in: appointmentIds,
-            },
-          },
-          select: {
-            appointmentId: true,
-            paymentStatus: true,
-            proofUrl: true,
-            proofUploadedAt: true,
-            patientReference: true,
-            reviewedAt: true,
-            reviewNotes: true,
-            payoutSentAt: true,
-            payoutReference: true,
-          },
-        })
-      : [];
+    const appointmentPayments = await fetchAppointmentPaymentsByAppointmentIds(appointmentIds);
 
     const paymentByAppointmentId = new Map(
       appointmentPayments.map((payment: any) => [payment.appointmentId, payment])
@@ -1945,14 +1943,11 @@ export const reviewAppointmentPaymentByAdmin = async (req: Request, res: Respons
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    const updated = await requireAppointmentPaymentDelegate().update({
-      where: { appointmentId },
-      data: {
-        paymentStatus: nextStatus,
-        reviewedByAdminId: admin?.id || null,
-        reviewedAt: new Date(),
-        reviewNotes: typeof reviewNotes === 'string' && reviewNotes.trim().length > 0 ? reviewNotes.trim() : null,
-      },
+    const updated = await updateAppointmentPaymentByAppointmentId(appointmentId, {
+      paymentStatus: nextStatus,
+      reviewedByAdminId: admin?.id || null,
+      reviewedAt: new Date(),
+      reviewNotes: typeof reviewNotes === 'string' && reviewNotes.trim().length > 0 ? reviewNotes.trim() : null,
     });
 
     res.json({
@@ -2001,17 +1996,14 @@ export const markAppointmentPaymentPaidToDoctorByAdmin = async (req: Request, re
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    const updated = await requireAppointmentPaymentDelegate().update({
-      where: { appointmentId },
-      data: {
-        paymentStatus: 'PAID_TO_DOCTOR',
-        payoutReference:
-          typeof payoutReference === 'string' && payoutReference.trim().length > 0
-            ? payoutReference.trim()
-            : null,
-        payoutSentByAdminId: admin?.id || null,
-        payoutSentAt: new Date(),
-      },
+    const updated = await updateAppointmentPaymentByAppointmentId(appointmentId, {
+      paymentStatus: 'PAID_TO_DOCTOR',
+      payoutReference:
+        typeof payoutReference === 'string' && payoutReference.trim().length > 0
+          ? payoutReference.trim()
+          : null,
+      payoutSentByAdminId: admin?.id || null,
+      payoutSentAt: new Date(),
     });
 
     res.json({
