@@ -227,6 +227,43 @@ const buildPaymentWindow = (params: {
   };
 };
 
+const toNumericFee = (value: unknown): number => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  const parsed = parseFloat(String(value ?? 0));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const isZeroAmountAppointment = (consultationFees: unknown): boolean => toNumericFee(consultationFees) <= 0;
+
+const autoSettleZeroAmountAppointmentPayment = async (params: {
+  appointmentId: string;
+  consultationFees: unknown;
+  existingPayment?: any;
+}) => {
+  if (!isZeroAmountAppointment(params.consultationFees)) {
+    return params.existingPayment ?? null;
+  }
+
+  const payment = params.existingPayment ?? await ensureAppointmentPayment(params.appointmentId);
+  const currentStatus = (payment?.paymentStatus || 'UNPAID') as AppointmentPaymentStatus;
+
+  if (currentStatus === 'PAID_TO_DOCTOR') {
+    return payment;
+  }
+
+  return updateAppointmentPaymentByAppointmentId(params.appointmentId, {
+    paymentStatus: 'PAID_TO_DOCTOR',
+    paymentMethod: payment?.paymentMethod || 'auto_zero_fee',
+    reviewedAt: new Date(),
+    reviewNotes: payment?.reviewNotes || 'Auto-settled: zero consultation fee appointment',
+    payoutSentAt: new Date(),
+    payoutReference: payment?.payoutReference || 'AUTO_ZERO_FEE',
+  });
+};
+
 const ensureAppointmentPayment = async (appointmentId: string) => {
   const existing = await findAppointmentPaymentByAppointmentId(appointmentId);
 
@@ -452,6 +489,13 @@ export const bookAppointment = async (req: Request, res: Response) => {
       }
     });
 
+    if (isZeroAmountAppointment(pricing.finalConsultationFees)) {
+      await autoSettleZeroAmountAppointmentPayment({
+        appointmentId: appointment.id,
+        consultationFees: pricing.finalConsultationFees,
+      });
+    }
+
     // Handle document sharing if provided
     if (sharedDocumentIds && Array.isArray(sharedDocumentIds) && sharedDocumentIds.length > 0) {
       // Validate that documents belong to the patient (Prisma / MySQL)
@@ -591,6 +635,20 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
       appointmentPayments.map((payment: any) => [payment.appointmentId, payment])
     );
 
+    await Promise.all(
+      appointments.map(async (appointment: any) => {
+        const settled = await autoSettleZeroAmountAppointmentPayment({
+          appointmentId: appointment.id,
+          consultationFees: appointment.consultationFees,
+          existingPayment: paymentByAppointmentId.get(appointment.id),
+        });
+
+        if (settled) {
+          paymentByAppointmentId.set(appointment.id, settled);
+        }
+      })
+    );
+
     const response = appointments.map((appointment: any) => {
       const payment = paymentByAppointmentId.get(appointment.id) as any;
       const paymentStatus = (payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
@@ -675,6 +733,20 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
 
     const paymentByAppointmentId = new Map(
       appointmentPayments.map((payment: any) => [payment.appointmentId, payment])
+    );
+
+    await Promise.all(
+      appointments.map(async (appointment: any) => {
+        const settled = await autoSettleZeroAmountAppointmentPayment({
+          appointmentId: appointment.id,
+          consultationFees: appointment.consultationFees,
+          existingPayment: paymentByAppointmentId.get(appointment.id),
+        });
+
+        if (settled) {
+          paymentByAppointmentId.set(appointment.id, settled);
+        }
+      })
     );
 
     const response = appointments.map((appointment: any) => {
@@ -1414,7 +1486,12 @@ export const getAppointmentPaymentStatus = async (req: Request, res: Response) =
     }
 
     const payment = await findAppointmentPaymentByAppointmentId(appointmentId);
-    const currentStatus = (payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
+    const settledPayment = await autoSettleZeroAmountAppointmentPayment({
+      appointmentId,
+      consultationFees: appointment.consultationFees,
+      existingPayment: payment,
+    });
+    const currentStatus = (settledPayment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
     const visibleStatus = toVisiblePaymentStatus(currentStatus);
     const window = buildPaymentWindow({
       appointmentDate: appointment.appointmentDate,
@@ -1434,13 +1511,13 @@ export const getAppointmentPaymentStatus = async (req: Request, res: Response) =
           canPayNow:
             currentStatus !== 'PAID' &&
             currentStatus !== 'PAID_TO_DOCTOR' &&
-            !payment?.proofUploadedAt &&
-            !payment?.proofUrl,
+            !settledPayment?.proofUploadedAt &&
+            !settledPayment?.proofUrl,
           dueAt: window.dueAt,
           isOverdue: window.isOverdue,
           isWindowStarted: window.isWindowStarted,
-          proofUrl: payment?.proofUrl || null,
-          proofUploadedAt: payment?.proofUploadedAt || null,
+          proofUrl: settledPayment?.proofUrl || null,
+          proofUploadedAt: settledPayment?.proofUploadedAt || null,
         },
       });
     }
@@ -1452,7 +1529,7 @@ export const getAppointmentPaymentStatus = async (req: Request, res: Response) =
           status: visibleStatus,
           isPaidToDoctor: currentStatus === 'PAID_TO_DOCTOR',
           dueAt: window.dueAt,
-          payoutSentAt: payment?.payoutSentAt || null,
+          payoutSentAt: settledPayment?.payoutSentAt || null,
         },
       });
     }
@@ -2336,6 +2413,13 @@ export const bookFollowUpAppointment = async (req: Request, res: Response) => {
         patient: { select: { firstName: true, lastName: true, phone: true } }
       }
     });
+
+    if (isZeroAmountAppointment(pricing.finalConsultationFees)) {
+      await autoSettleZeroAmountAppointmentPayment({
+        appointmentId: appointment.id,
+        consultationFees: pricing.finalConsultationFees,
+      });
+    }
 
     res.status(201).json({
       appointment,
