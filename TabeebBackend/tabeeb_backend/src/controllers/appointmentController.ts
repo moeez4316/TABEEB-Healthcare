@@ -418,7 +418,7 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
     }
 
     const [appointments, total] = await Promise.all([
-      prisma.appointment.findMany({
+      prismaWithPayments.appointment.findMany({
         where: whereClause,
         include: {
           patient: {
@@ -507,7 +507,7 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
       };
     }
 
-    const appointments = await prisma.appointment.findMany({
+    const appointments = await prismaWithPayments.appointment.findMany({
       where: whereClause,
       include: {
         doctor: {
