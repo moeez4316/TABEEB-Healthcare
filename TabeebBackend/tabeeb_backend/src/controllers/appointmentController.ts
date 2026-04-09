@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 import prisma from '../lib/prisma';
 import { generateAvailableSlots, isSlotAvailable, calculateEndTime, getSlotsStatistics } from '../utils/slotGenerator';
 import { sendAppointmentConfirmation, sendAppointmentNotificationToDoctor, sendAppointmentCancellation } from '../services/emailService';
@@ -52,6 +53,102 @@ const requireAppointmentPaymentDelegate = () => {
   return appointmentPaymentDelegate;
 };
 
+type AppointmentPaymentUpdateData = {
+  paymentStatus?: AppointmentPaymentStatus;
+  paymentMethod?: string;
+  proofUrl?: string | null;
+  proofUploadedAt?: Date | null;
+  patientReference?: string | null;
+  reviewedByAdminId?: string | null;
+  reviewedAt?: Date | null;
+  reviewNotes?: string | null;
+  payoutReference?: string | null;
+  payoutSentByAdminId?: string | null;
+  payoutSentAt?: Date | null;
+};
+
+const findAppointmentPaymentByAppointmentId = async (appointmentId: string) => {
+  if (appointmentPaymentDelegate) {
+    return appointmentPaymentDelegate.findUnique({
+      where: { appointmentId },
+    });
+  }
+
+  const rows = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT * FROM \`appointment_payments\` WHERE \`appointmentId\` = ? LIMIT 1`,
+    appointmentId
+  );
+
+  return rows?.[0] ?? null;
+};
+
+const createAppointmentPaymentRecord = async (data: {
+  appointmentId: string;
+  paymentStatus: AppointmentPaymentStatus;
+  paymentMethod: string;
+}) => {
+  if (appointmentPaymentDelegate) {
+    return appointmentPaymentDelegate.create({
+      data,
+    });
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO \`appointment_payments\` (\`id\`, \`appointmentId\`, \`paymentStatus\`, \`paymentMethod\`, \`createdAt\`, \`updatedAt\`) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))`,
+      `pay_${randomUUID()}`,
+      data.appointmentId,
+      data.paymentStatus,
+      data.paymentMethod
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.toLowerCase().includes('duplicate')) {
+      throw error;
+    }
+  }
+
+  return findAppointmentPaymentByAppointmentId(data.appointmentId);
+};
+
+const updateAppointmentPaymentByAppointmentId = async (
+  appointmentId: string,
+  data: AppointmentPaymentUpdateData
+) => {
+  if (appointmentPaymentDelegate) {
+    return appointmentPaymentDelegate.update({
+      where: { appointmentId },
+      data,
+    });
+  }
+
+  const entries = Object.entries(data).filter(([, value]) => value !== undefined);
+
+  if (entries.length === 0) {
+    const existing = await findAppointmentPaymentByAppointmentId(appointmentId);
+    if (!existing) {
+      throw new Error(`Payment record not found for appointment ${appointmentId}`);
+    }
+    return existing;
+  }
+
+  const setClause = entries.map(([key]) => `\`${key}\` = ?`).join(', ');
+  const values = entries.map(([, value]) => value);
+
+  await prisma.$executeRawUnsafe(
+    `UPDATE \`appointment_payments\` SET ${setClause}, \`updatedAt\` = CURRENT_TIMESTAMP(3) WHERE \`appointmentId\` = ?`,
+    ...values,
+    appointmentId
+  );
+
+  const updated = await findAppointmentPaymentByAppointmentId(appointmentId);
+  if (!updated) {
+    throw new Error(`Payment record not found after update for appointment ${appointmentId}`);
+  }
+
+  return updated;
+};
+
 const canTransitionPaymentStatus = (
   currentStatus: AppointmentPaymentStatus,
   nextStatus: AppointmentPaymentStatus
@@ -100,22 +197,16 @@ const buildPaymentWindow = (params: {
 };
 
 const ensureAppointmentPayment = async (appointmentId: string) => {
-  const paymentModel = requireAppointmentPaymentDelegate();
-
-  const existing = await paymentModel.findUnique({
-    where: { appointmentId },
-  });
+  const existing = await findAppointmentPaymentByAppointmentId(appointmentId);
 
   if (existing) {
     return existing;
   }
 
-  return paymentModel.create({
-    data: {
-      appointmentId,
-      paymentStatus: 'UNPAID',
-      paymentMethod: 'manual_bank_transfer',
-    },
+  return createAppointmentPaymentRecord({
+    appointmentId,
+    paymentStatus: 'UNPAID',
+    paymentMethod: 'manual_bank_transfer',
   });
 };
 
@@ -1196,14 +1287,11 @@ export const confirmAppointmentPayment = async (req: Request, res: Response) => 
       });
     }
 
-    const paymentRecord = await requireAppointmentPaymentDelegate().update({
-      where: { appointmentId },
-      data: {
-        paymentMethod: typeof paymentMethod === 'string' && paymentMethod.trim().length > 0
-          ? paymentMethod.trim()
-          : 'manual_bank_transfer',
-        paymentStatus: 'IN_REVIEW',
-      },
+    const paymentRecord = await updateAppointmentPaymentByAppointmentId(appointmentId, {
+      paymentMethod: typeof paymentMethod === 'string' && paymentMethod.trim().length > 0
+        ? paymentMethod.trim()
+        : 'manual_bank_transfer',
+      paymentStatus: 'IN_REVIEW',
     });
 
     res.json({
@@ -1273,13 +1361,10 @@ export const submitAppointmentPaymentProof = async (req: Request, res: Response)
     const normalizedResourceType = resourceType === 'raw' || resourceType === 'video' ? resourceType : 'image';
     const proofUrl = buildCloudinaryUrl(publicId, normalizedResourceType);
 
-    const updated = await requireAppointmentPaymentDelegate().update({
-      where: { appointmentId },
-      data: {
-        proofUrl,
-        proofUploadedAt: new Date(),
-        paymentStatus: 'IN_REVIEW',
-      },
+    const updated = await updateAppointmentPaymentByAppointmentId(appointmentId, {
+      proofUrl,
+      proofUploadedAt: new Date(),
+      paymentStatus: 'IN_REVIEW',
     });
 
     res.json({
@@ -1330,9 +1415,7 @@ export const getAppointmentPaymentStatus = async (req: Request, res: Response) =
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    const payment = await requireAppointmentPaymentDelegate().findUnique({
-      where: { appointmentId },
-    });
+    const payment = await findAppointmentPaymentByAppointmentId(appointmentId);
     const currentStatus = (payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
     const visibleStatus = toVisiblePaymentStatus(currentStatus);
     const window = buildPaymentWindow({
