@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FaTimes, FaSpinner } from 'react-icons/fa';
+import { useLeaveConfirmation } from './useLeaveConfirmation';
 
 interface VideoCallModalProps {
   appointmentId: string;
@@ -47,10 +48,25 @@ export default function VideoCallModal({
   userRole,
 }: VideoCallModalProps) {
   const jitsiContainer = useRef<HTMLDivElement>(null);
+  const apiRef = useRef<JitsiAPI | null>(null);
   const [api, setApi] = useState<JitsiAPI | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jitsiLoaded, setJitsiLoaded] = useState(false);
+
+  const handleClose = useCallback(() => {
+    apiRef.current?.dispose();
+    apiRef.current = null;
+    setApi(null);
+    setLoading(true);
+    setError(null);
+    onClose();
+  }, [onClose]);
+
+  const { requestLeave, finalizeLeave } = useLeaveConfirmation({
+    isOpen,
+    onConfirmLeave: handleClose,
+  });
 
   // Load Jitsi External API script
   useEffect(() => {
@@ -277,13 +293,14 @@ export default function VideoCallModal({
             console.error('Failed to update end status:', err);
           }
 
-          handleClose();
+          finalizeLeave();
         });
 
         jitsiApi.addEventListener('readyToClose', () => {
-          handleClose();
+          finalizeLeave();
         });
 
+        apiRef.current = jitsiApi;
         setApi(jitsiApi);
       } catch (error) {
         console.error('Error initializing video call:', error);
@@ -294,26 +311,18 @@ export default function VideoCallModal({
 
     initializeCall();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, jitsiLoaded, appointmentId, firebaseToken]);
+  }, [isOpen, jitsiLoaded, appointmentId, firebaseToken, finalizeLeave]);
 
   // Cleanup effect
   useEffect(() => {
+    apiRef.current = api;
+
     return () => {
       if (api) {
         api.dispose();
       }
     };
   }, [api]);
-
-  const handleClose = () => {
-    if (api) {
-      api.dispose();
-      setApi(null);
-    }
-    setLoading(true);
-    setError(null);
-    onClose();
-  };
 
   if (!isOpen) return null;
 
@@ -331,7 +340,7 @@ export default function VideoCallModal({
             </p>
           </div>
           <button
-            onClick={handleClose}
+            onClick={requestLeave}
             className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
             aria-label="Close video call"
           >
@@ -379,7 +388,7 @@ export default function VideoCallModal({
                 
                 <div className="flex space-x-3">
                   <button
-                    onClick={handleClose}
+                    onClick={requestLeave}
                     className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
                   >
                     Close
