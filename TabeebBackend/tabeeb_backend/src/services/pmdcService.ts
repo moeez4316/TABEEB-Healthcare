@@ -59,9 +59,18 @@ export interface PmdcDoctorInfo {
   fromCache: boolean;
 }
 
-// Cache duration: 7 days for successful lookups, 15 minutes for failures
+// Cache duration: 7 days for successful lookups, 15 minutes for failures, never cache service outages
 const CACHE_DURATION_SUCCESS_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_DURATION_FAILURE_MS = 15 * 60 * 1000;
+
+// Detect axios errors caused by the remote server being down (5xx)
+function isPmdcServiceDown(err: unknown): boolean {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const status = (err as { response?: { status?: number } }).response?.status;
+    return typeof status === 'number' && status >= 500;
+  }
+  return false;
+}
 
 // Common headers to mimic the pmdc.pk website's own AJAX requests
 const API_HEADERS = {
@@ -91,21 +100,29 @@ export async function lookupPmdcNumber(pmdcNumber: string): Promise<PmdcDoctorIn
   try {
     result = await queryPmdcApi(normalizedPmdc);
   } catch (error) {
-    console.error(`[PMDC Service] Error querying PMDC API for ${normalizedPmdc}:`, error);
+    const serviceDown = isPmdcServiceDown(error);
+    console.error(
+      `[PMDC Service] ${serviceDown ? 'PMDC server returned 5xx' : 'Error'} querying PMDC API for ${normalizedPmdc}:`,
+      error
+    );
     result = {
       found: false,
       pmdcNumber: normalizedPmdc,
       source: 'pmdc_api',
       fetchedAt: new Date(),
-      errorMessage: error instanceof Error ? error.message : 'Unknown error during PMDC lookup',
+      errorMessage: serviceDown
+        ? 'The PMDC website is temporarily unavailable (server error). Please try again later or verify manually at pmdc.pk.'
+        : (error instanceof Error ? error.message : 'Unknown error during PMDC lookup'),
       fromCache: false,
     };
+    // Do NOT cache service-down results — let admins retry immediately
+    if (serviceDown) return result;
   }
 
   // 3. Cache the result (failures cached for shorter duration to allow retries)
-  await cacheLookupResult(normalizedPmdc, result);
+  await cacheLookupResult(normalizedPmdc, result!);
 
-  return result;
+  return result!;
 }
 
 /**
@@ -156,8 +173,13 @@ async function queryPmdcApi(pmdcNumber: string): Promise<PmdcDoctorInfo> {
       timeout: 20000,
     });
   } catch (err) {
+    // If it's a server-side 5xx error, don't retry — bubble up immediately
+    if (isPmdcServiceDown(err)) {
+      console.error('[PMDC Service] PMDC server returned 5xx, not retrying.');
+      throw err;
+    }
     // Retry once on timeout or network error
-    console.warn('[PMDC Service] First attempt failed, retrying...');
+    console.warn('[PMDC Service] First attempt failed (network/timeout), retrying...');
     searchResponse = await axios.post(PMDC_SEARCH_URL, searchBody, {
       headers: API_HEADERS,
       timeout: 25000,

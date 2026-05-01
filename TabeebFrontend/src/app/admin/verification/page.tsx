@@ -765,29 +765,46 @@ export default function AdminVerificationPage() {
                           )}
                         </>
                       ) : (
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg shrink-0">
-                            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">
-                              No PMDC record found
-                            </p>
-                            <p className="text-xs text-amber-700 dark:text-amber-300/80 leading-relaxed">
-                              {pmdcLookupData[verification.pmdcNumber].errorMessage || 
-                                'No matching PMDC record found for this registration number.'}
-                            </p>
-                            <a
-                              href="https://pmdc.pk/"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                            >
-                              <Globe className="w-3 h-3" />
-                              Verify manually on pmdc.pk
-                            </a>
-                          </div>
-                        </div>
+                        (() => {
+                          const isServiceDown = pmdcLookupData[verification.pmdcNumber].errorMessage?.includes('temporarily unavailable');
+                          return (
+                            <div className={`flex items-start gap-3 p-3 rounded-xl border ${
+                              isServiceDown
+                                ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800/50'
+                                : 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/50'
+                            }`}>
+                              <div className={`p-2 rounded-lg shrink-0 ${
+                                isServiceDown ? 'bg-red-100 dark:bg-red-900/30' : 'bg-amber-100 dark:bg-amber-900/30'
+                              }`}>
+                                <AlertTriangle className={`w-5 h-5 ${
+                                  isServiceDown ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+                                }`} />
+                              </div>
+                              <div>
+                                <p className={`text-sm font-semibold mb-1 ${
+                                  isServiceDown ? 'text-red-800 dark:text-red-200' : 'text-amber-800 dark:text-amber-200'
+                                }`}>
+                                  {isServiceDown ? 'PMDC Service Temporarily Unavailable' : 'No PMDC Record Found'}
+                                </p>
+                                <p className={`text-xs leading-relaxed ${
+                                  isServiceDown ? 'text-red-700 dark:text-red-300/80' : 'text-amber-700 dark:text-amber-300/80'
+                                }`}>
+                                  {pmdcLookupData[verification.pmdcNumber].errorMessage ||
+                                    'No matching PMDC record found for this registration number.'}
+                                </p>
+                                <a
+                                  href="https://pmdc.pk/"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                  <Globe className="w-3 h-3" />
+                                  Verify manually on pmdc.pk
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        })()
                       )}
                     </div>
                   )}
@@ -1154,10 +1171,20 @@ export default function AdminVerificationPage() {
                             )}
                           </div>
                         ) : (
-                          <div className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3">
-                            <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                          <div className={`bg-amber-50/50 dark:bg-amber-900/10 border rounded-xl p-3 ${
+                            pmdcLookupData[selectedVerification.pmdcNumber].errorMessage?.includes('temporarily unavailable')
+                              ? 'border-red-200 dark:border-red-800/50 bg-red-50/50 dark:bg-red-900/10'
+                              : 'border-amber-200 dark:border-amber-800/50'
+                          }`}>
+                            <p className={`text-xs flex items-center gap-1.5 ${
+                              pmdcLookupData[selectedVerification.pmdcNumber].errorMessage?.includes('temporarily unavailable')
+                                ? 'text-red-700 dark:text-red-300'
+                                : 'text-amber-700 dark:text-amber-300'
+                            }`}>
                               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                              {pmdcLookupData[selectedVerification.pmdcNumber].errorMessage || 'No PMDC record found. Verify manually.'}
+                              {pmdcLookupData[selectedVerification.pmdcNumber].errorMessage?.includes('temporarily unavailable')
+                                ? '⚠️ PMDC service is temporarily down. Try the Refresh button in a few minutes, or verify manually.'
+                                : (pmdcLookupData[selectedVerification.pmdcNumber].errorMessage || 'No PMDC record found. Verify manually.')}
                             </p>
                             <a
                               href="https://pmdc.pk/"
