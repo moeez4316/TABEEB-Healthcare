@@ -22,7 +22,7 @@ export default function PlatformReviewsAdmin() {
     enabled: !!adminToken,
   });
 
-  const handleUpdateStatus = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+  const handleUpdateStatus = async (id: string, status: 'APPROVED' | 'REJECTED' | 'PENDING') => {
     try {
       await updatePlatformReviewStatus(adminToken as string, id, status);
       refetch();
@@ -78,11 +78,11 @@ export default function PlatformReviewsAdmin() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading || !adminToken ? (
         <div className="flex justify-center items-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
         </div>
-      ) : data?.reviews.length === 0 ? (
+      ) : !data || data.reviews.length === 0 ? (
         <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
           <Star className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
           <h3 className="text-xl font-medium text-slate-900 dark:text-white">No reviews found</h3>
