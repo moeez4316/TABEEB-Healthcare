@@ -1,6 +1,7 @@
 
 import { useState } from "react";
-import Image from "next/image";
+import { useDocumentViewer } from '@/lib/hooks/useDocumentViewer';
+import { DocumentViewerModal } from '@/components/shared/DocumentViewerModal';
 
 interface MedicalRecord {
   id: string;
@@ -19,10 +20,8 @@ interface MedicalRecordCardProps {
 }
 
 export default function MedicalRecordCard({ record, onDelete, onSummarize }: MedicalRecordCardProps) {
-  const [showPreview, setShowPreview] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const isImage = (type: string) => type.startsWith("image/");
-  const isPDF = (type: string) => type === "application/pdf";
+  const docViewer = useDocumentViewer();
 
   return (
     <div className="p-3 sm:p-5 rounded-2xl shadow-xl border-2 border-teal-100 dark:border-teal-900 bg-white/90 dark:bg-[#18181b]/90 flex flex-col gap-2 sm:gap-3 transition-all hover:shadow-2xl hover:border-teal-300 dark:hover:border-teal-700 overflow-hidden">
@@ -47,7 +46,11 @@ export default function MedicalRecordCard({ record, onDelete, onSummarize }: Med
       <div className="flex flex-wrap gap-2 mt-2">
         <button
           className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold shadow transition-all duration-200 active:scale-95"
-          onClick={() => setShowPreview(true)}
+          onClick={() => docViewer.open({
+            url: record.fileUrl,
+            title: record.fileName || `Medical Record - ${new Date(record.uploadedAt).toLocaleDateString()}`,
+            fileType: record.fileType,
+          })}
         >
           View
         </button>
@@ -75,43 +78,7 @@ export default function MedicalRecordCard({ record, onDelete, onSummarize }: Med
         )}
       </div>
 
-      {/* Fullscreen Modal Preview */}
-      {showPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm p-3 sm:p-6">
-          <div className="relative w-full max-w-3xl h-[80vh] flex items-center justify-center">
-            <button
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10 bg-white dark:bg-[#23232a] text-gray-700 dark:text-gray-200 rounded-full p-1.5 sm:p-2 shadow hover:bg-gray-100 dark:hover:bg-[#18181b] focus:outline-none"
-              onClick={() => setShowPreview(false)}
-              aria-label="Close preview"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <div className="w-full h-full flex items-center justify-center bg-white dark:bg-[#18181b] rounded-xl p-4 shadow-xl">
-              {isImage(record.fileType) && (
-                <Image
-                  src={record.fileUrl}
-                  alt={record.notes || "Medical record image"}
-                  width={800}
-                  height={600}
-                  className="max-h-full max-w-full object-contain rounded-lg shadow"
-                />
-              )}
-              {isPDF(record.fileType) && (
-                <iframe
-                  src={record.fileUrl}
-                  title={record.notes || "Medical record PDF"}
-                  className="w-full h-full rounded-lg border shadow"
-                />
-              )}
-              {!isImage(record.fileType) && !isPDF(record.fileType) && (
-                <div className="text-xs text-gray-400">Unsupported file type</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <DocumentViewerModal {...docViewer.modalProps} />
     </div>
   );
 }

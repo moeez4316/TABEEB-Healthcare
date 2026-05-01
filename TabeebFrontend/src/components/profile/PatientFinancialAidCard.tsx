@@ -14,6 +14,8 @@ import {
   type FinancialAidStatus,
   type FinancialAidSummaryResponse,
 } from '@/lib/financial-aid-api';
+import { useDocumentViewer } from '@/lib/hooks/useDocumentViewer';
+import { DocumentViewerModal } from '@/components/shared/DocumentViewerModal';
 
 type NeedyChoice = 'yes' | 'no';
 
@@ -90,6 +92,8 @@ export default function PatientFinancialAidCard({ token }: PatientFinancialAidCa
     message: '',
     type: 'info',
   });
+
+  const docViewer = useDocumentViewer();
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setToast({ show: true, message, type });
@@ -428,12 +432,14 @@ export default function PatientFinancialAidCard({ token }: PatientFinancialAidCa
                   <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Uploaded Supporting Documents</p>
                   <div className="space-y-2">
                     {request.documents.map((document) => (
-                      <a
+                      <button
                         key={document.id}
-                        href={document.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-slate-700 px-3 py-2 hover:border-teal-500 transition-colors"
+                        type="button"
+                        onClick={() => docViewer.open({
+                          url: document.fileUrl,
+                          title: document.docType || document.fileName || 'Supporting document'
+                        })}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-slate-700 px-3 py-2 hover:border-teal-500 transition-colors w-full text-left"
                       >
                         <span className="inline-flex items-center gap-2 min-w-0">
                           <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400" />
@@ -444,7 +450,7 @@ export default function PatientFinancialAidCard({ token }: PatientFinancialAidCa
                         <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                           {formatDate(document.uploadedAt)}
                         </span>
-                      </a>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -454,6 +460,7 @@ export default function PatientFinancialAidCard({ token }: PatientFinancialAidCa
         </div>
       </section>
 
+      <DocumentViewerModal {...docViewer.modalProps} />
       <Toast show={toast.show} message={toast.message} type={toast.type} onClose={hideToast} />
     </>
   );

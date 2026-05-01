@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { useApiQuery } from '@/lib/hooks/useApiQuery';
 import { apiFetchJson } from '@/lib/api-client';
+import { useDocumentViewer } from '@/lib/hooks/useDocumentViewer';
+import { DocumentViewerModal } from '@/components/shared/DocumentViewerModal';
 
 interface SharedDocument {
   sharedDocumentId: string;
@@ -28,7 +30,7 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
   className = ''
 }) => {
   const { token } = useAuth();
-  const [previewDocument, setPreviewDocument] = useState<SharedDocument | null>(null);
+  const docViewer = useDocumentViewer();
   const {
     data: sharedPayload,
     isLoading,
@@ -77,11 +79,19 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
   };
 
   const openDocument = (document: SharedDocument) => {
-    window.open(document.fileUrl, '_blank');
+    docViewer.open({
+      url: document.fileUrl,
+      title: `Medical Record - ${new Date(document.uploadedAt).toLocaleDateString()}`,
+      fileType: document.fileType,
+    });
   };
 
   const handlePreview = (document: SharedDocument) => {
-    setPreviewDocument(document);
+    docViewer.open({
+      url: document.fileUrl,
+      title: `Medical Record - ${new Date(document.uploadedAt).toLocaleDateString()}`,
+      fileType: document.fileType,
+    });
   };
 
   if (isLoading) {
@@ -253,43 +263,7 @@ export const SharedDocumentsView: React.FC<SharedDocumentsViewProps> = ({
         </div>
       </div>
 
-      {/* Preview Modal */}
-      {previewDocument && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg max-w-4xl max-h-full overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                Document Preview
-              </h3>
-              <button
-                onClick={() => setPreviewDocument(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4 max-h-96 overflow-auto">
-              {previewDocument.fileType.startsWith('image/') ? (
-                <Image
-                  src={previewDocument.fileUrl}
-                  alt="Medical record"
-                  width={800}
-                  height={600}
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : previewDocument.fileType === 'application/pdf' ? (
-                <iframe
-                  src={previewDocument.fileUrl}
-                  className="w-full h-96"
-                  title="Medical record PDF"
-                />
-              ) : null}
-            </div>
-          </div>
-        </div>
-      )}
+      <DocumentViewerModal {...docViewer.modalProps} />
     </>
   );
 };

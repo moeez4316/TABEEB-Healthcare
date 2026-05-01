@@ -4,6 +4,8 @@ import { useState, useEffect, useDeferredValue, useMemo } from 'react';
 import { formatDate } from '@/lib/verification/utils';
 import { Toast } from '@/components/Toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDocumentViewer } from '@/lib/hooks/useDocumentViewer';
+import { DocumentViewerModal } from '@/components/shared/DocumentViewerModal';
 import { useAdminApiQuery } from '@/lib/hooks/useAdminApiQuery';
 import { apiFetchJson, ApiError } from '@/lib/api-client';
 import AdminLoading from '@/components/admin/AdminLoading';
@@ -109,9 +111,7 @@ export default function AdminVerificationPage() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   
-  // Image popup states
-  const [imageModal, setImageModal] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<{ url: string; title: string; isPdf: boolean } | null>(null);
+  const docViewer = useDocumentViewer();
   
   // PMDC lookup states
   const [pmdcLookupData, setPmdcLookupData] = useState<Record<string, PmdcLookupData>>({});
@@ -196,16 +196,7 @@ export default function AdminVerificationPage() {
   };
 
   const openImageModal = (url: string, title: string) => {
-    const isPdf = url.includes('/raw/upload/');
-    setSelectedImage({ url, title, isPdf });
-    setImageModal(true);
-    document.body.style.overflow = 'hidden';
-  };
-
-  const closeImageModal = () => {
-    setImageModal(false);
-    setSelectedImage(null);
-    document.body.style.overflow = 'unset';
+    docViewer.open({ url, title });
   };
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -1261,53 +1252,7 @@ export default function AdminVerificationPage() {
           </div>
         )}
 
-        {/* Document Modal */}
-        {imageModal && selectedImage && (
-          <div 
-            className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50"
-            onClick={closeImageModal}
-          >
-            <div 
-              className="relative w-full max-w-6xl h-[90vh] flex items-center justify-center p-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm text-white rounded-full p-3 hover:bg-white/20 focus:outline-none z-10 transition-all"
-                onClick={closeImageModal}
-                aria-label="Close preview"
-              >
-                <X className="w-6 h-6" />
-              </button>
-              
-              <div className="w-full h-full flex items-center justify-center bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-white/20 dark:border-slate-700/50">
-                <div className="relative w-full h-full flex flex-col">
-                  <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-600 p-4 border-b border-slate-200 dark:border-slate-600">
-                    <h3 className="text-lg font-semibold text-slate-800 dark:text-white text-center">
-                      {selectedImage.title}
-                    </h3>
-                  </div>
-                  
-                  <div className="flex-1 flex items-center justify-center overflow-hidden p-4 bg-slate-100 dark:bg-slate-900">
-                    {selectedImage.isPdf ? (
-                      <iframe
-                        src={selectedImage.url}
-                        title={selectedImage.title}
-                        className="w-full h-full rounded-lg border-0 bg-white"
-                      />
-                    ) : (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={selectedImage.url}
-                        alt={selectedImage.title}
-                        className="max-h-full max-w-full object-contain rounded-xl shadow-lg"
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <DocumentViewerModal {...docViewer.modalProps} />
       </div>
 
       {/* Toast Notification */}

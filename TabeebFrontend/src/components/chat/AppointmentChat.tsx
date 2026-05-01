@@ -14,6 +14,8 @@ import { FaPaperPlane, FaMicrophone, FaPaperclip, FaTimes, FaPlay, FaPause, FaFi
 import Image from 'next/image';
 import { uploadFile } from '@/lib/cloudinary-upload';
 import { LinearProgress, useUploadProgress } from '@/components/shared/UploadProgress';
+import { useDocumentViewer } from '@/lib/hooks/useDocumentViewer';
+import { DocumentViewerModal } from '@/components/shared/DocumentViewerModal';
 
 interface AppointmentChatProps {
   appointmentId: string;
@@ -43,11 +45,10 @@ export default function AppointmentChat({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [uploading, setUploading] = useState(false);
-  const [showMediaPreview, setShowMediaPreview] = useState(false);
-  const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: 'image' | 'document'; fileName?: string } | null>(null);
   const sendOnStopRef = useRef<boolean>(false);
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const uploadProgress = useUploadProgress();
+  const docViewer = useDocumentViewer();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,34 +84,6 @@ export default function AppointmentChat({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Prevent background scroll when modal is open (comprehensive scroll lock)
-  useEffect(() => {
-    if (showMediaPreview) {
-      // Save current scroll position
-      const scrollX = window.scrollX;
-      const scrollY = window.scrollY;
-      
-      // Prevent scroll on multiple elements
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
-      
-      // Prevent overscroll bounce on iOS
-      document.documentElement.style.overscrollBehavior = 'none';
-      document.body.style.overscrollBehavior = 'none';
-      
-      return () => {
-        // Restore scroll
-        document.documentElement.style.overflow = 'unset';
-        document.body.style.overflow = 'unset';
-        document.documentElement.style.overscrollBehavior = 'unset';
-        document.body.style.overscrollBehavior = 'unset';
-        
-        // Restore scroll position
-        window.scrollTo(scrollX, scrollY);
-      };
-    }
-  }, [showMediaPreview]);
 
   // Handle send text message
   const handleSendMessage = async () => {
@@ -406,10 +379,7 @@ export default function AppointmentChat({
                   {/* Document Message */}
                   {message.type === 'document' && (
                     <button
-                      onClick={() => {
-                        setSelectedMedia({ url: message.content, type: 'document', fileName: message.fileName });
-                        setShowMediaPreview(true);
-                      }}
+                      onClick={() => docViewer.open({ url: message.content, title: message.fileName || 'Document' })}
                       className="flex items-center space-x-2 hover:underline text-blue-500 dark:text-blue-400 w-full text-left"
                     >
                       <FaFileAlt className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
@@ -420,10 +390,7 @@ export default function AppointmentChat({
                   {/* Image Message */}
                   {message.type === 'image' && (
                     <button
-                      onClick={() => {
-                        setSelectedMedia({ url: message.content, type: 'image', fileName: message.fileName });
-                        setShowMediaPreview(true);
-                      }}
+                      onClick={() => docViewer.open({ url: message.content, title: message.fileName || 'Image' })}
                       className="block w-full text-left hover:opacity-90 transition-opacity"
                     >
                       <Image
@@ -577,52 +544,8 @@ export default function AppointmentChat({
         </div>
       )}
 
-      {/* Media Preview Modal */}
-      {showMediaPreview && selectedMedia && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-95 backdrop-blur-sm p-1 sm:p-4 overflow-hidden">
-          <div className="relative w-full h-full max-w-3xl max-h-screen flex items-center justify-center">
-            <button
-              className="absolute top-3 right-3 sm:top-6 sm:right-6 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 rounded-full p-2.5 sm:p-3.5 shadow hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none z-20 flex-shrink-0"
-              onClick={() => {
-                setShowMediaPreview(false);
-                setSelectedMedia(null);
-              }}
-              aria-label="Close preview"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 sm:w-6 sm:h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <div className="w-full h-full flex items-center justify-center bg-black rounded-lg overflow-auto">
-              {selectedMedia.type === 'image' && (
-                <Image
-                  src={selectedMedia.url}
-                  alt={selectedMedia.fileName || 'Chat image'}
-                  width={800}
-                  height={600}
-                  className="max-h-full max-w-full object-contain"
-                  unoptimized
-                />
-              )}
-              {selectedMedia.type === 'document' && (
-                <div className="w-full h-full flex flex-col items-center justify-center text-white p-4">
-                  <FaFileAlt className="w-12 h-12 sm:w-16 sm:h-16 mb-2 sm:mb-4" />
-                  <p className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 text-center px-4">{selectedMedia.fileName || 'Document'}</p>
-                  <a
-                    href={selectedMedia.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="mt-2 sm:mt-4 px-4 sm:px-6 py-2 bg-teal-600 hover:bg-teal-700 rounded-lg text-sm sm:text-base font-semibold transition-colors"
-                  >
-                    Download Document
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Document Viewer Modal */}
+      <DocumentViewerModal {...docViewer.modalProps} />
     </div>
   );
 }
