@@ -98,7 +98,7 @@ const LandingPage = () => {
       setCurrentReviewIndex((prev) => (prev + 1) % platformReviews.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, [platformReviews.length]);
+  }, [platformReviews.length, currentReviewIndex]);
 
   const nextReview = () => {
     setCurrentReviewIndex((prev) => (prev + 1) % platformReviews.length);
