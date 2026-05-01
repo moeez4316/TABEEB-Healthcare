@@ -473,7 +473,7 @@ export default function AdminManagementPage() {
       )}
 
       {totpPendingAction && (
-        <div className="fixed inset-0 z-[65] bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[65] bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               Enter TOTP Code

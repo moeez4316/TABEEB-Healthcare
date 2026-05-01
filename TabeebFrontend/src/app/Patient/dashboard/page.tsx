@@ -496,6 +496,16 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                  <Phone className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Phone</p>
+                  <p className="text-gray-600 dark:text-gray-300">03300353303</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
                   <MapPin className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 </div>

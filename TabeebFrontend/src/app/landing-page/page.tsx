@@ -7,7 +7,7 @@ import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { 
   ArrowRight, BrainCircuit, ShieldCheck, UserCheck, HeartPulse,
-  Stethoscope, X, Mail, MapPin, MessageSquareQuote, Star, ChevronLeft, ChevronRight
+  Stethoscope, X, Mail, Phone, MapPin, MessageSquareQuote, Star, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 import { useApiQuery } from '@/lib/hooks/useApiQuery';
@@ -653,7 +653,7 @@ const LandingPage = () => {
 
       {/* Contact Modal */}
       {showContactModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <motion.div 
             className="contact-modal bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full"
             initial={{ opacity: 0, scale: 0.9 }}
@@ -671,7 +671,7 @@ const LandingPage = () => {
             <div className="space-y-6">
               {[
                 { icon: Mail, title: 'Email', value: 'support@tabeebemail.me', color: 'teal' },
-                // { icon: Phone, title: 'Phone', value: '+92 300 1234567', color: 'green' },
+                { icon: Phone, title: 'Phone', value: '03300353303', color: 'green' },
                 { icon: MapPin, title: 'Location', value: 'Lahore, Pakistan', color: 'orange' }
               ].map(item => (
                 <div key={item.title} className="flex items-center space-x-3">
