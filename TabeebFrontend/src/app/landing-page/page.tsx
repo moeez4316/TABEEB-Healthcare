@@ -7,11 +7,13 @@ import { motion, useAnimation } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { 
   ArrowRight, BrainCircuit, ShieldCheck, UserCheck, HeartPulse,
-  Stethoscope, X, Mail, MapPin, MessageSquareQuote 
+  Stethoscope, X, Mail, MapPin, MessageSquareQuote, Star, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 import { useApiQuery } from '@/lib/hooks/useApiQuery';
 import { apiFetchJson } from '@/lib/api-client';
+import { getPublicPlatformReviews, PlatformReview } from '@/lib/platform-review-api';
+import PlatformReviewModal from '@/components/PlatformReviewModal';
 
 // Animation variants for sections (use cubic-bezier array for type-safe easing)
 const sectionVariants = {
@@ -77,6 +79,34 @@ const LandingPage = () => {
       ),
     staleTime: 2 * 60 * 1000,
   });
+
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
+
+  const { data: reviewsPayload } = useApiQuery<{ success: boolean; reviews: PlatformReview[] }>({
+    queryKey: ['platform-reviews', 'public'],
+    queryFn: () => getPublicPlatformReviews(10),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const platformReviews = reviewsPayload?.reviews || [];
+
+  // Carousel auto-play
+  useEffect(() => {
+    if (platformReviews.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentReviewIndex((prev) => (prev + 1) % platformReviews.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [platformReviews.length]);
+
+  const nextReview = () => {
+    setCurrentReviewIndex((prev) => (prev + 1) % platformReviews.length);
+  };
+
+  const prevReview = () => {
+    setCurrentReviewIndex((prev) => (prev - 1 + platformReviews.length) % platformReviews.length);
+  };
 
   const featuredDoctors = useMemo(() => {
     const doctors = featuredPayload?.doctors || [];
@@ -403,46 +433,159 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
-              Trusted by Patients Across Pakistan
+              What Our Community Says
             </h2>
             <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
               Hear what our users have to say about their experience with TABEEB.
             </p>
           </div>
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Testimonial Card */}
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-              <p className="text-slate-600 dark:text-slate-400 mb-6">&quot;TABEEB was a lifesaver when my child had a fever late at night. The AI gave me clear instructions and peace of mind instantly.&quot;</p>
-              <div className="flex items-center">
-                <Image src="/avatar1.webp" alt="User" width={40} height={40} className="rounded-full" />
-                <div className="ml-4">
-                  <p className="font-semibold text-slate-900 dark:text-white">Aisha Khan</p>
-                  <p className="text-sm text-slate-500">Karachi</p>
+          
+          {platformReviews.length > 0 ? (
+            <div className="relative max-w-4xl mx-auto">
+              <div className="overflow-hidden relative min-h-[300px]">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentReviewIndex}
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -50 }}
+                    transition={{ duration: 0.5 }}
+                    className="bg-white dark:bg-slate-800 p-8 md:p-12 rounded-3xl shadow-lg border border-slate-200 dark:border-slate-700 mx-auto w-full max-w-3xl flex flex-col items-center text-center"
+                  >
+                    <div className="flex space-x-1 mb-6">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`w-6 h-6 ${
+                            star <= platformReviews[currentReviewIndex].rating
+                              ? 'text-amber-400 fill-amber-400'
+                              : 'text-slate-300 dark:text-slate-600'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    
+                    <p className="text-xl md:text-2xl text-slate-700 dark:text-slate-300 font-medium mb-8 leading-relaxed">
+                      &quot;{platformReviews[currentReviewIndex].comment}&quot;
+                    </p>
+                    
+                    <div className="flex flex-col items-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-500 text-white rounded-full flex items-center justify-center text-2xl font-bold mb-3 shadow-md">
+                        {platformReviews[currentReviewIndex].displayName.charAt(0)}
+                      </div>
+                      <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+                        {platformReviews[currentReviewIndex].displayName}
+                      </h4>
+                      <div className="flex items-center mt-1 space-x-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          platformReviews[currentReviewIndex].authorRole === 'DOCTOR' 
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' 
+                            : 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
+                        }`}>
+                          {platformReviews[currentReviewIndex].authorRole === 'DOCTOR' ? 'Doctor' : 'Patient'}
+                        </span>
+                        {platformReviews[currentReviewIndex].displaySubtitle && (
+                          <span className="text-sm text-slate-500 dark:text-slate-400">
+                            • {platformReviews[currentReviewIndex].displaySubtitle}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+              
+              {platformReviews.length > 1 && (
+                <>
+                  <button 
+                    onClick={prevReview}
+                    className="absolute top-1/2 -left-4 md:-left-12 -translate-y-12 bg-white dark:bg-slate-800 rounded-full p-3 shadow-md hover:scale-110 hover:shadow-lg transition-all text-teal-600 dark:text-teal-400 z-10"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                  <button 
+                    onClick={nextReview}
+                    className="absolute top-1/2 -right-4 md:-right-12 -translate-y-12 bg-white dark:bg-slate-800 rounded-full p-3 shadow-md hover:scale-110 hover:shadow-lg transition-all text-teal-600 dark:text-teal-400 z-10"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                  
+                  <div className="flex justify-center space-x-2 mt-8">
+                    {platformReviews.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setCurrentReviewIndex(idx)}
+                        className={`w-2.5 h-2.5 rounded-full transition-all ${
+                          idx === currentReviewIndex 
+                            ? 'bg-teal-500 w-8' 
+                            : 'bg-slate-300 dark:bg-slate-600'
+                        }`}
+                        aria-label={`Go to slide ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="grid lg:grid-cols-3 gap-8">
+              {/* Fallback Static Cards */}
+              <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <div className="flex space-x-1 mb-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} className="w-5 h-5 text-amber-400 fill-amber-400" />
+                  ))}
+                </div>
+                <p className="text-slate-600 dark:text-slate-400 mb-6">&quot;TABEEB was a lifesaver when my child had a fever late at night. The AI gave me clear instructions and peace of mind instantly.&quot;</p>
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-teal-500 text-white rounded-full flex items-center justify-center font-bold">A</div>
+                  <div className="ml-4">
+                    <p className="font-semibold text-slate-900 dark:text-white">Aisha K.</p>
+                    <p className="text-sm text-slate-500">Patient • Karachi</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <div className="flex space-x-1 mb-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} className="w-5 h-5 text-amber-400 fill-amber-400" />
+                  ))}
+                </div>
+                <p className="text-slate-600 dark:text-slate-400 mb-6">&quot;As a busy professional, I don&apos;t have time for long clinic waits. This app lets me consult with a doctor from my office. Highly recommended!&quot;</p>
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-teal-500 text-white rounded-full flex items-center justify-center font-bold">B</div>
+                  <div className="ml-4">
+                    <p className="font-semibold text-slate-900 dark:text-white">Bilal A.</p>
+                    <p className="text-sm text-slate-500">Patient • Lahore</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <div className="flex space-x-1 mb-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} className="w-5 h-5 text-amber-400 fill-amber-400" />
+                  ))}
+                </div>
+                <p className="text-slate-600 dark:text-slate-400 mb-6">&quot;Finally, a healthcare solution that understands our needs. The medicine finder helped me save a lot on my monthly prescriptions.&quot;</p>
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-teal-500 text-white rounded-full flex items-center justify-center font-bold">F</div>
+                  <div className="ml-4">
+                    <p className="font-semibold text-slate-900 dark:text-white">Fatima R.</p>
+                    <p className="text-sm text-slate-500">Patient • Islamabad</p>
+                  </div>
                 </div>
               </div>
             </div>
-             {/* Testimonial Card */}
-             <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-              <p className="text-slate-600 dark:text-slate-400 mb-6">&quot;As a busy professional, I don&apos;t have time for long clinic waits. This app lets me consult with a doctor from my office. Highly recommended!&quot;</p>
-              <div className="flex items-center">
-                <Image src="/avatar1.webp" alt="User" width={40} height={40} className="rounded-full" />
-                <div className="ml-4">
-                  <p className="font-semibold text-slate-900 dark:text-white">Bilal Ahmed</p>
-                  <p className="text-sm text-slate-500">Lahore</p>
-                </div>
-              </div>
-            </div>
-             {/* Testimonial Card */}
-             <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-              <p className="text-slate-600 dark:text-slate-400 mb-6">&quot;Finally, a healthcare solution that understands our needs. The medicine finder helped me save a lot on my monthly prescriptions.&quot;</p>
-              <div className="flex items-center">
-                <Image src="/avatar1.webp" alt="User" width={40} height={40} className="rounded-full" />
-                <div className="ml-4">
-                  <p className="font-semibold text-slate-900 dark:text-white">Fatima Raza</p>
-                  <p className="text-sm text-slate-500">Islamabad</p>
-                </div>
-              </div>
-            </div>
+          )}
+          
+          <div className="mt-12 text-center">
+            <button
+              onClick={() => setShowReviewModal(true)}
+              className="inline-flex items-center px-6 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-200 dark:border-slate-700"
+            >
+              Share Your Experience
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </button>
           </div>
         </div>
       </AnimatedSection>
@@ -556,6 +699,12 @@ const LandingPage = () => {
           </motion.div>
         </div>
       )}
+
+      {/* Platform Review Modal */}
+      <PlatformReviewModal 
+        isOpen={showReviewModal} 
+        onClose={() => setShowReviewModal(false)} 
+      />
     </div>
   );
 };

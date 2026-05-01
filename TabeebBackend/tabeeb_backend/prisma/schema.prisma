@@ -244,6 +244,27 @@ model Review {
   @@map("reviews")
 }
 
+model PlatformReview {
+  id              String               @id @default(cuid())
+  authorUid       String               @db.VarChar(255)
+  authorRole      PlatformReviewRole
+  displayName     String               @db.VarChar(255)
+  displaySubtitle String?              @db.VarChar(255)
+  rating          Int
+  comment         String               @db.Text
+  status          PlatformReviewStatus @default(PENDING)
+  adminNotes      String?              @db.Text
+  isFeatured      Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([status])
+  @@index([authorUid])
+  @@index([isFeatured])
+  @@index([createdAt])
+  @@map("platform_reviews")
+}
+
 model doctor {
   uid                    String                       @id @db.VarChar(255)
   firstName              String                       @db.VarChar(100)
@@ -441,6 +462,17 @@ enum AppointmentPaymentStatus {
   PAID
   PAID_TO_DOCTOR
   DISPUTED
+}
+
+enum PlatformReviewRole {
+  PATIENT
+  DOCTOR
+}
+
+enum PlatformReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // Blog Models

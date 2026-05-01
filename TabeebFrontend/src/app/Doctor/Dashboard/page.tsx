@@ -14,6 +14,8 @@ import { getDoctorRating } from '@/lib/review-api';
 import { useApiQuery } from '@/lib/hooks/useApiQuery';
 import { DoctorOnboarding } from '@/components/DoctorOnboarding';
 import { getOnboardingStatus } from '@/lib/doctor-api';
+import { checkMyPlatformReview } from '@/lib/platform-review-api';
+import PlatformReviewModal from '@/components/PlatformReviewModal';
 
 export default function DoctorDashboard() {
   const { user, token, verificationStatus } = useAuth();
@@ -21,6 +23,8 @@ export default function DoctorDashboard() {
   const { profile } = useAppSelector((state) => state.doctor || { profile: null });
   const [showProfileEdit, setShowProfileEdit] = useState<string | boolean>(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const { data: rating, isLoading: loadingRating } = useApiQuery({
     queryKey: ['doctor', 'rating', user?.uid],
     queryFn: () => getDoctorRating(token as string),
@@ -54,6 +58,17 @@ export default function DoctorDashboard() {
     };
 
     checkOnboardingStatus();
+  }, [token]);
+
+  // Check review status
+  useEffect(() => {
+    if (token) {
+      checkMyPlatformReview(token).then((res) => {
+        if (!res.recentlySubmitted) {
+          setShowReviewPrompt(true);
+        }
+      }).catch(console.error);
+    }
   }, [token]);
 
   // Load rating data
@@ -531,6 +546,40 @@ export default function DoctorDashboard() {
             onClose={() => setShowProfileEdit(false)}
             initialTab={typeof showProfileEdit === 'string' ? showProfileEdit : undefined}
             showOnboardingCard={showOnboarding}
+          />
+
+          {/* Platform Review Prompt */}
+          {showReviewPrompt && (
+            <div className="bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-900/30 rounded-lg shadow-lg border border-amber-200 dark:border-amber-800 mt-6 p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-amber-500 text-white rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+                    <Star className="w-6 h-6 fill-current" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Enjoying TABEEB?</h3>
+                    <p className="text-gray-600 dark:text-gray-300">
+                      Share your experience to help others find the best healthcare platform.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowReviewModal(true)}
+                  className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-lg font-medium shadow-md transition-colors whitespace-nowrap"
+                >
+                  Write a Review
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Platform Review Modal */}
+          <PlatformReviewModal
+            isOpen={showReviewModal}
+            onClose={() => {
+              setShowReviewModal(false);
+              setShowReviewPrompt(false); // Hide prompt after opening modal
+            }}
           />
         </div>
       </main>

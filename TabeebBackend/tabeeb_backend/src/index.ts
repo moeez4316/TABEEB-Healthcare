@@ -19,6 +19,7 @@ import healthRoutes from './routes/healthRoutes';
 import emailRoutes from './routes/emailRoutes';
 import authRoutes from './routes/authRoutes';
 import aiRoutes from './routes/aiRoutes';
+import platformReviewRoutes from './routes/platformReviewRoutes';
 import { scheduleAutoGeneration } from './utils/autoGenerateSlots';
 import { generalLimiter } from './middleware/rateLimiter';
 import { initRealtime } from './realtime/realtime';
@@ -54,7 +55,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
-
+app.use('/api/platform-reviews', platformReviewRoutes);
 
 const PORT = process.env.PORT || 5002;
 const server = http.createServer(app);

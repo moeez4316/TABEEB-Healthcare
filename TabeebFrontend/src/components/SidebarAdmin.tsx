@@ -20,7 +20,8 @@ import {
   PenSquare,
   Stethoscope,
   UserCog,
-  KeyRound
+  KeyRound,
+  Star
 } from 'lucide-react';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 
@@ -142,6 +143,12 @@ export default function SidebarAdmin({ className = '', adminRole: adminRoleProp 
       href: '/admin/analytics',
       icon: BarChart3,
       description: 'Platform Insights'
+    },
+    {
+      name: 'Platform Reviews',
+      href: '/admin/platform-reviews',
+      icon: Star,
+      description: 'Moderate Testimonials'
     },
     {
       name: 'Change Password',

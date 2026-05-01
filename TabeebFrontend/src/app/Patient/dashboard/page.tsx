@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Mail, Edit3, Heart, Activity, Phone, Settings, ChevronRight, Calendar, FileText, Stethoscope, MessageSquare, PenSquare, Pill, TrendingUp, MapPin } from 'lucide-react';
+import { User, Mail, Edit3, Heart, Activity, Phone, Settings, ChevronRight, Calendar, FileText, Stethoscope, MessageSquare, PenSquare, Pill, TrendingUp, MapPin, Star } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -13,6 +13,8 @@ import { calculateBMI, getBMIStatus } from '@/lib/profile-utils';
 import { formatHeightDisplay } from '@/lib/height-utils';
 import { calculateProfileCompletion } from '@/lib/profile-completion';
 import { APP_CONFIG } from '@/lib/config/appConfig';
+import { checkMyPlatformReview } from '@/lib/platform-review-api';
+import PlatformReviewModal from '@/components/PlatformReviewModal';
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
@@ -33,8 +35,18 @@ export default function DashboardPage() {
   useEffect(() => {
     if (token) {
       dispatch(loadPatientProfile(token));
+      
+      // Check if user should be prompted for review
+      checkMyPlatformReview(token).then((res) => {
+        if (!res.recentlySubmitted) {
+          setShowReviewPrompt(true);
+        }
+      }).catch(console.error);
     }
   }, [dispatch, token]);
+
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   if (!user || !profile) return null;
 
@@ -501,11 +513,45 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Platform Review Prompt */}
+          {showReviewPrompt && (
+            <div className="bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-900/30 rounded-lg shadow-lg border border-amber-200 dark:border-amber-800 mt-6 p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-amber-500 text-white rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+                    <Star className="w-6 h-6 fill-current" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Enjoying TABEEB?</h3>
+                    <p className="text-gray-600 dark:text-gray-300">
+                      Share your experience to help others find the best healthcare platform.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowReviewModal(true)}
+                  className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-lg font-medium shadow-md transition-colors whitespace-nowrap"
+                >
+                  Write a Review
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Profile Edit Modal */}
           <PatientProfileEditModal 
             isOpen={showProfileEdit}
             onClose={() => setShowProfileEdit(false)}
             initialTab={profileEditInitialTab}
+          />
+          
+          {/* Platform Review Modal */}
+          <PlatformReviewModal
+            isOpen={showReviewModal}
+            onClose={() => {
+              setShowReviewModal(false);
+              setShowReviewPrompt(false); // Hide prompt after opening modal
+            }}
           />
         </div>
       </main>
