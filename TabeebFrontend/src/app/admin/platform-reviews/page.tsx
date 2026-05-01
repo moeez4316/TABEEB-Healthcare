@@ -3,23 +3,28 @@
 import React, { useState } from 'react';
 import { useApiQuery } from '@/lib/hooks/useApiQuery';
 import { getAdminPlatformReviews, updatePlatformReviewStatus, toggleFeaturedPlatformReview, deletePlatformReview, PlatformReview } from '@/lib/platform-review-api';
-import { Star, CheckCircle, XCircle, Trash2, Loader2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
+import { Star, CheckCircle, XCircle, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 
 export default function PlatformReviewsAdmin() {
-  const { token } = useAuth();
+  const [adminToken, setAdminToken] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('');
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setAdminToken(localStorage.getItem('adminToken'));
+    }
+  }, []);
+
   const { data, isLoading, refetch } = useApiQuery({
     queryKey: ['admin', 'platform-reviews', page, statusFilter],
-    queryFn: () => getAdminPlatformReviews(token as string, page, 10, statusFilter),
-    enabled: !!token,
+    queryFn: () => getAdminPlatformReviews(adminToken as string, page, 10, statusFilter),
+    enabled: !!adminToken,
   });
 
   const handleUpdateStatus = async (id: string, status: 'APPROVED' | 'REJECTED') => {
     try {
-      await updatePlatformReviewStatus(token as string, id, status);
+      await updatePlatformReviewStatus(adminToken as string, id, status);
       refetch();
     } catch (error) {
       console.error('Error updating status', error);
@@ -29,7 +34,7 @@ export default function PlatformReviewsAdmin() {
 
   const handleToggleFeatured = async (id: string, isFeatured: boolean) => {
     try {
-      await toggleFeaturedPlatformReview(token as string, id, !isFeatured);
+      await toggleFeaturedPlatformReview(adminToken as string, id, !isFeatured);
       refetch();
     } catch (error) {
       console.error('Error updating featured status', error);
@@ -40,7 +45,7 @@ export default function PlatformReviewsAdmin() {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this review?')) return;
     try {
-      await deletePlatformReview(token as string, id);
+      await deletePlatformReview(adminToken as string, id);
       refetch();
     } catch (error) {
       console.error('Error deleting review', error);
