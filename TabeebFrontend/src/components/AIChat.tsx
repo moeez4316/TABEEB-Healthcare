@@ -734,7 +734,7 @@ export default function AIChat() {
               TABEEB AI Assistant
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Medical information, document summarization &amp; find cheap medicine alternatives
+              Medical information, document summarization &amp; Affordable Medicine Options (AMO)
             </p>
           </div>
         </div>
@@ -890,7 +890,7 @@ export default function AIChat() {
                 }`}
               >
                 <Pill className="w-4 h-4" />
-                Find Cheap medicine alternatives
+                Affordable Medicine Options (AMO)
               </button>
             </div>
 
@@ -1167,7 +1167,7 @@ export default function AIChat() {
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-4 sm:p-6">
                   <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 mb-2">
                     <Pill className="w-5 h-5 text-teal-500" />
-                    Find Cheap medicine alternatives
+                    Affordable Medicine Options (AMO)
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     Enter a medicine name to find alternative brands and their latest estimated prices in Pakistan.

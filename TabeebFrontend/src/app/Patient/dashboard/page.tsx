@@ -230,7 +230,7 @@ export default function DashboardPage() {
                         <Pill className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <h4 className="text-base font-semibold text-gray-900 dark:text-white">Find Cheap medicine alternatives</h4>
+                        <h4 className="text-base font-semibold text-gray-900 dark:text-white">Affordable Medicine Options (AMO)</h4>
                         <p className="text-sm text-gray-600 dark:text-gray-400">Compare alternative brands</p>
                       </div>
                     </div>
