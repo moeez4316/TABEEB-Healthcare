@@ -12,12 +12,15 @@ import Link from 'next/link';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 import { getDoctorRating } from '@/lib/review-api';
 import { useApiQuery } from '@/lib/hooks/useApiQuery';
+import { DoctorOnboarding } from '@/components/DoctorOnboarding';
+import { getOnboardingStatus } from '@/lib/doctor-api';
 
 export default function DoctorDashboard() {
   const { user, token, verificationStatus } = useAuth();
   const dispatch = useAppDispatch();
   const { profile } = useAppSelector((state) => state.doctor || { profile: null });
   const [showProfileEdit, setShowProfileEdit] = useState<string | boolean>(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const { data: rating, isLoading: loadingRating } = useApiQuery({
     queryKey: ['doctor', 'rating', user?.uid],
     queryFn: () => getDoctorRating(token as string),
@@ -32,13 +35,45 @@ export default function DoctorDashboard() {
     }
   }, [dispatch, token]);
 
+  // Check onboarding status on component mount
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (!token) {
+        return;
+      }
+
+      try {
+        const status = await getOnboardingStatus(token);
+        if (!status.hasCompletedOnboarding) {
+          setShowOnboarding(true);
+        }
+      } catch (error) {
+        console.error('Failed to check onboarding status:', error);
+        // If we can't check status, don't show onboarding to avoid blocking the dashboard
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [token]);
+
   // Load rating data
   // Rating handled by React Query
 
   if (!user || !profile) return null;
 
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+        {/* Onboarding Modal */}
+        <DoctorOnboarding 
+          isOpen={showOnboarding} 
+          onComplete={handleOnboardingComplete} 
+          onRequestOpenEditProfile={() => setShowProfileEdit('billing')} 
+        />
+
       {/* Header */}
       <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -118,6 +153,7 @@ export default function DoctorDashboard() {
               
               <button
                 onClick={() => setShowProfileEdit('personal')}
+                data-onboarding-id="doctor-profile-edit"
                 className="bg-teal-600 dark:bg-teal-500 text-white px-4 py-2 rounded-lg hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors duration-200 flex items-center justify-center space-x-2 w-full sm:w-auto flex-shrink-0"
               >
                 <Edit3 className="w-4 h-4" />
@@ -494,6 +530,7 @@ export default function DoctorDashboard() {
             isOpen={Boolean(showProfileEdit)}
             onClose={() => setShowProfileEdit(false)}
             initialTab={typeof showProfileEdit === 'string' ? showProfileEdit : undefined}
+            showOnboardingCard={showOnboarding}
           />
         </div>
       </main>

@@ -275,6 +275,7 @@ model doctor {
   totalReviews           Int                          @default(0)
   createdAt              DateTime                     @default(now())
   updatedAt              DateTime                     @default(now()) @updatedAt
+  hasCompletedOnboarding Boolean                      @default(false)
   appointments           Appointment[]
   user                   user                         @relation(fields: [uid], references: [uid], map: "Doctor_uid_fkey")
   availability           DoctorAvailability[]

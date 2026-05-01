@@ -160,6 +160,7 @@ interface DoctorProfileEditModalProps {
     isOpen: boolean;
     onClose: () => void;
     initialTab?: string; // Optional prop to set initial tab
+    showOnboardingCard?: boolean; // NEW - shows the Step 1 guidance card
 }
 
 interface DoctorPayoutMethod {
@@ -213,7 +214,7 @@ const defaultPayoutForm: PayoutMethodForm = {
     isPrimary: false,
 };
 
-export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: DoctorProfileEditModalProps) {
+export default function DoctorProfileEditModal({ isOpen, onClose, initialTab, showOnboardingCard }: DoctorProfileEditModalProps) {
     const dispatch = useAppDispatch();
     const { profile } = useAppSelector((state) => state.doctor || { profile: null });
     const hasUnsavedChanges = useAppSelector((state) => {
@@ -744,6 +745,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                     <button
                         onClick={handleClose}
                         aria-label="Close edit profile"
+                        data-onboarding-id="doctor-profile-close-btn"
                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-2 -m-2 rounded-md"
                     >
                         <X className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -780,6 +782,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
 
                             <button
                                 onClick={() => setActiveTab('billing')}
+                                data-onboarding-id="doctor-profile-billing-tab"
                                 className={`flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap flex-shrink-0 ${
                                     activeTab === 'billing'
                                         ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
@@ -830,6 +833,19 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
 
                     {/* Content */}
                     <div className="flex-1 p-4 sm:p-6 overflow-y-auto min-h-0">
+                        {showOnboardingCard && (
+                            <div className="mb-4 rounded-lg border border-teal-200 bg-teal-50 dark:border-teal-800 dark:bg-teal-900/20 p-4">
+                                <h4 className="font-semibold text-teal-800 dark:text-teal-200 mb-2">
+                                    Edit Profile — What you can do here
+                                </h4>
+                                <ul className="text-sm text-teal-700 dark:text-teal-300 space-y-1">
+                                    <li>• Update qualifications and experience</li>
+                                    <li>• Set your consultation fee and follow-up discount</li>
+                                    <li>• Add at least one payout method to receive payments</li>
+                                </ul>
+                            </div>
+                        )}
+
                         {/* Personal Information Tab */}
                         {activeTab === 'personal' && (
                             <div className="space-y-6">
@@ -1026,7 +1042,10 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                     </p>
                                 </div>
 
-                                <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg p-4">
+                                <div
+                                    className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg p-4"
+                                    data-onboarding-id="doctor-profile-fees"
+                                >
                                     <div className="flex items-start space-x-3">
                                         <DollarSign className="h-5 w-5 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />
                                         <div className="flex-1">
@@ -1156,7 +1175,10 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                 </div>
 
                                 {/* Payout Methods */}
-                                <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 space-y-4">
+                                <div
+                                    className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 space-y-4"
+                                    data-onboarding-id="doctor-profile-payout"
+                                >
                                     <div>
                                         <h4 className="text-sm font-medium text-indigo-900 dark:text-indigo-100 mb-1">
                                             Payment Receiving Methods

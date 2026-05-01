@@ -8,6 +8,8 @@ import {
   getVerifiedDoctors,
   updateDoctorProfileImage,
   deleteDoctorProfileImage,
+  getOnboardingStatus,
+  completeOnboarding,
 } from '../controllers/doctorController';
 import {
   getOwnDoctorPayoutMethods,
@@ -34,6 +36,10 @@ router.post('/restore', verifyToken, restoreDoctor);
 router.post('/profile-image', verifyToken, updateDoctorProfileImage);
 router.put('/profile-image', verifyToken, updateDoctorProfileImage);
 router.delete('/profile-image', verifyToken, deleteDoctorProfileImage);
+
+// Onboarding routes
+router.get('/onboarding-status', verifyToken, getOnboardingStatus);
+router.post('/complete-onboarding', verifyToken, completeOnboarding);
 
 // Payout methods routes
 router.get('/payout-methods', verifyToken, getOwnDoctorPayoutMethods);

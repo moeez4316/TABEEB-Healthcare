@@ -10,9 +10,9 @@ import { useAppSelector } from "@/store/hooks";
 import { APP_CONFIG } from "@/lib/config/appConfig";
 
 const navItems = [
-  { label: "Dashboard", href: "/Doctor/Dashboard", icon: <FaTachometerAlt /> },
-  { label: "Appointments", href: "/Doctor/Appointments", icon: <FaCalendarAlt /> },
-  { label: "Availability", href: "/Doctor/availability", icon: <FaClock /> },
+  { label: "Dashboard", href: "/Doctor/Dashboard", icon: <FaTachometerAlt />, onboardingId: "doctor-sidebar-dashboard" },
+  { label: "Appointments", href: "/Doctor/Appointments", icon: <FaCalendarAlt />, onboardingId: "doctor-sidebar-appointments" },
+  { label: "Availability", href: "/Doctor/availability", icon: <FaClock />, onboardingId: "doctor-sidebar-availability" },
   { label: "Calendar", href: "/Doctor/Calendar", icon: <FaCalendarCheck /> },
   { label: "Blogs", href: "/Doctor/blogs", icon: <FaNewspaper /> },
   { label: "Reviews", href: "/Doctor/Reviews", icon: <FaStar /> },
@@ -124,6 +124,7 @@ export default function SidebarDoctor() {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  data-onboarding-id={item.onboardingId}
                   onClick={() => {
                     if (isMobile) {
                       setIsMobileMenuOpen(false);

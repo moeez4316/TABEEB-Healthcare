@@ -656,3 +656,63 @@ export const deleteDoctorProfileImage = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to delete profile image' });
   }
 };
+
+// Get onboarding status
+export const getOnboardingStatus = async (req: Request, res: Response) => {
+  const uid = req.user?.uid;
+
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
+  try {
+    const doctor = await prisma.doctor.findUnique({
+      where: { uid },
+      select: { hasCompletedOnboarding: true }
+    });
+
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    res.json({ hasCompletedOnboarding: doctor.hasCompletedOnboarding });
+  } catch (error) {
+    console.error('Get onboarding status error:', error);
+    res.status(500).json({ error: 'Failed to get onboarding status' });
+  }
+};
+
+// Mark onboarding as completed
+export const completeOnboarding = async (req: Request, res: Response) => {
+  const uid = req.user?.uid;
+
+  if (!uid) {
+    return res.status(400).json({ error: 'User UID is required' });
+  }
+
+  try {
+    // Check if doctor exists
+    const doctor = await prisma.doctor.findUnique({ where: { uid } });
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    // Update doctor to mark onboarding as completed
+    const updatedDoctor = await prisma.doctor.update({
+      where: { uid },
+      data: { hasCompletedOnboarding: true },
+      select: { hasCompletedOnboarding: true, firstName: true, lastName: true }
+    });
+
+    // Invalidate cache
+    await invalidateDoctorCaches(uid);
+
+    res.json({ 
+      message: 'Onboarding completed successfully',
+      hasCompletedOnboarding: updatedDoctor.hasCompletedOnboarding
+    });
+  } catch (error) {
+    console.error('Complete onboarding error:', error);
+    res.status(500).json({ error: 'Failed to complete onboarding' });
+  }
+};
