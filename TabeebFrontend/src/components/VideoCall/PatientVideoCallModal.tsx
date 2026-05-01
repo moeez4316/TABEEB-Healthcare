@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FaSpinner } from 'react-icons/fa';
+import { useLeaveConfirmation } from './useLeaveConfirmation';
 
 interface PatientVideoCallModalProps {
   appointmentId: string;
@@ -45,10 +46,25 @@ export default function PatientVideoCallModal({
   firebaseToken,
 }: PatientVideoCallModalProps) {
   const jitsiContainer = useRef<HTMLDivElement>(null);
+  const apiRef = useRef<JitsiAPI | null>(null);
   const [api, setApi] = useState<JitsiAPI | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jitsiLoaded, setJitsiLoaded] = useState(false);
+
+  const handleClose = useCallback(() => {
+    apiRef.current?.dispose();
+    apiRef.current = null;
+    setApi(null);
+    setLoading(true);
+    setError(null);
+    onClose();
+  }, [onClose]);
+
+  const { requestLeave, finalizeLeave } = useLeaveConfirmation({
+    isOpen,
+    onConfirmLeave: handleClose,
+  });
 
   // Load Jitsi External API script
   useEffect(() => {
@@ -258,13 +274,19 @@ export default function PatientVideoCallModal({
             // Failed to update end status
           }
 
-          handleClose();
+          finalizeLeave();
         });
 
         jitsiApi.addEventListener('readyToClose', () => {
-          handleClose();
+          finalizeLeave();
         });
 
+        // In one-to-one appointments, this means the doctor disconnected.
+        jitsiApi.addEventListener('participantLeft', () => {
+          finalizeLeave();
+        });
+
+        apiRef.current = jitsiApi;
         setApi(jitsiApi);
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to initialize video call');
@@ -274,26 +296,18 @@ export default function PatientVideoCallModal({
 
     initializeCall();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, jitsiLoaded, appointmentId, firebaseToken]);
+  }, [isOpen, jitsiLoaded, appointmentId, firebaseToken, finalizeLeave]);
 
   // Cleanup effect
   useEffect(() => {
+    apiRef.current = api;
+
     return () => {
       if (api) {
         api.dispose();
       }
     };
   }, [api]);
-
-  const handleClose = () => {
-    if (api) {
-      api.dispose();
-      setApi(null);
-    }
-    setLoading(true);
-    setError(null);
-    onClose();
-  };
 
   if (!isOpen) return null;
 
@@ -341,7 +355,7 @@ export default function PatientVideoCallModal({
                 
                 <div className="flex space-x-3">
                   <button
-                    onClick={handleClose}
+                    onClick={requestLeave}
                     className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
                   >
                     Close
