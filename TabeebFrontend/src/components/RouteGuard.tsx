@@ -2,8 +2,8 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Loader2, WifiOff, RefreshCw, LogOut } from 'lucide-react';
 import { getDoctorRedirectPath } from '@/lib/doctorRedirect';
 
 interface RouteGuardProps {
@@ -21,7 +21,7 @@ export default function RouteGuard({
   allowedRoles = [],
   requireRole = true
 }: RouteGuardProps) {
-  const { user, role, loading, roleLoading, verificationStatus, verificationLoading, backendError, clearBackendError, fetchUserRole } = useAuth();
+  const { user, role, loading, roleLoading, verificationStatus, verificationLoading, backendError, clearBackendError, fetchUserRole, signOut } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -107,17 +107,37 @@ export default function RouteGuard({
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             {backendError}
           </p>
-          <button
-            onClick={() => {
-              clearBackendError();
-              fetchUserRole();
-            }}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl transition-colors"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Try Again
-          </button>
-          <p className="text-xs text-gray-500 dark:text-gray-500 mt-4">
+          <div className="flex flex-col gap-3 sm:flex-row justify-center">
+            <button
+              onClick={() => {
+                clearBackendError();
+                fetchUserRole();
+              }}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl transition-colors"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Try Again
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  clearBackendError(); // Clear the error block first so UI unmounts
+                  await signOut();
+                  router.replace('/auth'); // Force a hard replace
+                  setTimeout(() => {
+                    window.location.href = '/auth'; // Fallback hard redirect
+                  }, 300);
+                } catch (err) {
+                  console.error('SignOut failed:', err);
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 font-medium rounded-xl transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Log Out
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-5">
             If the problem persists, please check your internet connection or contact support.
           </p>
         </div>

@@ -14,6 +14,7 @@ interface OnboardingStep {
   details: string[];
   placement?: 'right' | 'left' | 'bottom';
   missingHint?: string;
+  disableTargetClick?: boolean;
 }
 
 interface DoctorOnboardingProps {
@@ -120,6 +121,7 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
       ],
       placement: 'right',
       missingHint: 'Open the sidebar menu to continue.',
+      disableTargetClick: true,
     },
     {
       id: 7,
@@ -133,6 +135,7 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
       ],
       placement: 'right',
       missingHint: 'Open the sidebar menu to continue.',
+      disableTargetClick: true,
     },
     {
       id: 8,
@@ -145,6 +148,7 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
       ],
       placement: 'right',
       missingHint: 'Open the sidebar menu to continue.',
+      disableTargetClick: true,
     },
   ], []);
 
@@ -355,8 +359,16 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
     <>
       {targetRect && highlightStyle && (
         <div
-          className="fixed z-[9998] pointer-events-none rounded-lg border-2 border-teal-400/90 shadow-[0_0_20px_rgba(20,184,166,0.45)]"
+          className={`fixed z-[9998] rounded-lg border-2 border-teal-400/90 shadow-[0_0_20px_rgba(20,184,166,0.45)] ${
+            currentStepData.disableTargetClick ? 'pointer-events-auto cursor-default' : 'pointer-events-none'
+          }`}
           style={highlightStyle}
+          onClick={(e) => {
+            if (currentStepData.disableTargetClick) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
         />
       )}
       {tooltipStyle && (
