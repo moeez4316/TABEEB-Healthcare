@@ -46,9 +46,8 @@ export default function RouteGuard({
     
     if (!requireAuth && user && redirectTo) {
       // Don't redirect email users who haven't verified yet — let auth page show verification screen
-      const isPhoneUser = user.email?.endsWith('@tabeeb.phone');
       const isGoogleUser = user.providerData?.some((p: { providerId: string }) => p.providerId === 'google.com');
-      if (!user.emailVerified && !isPhoneUser && !isGoogleUser) {
+      if (!user.emailVerified && !isGoogleUser) {
         console.log("[RouteGuard] Email user not verified, staying on auth page");
       } else {
         console.log("[RouteGuard] Redirecting authenticated user to", redirectTo);
@@ -147,9 +146,8 @@ export default function RouteGuard({
 
   if (!requireAuth && user && redirectTo) {
     // Allow rendering for unverified email users so verification screen can show
-    const isPhoneUser = user.email?.endsWith('@tabeeb.phone');
     const isGoogleUser = user.providerData?.some((p: { providerId: string }) => p.providerId === 'google.com');
-    if (user.emailVerified || isPhoneUser || isGoogleUser) {
+    if (user.emailVerified || isGoogleUser) {
       return null;
     }
   }

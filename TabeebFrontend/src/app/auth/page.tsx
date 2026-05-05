@@ -1,15 +1,13 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Mail, Lock, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff, Phone, ArrowLeft, LogOut } from 'lucide-react';
+import { Mail, Lock, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff, ArrowLeft, LogOut } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 import Image from 'next/image';
 import Link from 'next/link';
 
 import { useAuth } from '../../lib/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
-import PhoneInput from 'react-phone-number-input';
-import { isValidPhoneNumber } from 'react-phone-number-input';
-import 'react-phone-number-input/style.css';
+// Phone auth removed — keep email flows only
 import { APP_CONFIG } from '@/lib/config/appConfig';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
@@ -77,32 +75,24 @@ function OtpInput({ value, onChange, length = 6, autoFocus = true }: { value: st
 }
 
 type AuthMode = 'signin' | 'signup' | 'reset';
-type ResetStep = 'method' | 'email-input' | 'phone-input' | 'otp' | 'new-password' | 'success';
+type ResetStep = 'email-input' | 'otp' | 'new-password' | 'success';
 
 export default function AuthPage() {
-  // Use react-phone-number-input for country code and phone input
-  const [fullPhone, setFullPhone] = useState('');
-  // Remove top toggle, default to phone sign in, allow switching to email sign in via link
-  const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('phone');
+  // Email-only auth (phone is contact-only)
   const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phonePassword, setPhonePassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showPhonePassword, setShowPhonePassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const { user, signUp, signIn, signInWithGoogle, signUpWithPhone, signInWithPhonePassword, signOut } = useAuth();
+  const { user, signUp, signIn, signInWithGoogle, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // Password reset state
-  const [resetStep, setResetStep] = useState<ResetStep>('method');
-  const [resetMethod, setResetMethod] = useState<'email' | 'phone'>('email');
+  const [resetStep, setResetStep] = useState<ResetStep>('email-input');
   const [resetEmail, setResetEmail] = useState('');
-  const [resetPhone, setResetPhone] = useState('');
-  const [resetPhoneEmail, setResetPhoneEmail] = useState(''); // Real email for phone users
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -127,7 +117,6 @@ export default function AuthPage() {
       const resetEmailParam = searchParams.get('email') || '';
       const resetCodeParam = searchParams.get('code') || '';
       setMode('reset');
-      setResetMethod('email');
       setResetEmail(resetEmailParam);
       setOtpCode(resetCodeParam);
       setError('');
@@ -169,10 +158,9 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (user) {
-      // Skip verification check for phone users (fake email) and Google OAuth users (already verified)
-      const isPhoneUser = user.email?.endsWith('@tabeeb.phone');
+      // Require email verification for email users; Google OAuth users are trusted
       const isGoogleUser = user.providerData?.some(p => p.providerId === 'google.com');
-      if (!user.emailVerified && !isPhoneUser && !isGoogleUser) {
+      if (!user.emailVerified && !isGoogleUser) {
         // Email user hasn't verified yet — show verification screen
         setVerifyEmail(user.email || '');
         setShowEmailVerify(true);
@@ -286,38 +274,9 @@ export default function AuthPage() {
     }
   };
 
-  const handlePhoneAuth = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // Validate phone number and password
-    if (!fullPhone || !isValidPhoneNumber(fullPhone)) {
-      setError('Please enter a valid phone number.');
-      return;
-    }
-    if (!phonePassword.trim()) {
-      setError('Please enter a password.');
-      return;
-    }
-    try {
-      setLoading(true);
-      setError('');
-      setSuccess('');
-      
-      if (mode === 'signup') {
-        await signUpWithPhone(fullPhone, phonePassword);
-        setSuccess('Account created successfully!');
-      } else {
-        await signInWithPhonePassword(fullPhone, phonePassword);
-        setSuccess('Signed in successfully!');
-      }
-    } catch (error) {
-      setError(getFirebaseErrorMessage(error));
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Phone auth removed — handled via email only
 
-  const buildPhoneEmail = (phone: string) =>
-    `${phone.replace(/[^0-9+]/g, '')}@tabeeb.phone`;
+  // buildPhoneEmail removed — phone auth disabled
 
   const handlePasswordReset = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -325,44 +284,19 @@ export default function AuthPage() {
     try {
       setLoading(true);
       setError('');
-
-      if (resetMethod === 'email') {
-        // Email user: send OTP to their email
-        const res = await fetch(`${API_URL}/api/auth/send-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: resetEmail, type: 'PASSWORD_RESET' }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error || 'Failed to send reset code.');
-          return;
-        }
-        setSuccess('Verification code sent to your email.');
-        setResetStep('otp');
-      } else {
-        // Phone user: send OTP to their real email
-        if (!resetPhone || !isValidPhoneNumber(resetPhone)) {
-          setError('Please enter a valid phone number.');
-          return;
-        }
-        if (!resetPhoneEmail.trim()) {
-          setError('Please enter your email address.');
-          return;
-        }
-        const res = await fetch(`${API_URL}/api/auth/phone/send-reset-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: resetPhone, email: resetPhoneEmail }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error || 'Failed to send reset code.');
-          return;
-        }
-        setSuccess('Reset code has been sent to your email.');
-        setResetStep('otp');
+      // Email user: send OTP to their email
+      const res = await fetch(`${API_URL}/api/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail, type: 'PASSWORD_RESET' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to send reset code.');
+        return;
       }
+      setSuccess('Verification code sent to your email.');
+      setResetStep('otp');
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -382,19 +316,11 @@ export default function AuthPage() {
       setSuccess('');
 
       let targetEmail = '';
-      if (resetMethod === 'email') {
-        if (!resetEmail.trim()) {
-          setError('Missing email. Please request a new code.');
-          return;
-        }
-        targetEmail = resetEmail;
-      } else {
-        if (!resetPhone || !isValidPhoneNumber(resetPhone)) {
-          setError('Missing or invalid phone number. Please request a new code.');
-          return;
-        }
-        targetEmail = buildPhoneEmail(resetPhone);
+      if (!resetEmail.trim()) {
+        setError('Missing email. Please request a new code.');
+        return;
       }
+      targetEmail = resetEmail;
 
       const res = await fetch(`${API_URL}/api/auth/validate-otp`, {
         method: 'POST',
@@ -431,20 +357,11 @@ export default function AuthPage() {
       setLoading(true);
       setError('');
 
-      let res;
-      if (resetMethod === 'email') {
-        res = await fetch(`${API_URL}/api/auth/reset-password`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: resetEmail, code: otpCode, newPassword }),
-        });
-      } else {
-        res = await fetch(`${API_URL}/api/auth/phone/reset-password`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: resetPhone, code: otpCode, newPassword, email: resetPhoneEmail }),
-        });
-      }
+      const res = await fetch(`${API_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail, code: otpCode, newPassword }),
+      });
 
       const data = await res.json();
       if (!res.ok) {
@@ -491,10 +408,8 @@ export default function AuthPage() {
     setSuccess('');
     // Reset password flow state
     if (newMode === 'reset') {
-      setResetStep('method');
+      setResetStep('email-input');
       setResetEmail('');
-      setResetPhone('');
-      setResetPhoneEmail('');
       setOtpCode('');
       setNewPassword('');
       setConfirmPassword('');
@@ -700,9 +615,7 @@ export default function AuthPage() {
               Reset Password
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {resetStep === 'method' && 'Choose how you signed up'}
               {resetStep === 'email-input' && 'Enter your email to receive a reset code'}
-              {resetStep === 'phone-input' && 'Enter your phone number and email'}
               {resetStep === 'otp' && 'Enter the 6-digit code sent to your email'}
               {resetStep === 'new-password' && 'Set your new password'}
               {resetStep === 'success' && 'Your password has been reset'}
@@ -730,15 +643,11 @@ export default function AuthPage() {
             </div>
 
             {/* Progress indicator */}
-            {resetStep !== 'method' && resetStep !== 'success' && (
+            {resetStep !== 'success' && (
               <div className="flex items-center justify-center space-x-2">
                 {['email-input', 'otp', 'new-password'].map((step, i) => {
-                  const steps = resetMethod === 'email' 
-                    ? ['email-input', 'otp', 'new-password'] 
-                    : ['phone-input', 'otp', 'new-password'];
-                  const currentIndex = steps.indexOf(resetStep);
-                  const stepIndex = resetMethod === 'phone' && step === 'email-input' ? -1 : i;
-                  const activeStep = resetMethod === 'phone' && i === 0 ? steps.indexOf('phone-input') <= currentIndex : stepIndex <= currentIndex;
+                  const currentIndex = ['email-input', 'otp', 'new-password'].indexOf(resetStep);
+                  const activeStep = i <= currentIndex;
                   return (
                     <div key={step} className="flex items-center">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${activeStep ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-500 dark:text-gray-400'}`}>
@@ -769,33 +678,6 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* Step 1: Choose method */}
-            {resetStep === 'method' && (
-              <div className="space-y-3">
-                <button
-                  onClick={() => { setResetMethod('email'); setResetStep('email-input'); setError(''); setSuccess(''); }}
-                  className="w-full flex items-center px-4 py-4 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all"
-                >
-                  <Mail className="h-5 w-5 text-blue-500 mr-3" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">I signed up with Email</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Reset code will be sent to your email</p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => { setResetMethod('phone'); setResetStep('phone-input'); setError(''); setSuccess(''); }}
-                  className="w-full flex items-center px-4 py-4 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all"
-                >
-                  <Phone className="h-5 w-5 text-green-500 mr-3" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">I signed up with Phone</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Reset code will be sent to your profile email</p>
-                  </div>
-                </button>
-              </div>
-            )}
-
-            {/* Step 2a: Email input */}
             {resetStep === 'email-input' && (
               <form onSubmit={handlePasswordReset} className="space-y-4">
                 <div className="relative">
@@ -821,53 +703,7 @@ export default function AuthPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setResetStep('method'); setError(''); setSuccess(''); }}
-                  className="w-full flex items-center justify-center text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-1" /> Back
-                </button>
-              </form>
-            )}
-
-            {/* Step 2b: Phone input */}
-            {resetStep === 'phone-input' && (
-              <form onSubmit={handlePasswordReset} className="space-y-4">
-                <div className="relative">
-                  <PhoneInput
-                    international
-                    defaultCountry="PK"
-                    value={resetPhone}
-                    onChange={value => setResetPhone(value || '')}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-slate-600 rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Enter your phone number"
-                  />
-                </div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    value={resetPhoneEmail}
-                    onChange={(e) => setResetPhoneEmail(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-slate-600 rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Email address on your profile"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  The reset code will be sent to the email address linked to your profile.
-                </p>
-                <button
-                  type="submit"
-                  disabled={loading || !resetPhone || !resetPhoneEmail.trim()}
-                  className="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Send Reset Code'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setResetStep('method'); setError(''); setSuccess(''); }}
+                  onClick={() => { setError(''); setSuccess(''); }}
                   className="w-full flex items-center justify-center text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                 >
                   <ArrowLeft className="h-4 w-4 mr-1" /> Back
@@ -880,7 +716,7 @@ export default function AuthPage() {
               <form onSubmit={handleVerifyOtp} className="space-y-4">
                 <div className="text-center">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    We sent a 6-digit code to <strong>{resetMethod === 'email' ? resetEmail : resetPhoneEmail}</strong>
+                    We sent a 6-digit code to <strong>{resetEmail}</strong>
                   </p>
                 </div>
                 <OtpInput value={otpCode} onChange={setOtpCode} />
@@ -894,7 +730,7 @@ export default function AuthPage() {
                 <button
                   type="button"
                   onClick={() => { 
-                    setResetStep(resetMethod === 'email' ? 'email-input' : 'phone-input'); 
+                    setResetStep('email-input'); 
                     setOtpCode(''); 
                     setError(''); 
                     setSuccess(''); 
@@ -1018,7 +854,6 @@ export default function AuthPage() {
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 space-y-6 border border-gray-200 dark:border-slate-700">
-          {/* No top toggle, default to phone sign in, allow switching to email sign in via link at bottom */}
           {/* TABEEB Logo - Inside the card */}
           <div className="flex flex-col items-center space-y-1">
             <Image src={APP_CONFIG.ASSETS.LOGO} alt="TABEEB Logo" width={64} height={64} className="object-contain" />
@@ -1075,57 +910,7 @@ export default function AuthPage() {
             </div>
           </div>
 
-          {/* Only show phone sign in by default, with link to switch to email sign in */}
-          {authMethod === 'phone' ? (
-            <form onSubmit={handlePhoneAuth} className="space-y-4">
-              <div className="relative">
-                <PhoneInput
-                  international
-                  defaultCountry="PK"
-                  value={fullPhone}
-                  onChange={value => setFullPhone(value || '')}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-slate-600 rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter phone number"
-                />
-              </div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                </div>
-                <input
-                  type={showPhonePassword ? 'text' : 'password'}
-                  required
-                  value={phonePassword}
-                  onChange={(e) => setPhonePassword(e.target.value)}
-                  className="block w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-slate-600 rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter your password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPhonePassword(!showPhonePassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                >
-                  {showPhonePassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" />
-                  )}
-                </button>
-              </div>
-              <button
-                type="submit"
-                disabled={loading || !fullPhone || !isValidPhoneNumber(fullPhone) || !phonePassword.trim()}
-                className="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  mode === 'signup' ? 'Sign Up with Phone' : 'Sign In with Phone'
-                )}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleEmailAuth} className="space-y-4">
+          <form onSubmit={handleEmailAuth} className="space-y-4">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
@@ -1171,43 +956,20 @@ export default function AuthPage() {
                 {loading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  mode === 'signup' ? 'Sign Up with Email' : 'Sign In with Email'
+                    mode === 'signup' ? 'Sign Up with Email' : 'Sign In with Email'
                 )}
               </button>
-            </form>
-          )}
+          </form>
 
 
           {mode === 'signin' && (
             <div>
-              {/* Show 'Forgot your password?' for both email and phone */}
               <button
                 onClick={() => switchMode('reset')}
                 className="w-full text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors mb-2"
               >
                 Forgot your password?
               </button>
-              {/* Link to switch between phone and email sign in */}
-              <div className="text-center mt-2">
-                {authMethod === 'phone' ? (
-                  <button
-                    type="button"
-                    onClick={() => setAuthMethod('email')}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    Sign in with Email instead
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setAuthMethod('phone')}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    Continue with Phone instead
-                  </button>
-                )}
-              </div>
-              {/* Show Sign up option for both phone and email */}
               <div className="text-center mt-2">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Don&apos;t have an account? </span>
                 <button

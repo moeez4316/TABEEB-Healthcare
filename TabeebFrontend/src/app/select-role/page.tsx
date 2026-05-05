@@ -84,31 +84,26 @@ export default function SelectRolePage() {
   
   const router = useRouter();
 
-  // Detect auth method
-  const isPhoneAuth = user?.email?.endsWith('@tabeeb.phone') || false;
-  const isEmailAuth = !isPhoneAuth && !!user?.email;
+  // Auth method: phone auth removed — treat as email-based account.
+  const isPhoneAuth = false;
+  const isEmailAuth = !!user?.email;
 
   // Pre-fill form with user data when user becomes available
   useEffect(() => {
     if (user) {
-      // Check if email is a phone-based email (ends with @tabeeb.phone)
-      const isPhoneAuth = user.email?.endsWith('@tabeeb.phone');
-      const phoneFromEmail = isPhoneAuth ? user.email?.replace('@tabeeb.phone', '') : '';
-      const formattedPhone = phoneFromEmail ? formatPhoneNumber(phoneFromEmail) : '';
-      
       setDoctorForm(prev => ({
         ...prev,
-        firstName: '', // Let user fill their actual name
-        lastName: '', // Let user fill their actual name
-        email: isPhoneAuth ? '' : (user.email || ''), // Pre-fill for email auth, empty for phone auth
-        phone: formattedPhone, // Pre-fill phone if from phone auth (formatted with dashes)
+        firstName: '',
+        lastName: '',
+        email: user.email || '',
+        phone: user.phoneNumber ? formatPhoneNumber(user.phoneNumber) : prev.phone || '',
       }));
       setPatientForm(prev => ({
         ...prev,
-        firstName: '', // Let user fill their actual name
-        lastName: '', // Let user fill their actual name
-        email: isPhoneAuth ? '' : (user.email || ''), // Pre-fill for email auth, empty for phone auth
-        phone: formattedPhone, // Pre-fill phone if from phone auth (formatted with dashes)
+        firstName: '',
+        lastName: '',
+        email: user.email || '',
+        phone: user.phoneNumber ? formatPhoneNumber(user.phoneNumber) : prev.phone || '',
       }));
     }
   }, [user]);
@@ -644,48 +639,48 @@ export default function SelectRolePage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email Address {isPhoneAuth ? '(Optional)' : '*'}
-                  </label>
+                      Email Address *
+                    </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     </div>
-                    <input
-                      type="email"
-                      name="email"
-                      required={!isPhoneAuth}
-                      disabled={isEmailAuth}
-                      value={doctorForm.email}
-                      onChange={handleDoctorChange}
-                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
-                      } ${isEmailAuth ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      placeholder={isPhoneAuth ? "Enter your email (optional)" : "Enter your email"}
-                    />
+                      <input
+                        type="email"
+                        name="email"
+                        required
+                        disabled={false}
+                        value={doctorForm.email}
+                        onChange={handleDoctorChange}
+                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                          formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                        }`}
+                        placeholder="Enter your email"
+                      />
                   </div>
                   {formErrors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.email}</p>}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone Number {isEmailAuth ? '(Optional)' : '*'}
-                  </label>
+                      Phone Number (Optional)
+                    </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Phone className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     </div>
-                    <input
-                      type="tel"
-                      name="phone"
-                      required={!isEmailAuth}
-                      disabled={isPhoneAuth}
-                      value={doctorForm.phone}
-                      onChange={handleDoctorChange}
-                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
-                      } ${isPhoneAuth ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      placeholder="+92-123-4567890"
-                    />
+                      <input
+                        type="tel"
+                        name="phone"
+                        required={false}
+                        disabled={false}
+                        value={doctorForm.phone}
+                        onChange={handleDoctorChange}
+                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                          formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                        }`}
+                        placeholder="+92-123-4567890"
+                      />
                   </div>
                   {formErrors.phone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.phone}</p>}
                 </div>
@@ -953,48 +948,48 @@ export default function SelectRolePage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email Address {isPhoneAuth ? '(Optional)' : '*'}
-                  </label>
+                      Email Address *
+                    </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     </div>
-                    <input
-                      type="email"
-                      name="email"
-                      required={!isPhoneAuth}
-                      disabled={isEmailAuth}
-                      value={patientForm.email}
-                      onChange={handlePatientChange}
-                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
-                      } ${isEmailAuth ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      placeholder={isPhoneAuth ? "Enter your email (optional)" : "Enter your email"}
-                    />
+                      <input
+                        type="email"
+                        name="email"
+                        required
+                        disabled={false}
+                        value={patientForm.email}
+                        onChange={handlePatientChange}
+                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                          formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                        }`}
+                        placeholder="Enter your email"
+                      />
                   </div>
                   {formErrors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.email}</p>}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone Number {isEmailAuth ? '(Optional)' : '*'}
-                  </label>
+                      Phone Number (Optional)
+                    </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Phone className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     </div>
-                    <input
-                      type="tel"
-                      name="phone"
-                      required={!isEmailAuth}
-                      disabled={isPhoneAuth}
-                      value={patientForm.phone}
-                      onChange={handlePatientChange}
-                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                        formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
-                      } ${isPhoneAuth ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      placeholder="+92-123-4567890"
-                    />
+                      <input
+                        type="tel"
+                        name="phone"
+                        required={false}
+                        disabled={false}
+                        value={patientForm.phone}
+                        onChange={handlePatientChange}
+                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                          formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                        }`}
+                        placeholder="+92-123-4567890"
+                      />
                   </div>
                   {formErrors.phone && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors.phone}</p>}
                 </div>

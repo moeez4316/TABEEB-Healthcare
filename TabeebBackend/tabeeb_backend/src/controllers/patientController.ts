@@ -55,10 +55,10 @@ export const createPatient = async (req: Request, res: Response) => {
   const cleanPhone = normalizePhoneForDB(phone);
   const cleanEmergencyPhone = normalizePhoneForDB(emergencyContactPhone);
 
-  // Validate that at least email or phone is provided
-  if (!cleanEmail && !cleanPhone) {
+  // Validate that email is provided (phone is optional contact info)
+  if (!cleanEmail) {
     return res.status(400).json({ 
-      error: 'At least one of email or phone is required' 
+      error: 'Email is required' 
     });
   }
 
@@ -88,20 +88,6 @@ export const createPatient = async (req: Request, res: Response) => {
         error: 'Patient profile already exists for this user',
         existing: true
       });
-    }
-
-    // If phone is provided, check if it belongs to another patient
-    if (cleanPhone) {
-      const phoneConflict = await prisma.patient.findUnique({ 
-        where: { phone: cleanPhone },
-        select: { uid: true } 
-      });
-      
-      if (phoneConflict && phoneConflict.uid !== uid) {
-        return res.status(409).json({ 
-          error: 'This phone number is already registered with another account' 
-        });
-      }
     }
 
     // Create database records in a transaction (atomic operation)
@@ -297,10 +283,10 @@ export const updatePatient = async (req: Request, res: Response) => {
     const cleanPhone = normalizePhoneForDB(phone);
     const cleanEmergencyPhone = emergencyContact?.phone ? normalizePhoneForDB(emergencyContact.phone) : undefined;
 
-    // Validate that at least email or phone exists when updating
-    if (email !== undefined && phone !== undefined && !cleanEmail && !cleanPhone) {
+    // Validate that email is not cleared when updating
+    if (email !== undefined && !cleanEmail) {
       return res.status(400).json({ 
-        error: 'At least one of email or phone is required' 
+        error: 'Email is required' 
       });
     }
 

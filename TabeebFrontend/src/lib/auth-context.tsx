@@ -32,8 +32,6 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  signUpWithPhone: (phone: string, password: string) => Promise<void>;
-  signInWithPhonePassword: (phone: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   fetchUserRole: () => Promise<void>;
   setUserRole: (role: string) => void;
@@ -53,34 +51,7 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Phone Auth with Password (no OTP)
-  const signUpWithPhone = async (phone: string, password: string): Promise<void> => {
-    try {
-      // Convert phone number to email format for Firebase
-      const phoneEmail = `${phone.replace(/[^0-9+]/g, '')}@tabeeb.phone`;
-      const result = await createUserWithEmailAndPassword(auth, phoneEmail, password);
-      await updateProfile(result.user, {
-        displayName: phone, // Store phone as display name
-      });
-      setUser({ ...result.user, displayName: phone });
-      const token = await result.user.getIdToken();
-      setToken(token);
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const signInWithPhonePassword = async (phone: string, password: string): Promise<void> => {
-    try {
-      // Convert phone number to email format for Firebase
-      const phoneEmail = `${phone.replace(/[^0-9+]/g, '')}@tabeeb.phone`;
-      const result = await signInWithEmailAndPassword(auth, phoneEmail, password);
-      const token = await result.user.getIdToken();
-      setToken(token);
-    } catch (error) {
-      throw error;
-    }
-  };
+  // Phone auth removed — phone is only a contact field now.
 
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -430,8 +401,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signIn,
     signInWithGoogle,
-    signUpWithPhone,
-    signInWithPhonePassword,
     signOut,
     fetchUserRole,
     setUserRole,
