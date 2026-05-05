@@ -161,7 +161,11 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
 
   const getTargetRect = useCallback((targetId: string) => {
     const target = getTargetElement(targetId);
-    return target ? target.getBoundingClientRect() : null;
+    if (!target) return null;
+    const rect = target.getBoundingClientRect();
+    // Consider element "missing" if it's display:none or off-screen to the left (like a closed mobile sidebar)
+    if (rect.width === 0 || rect.height === 0 || rect.right <= 0) return null;
+    return rect;
   }, [getTargetElement]);
 
   const clamp = (value: number, min: number, max: number) =>
@@ -179,6 +183,10 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
 
   const markOnboardingComplete = async () => {
     if (!token) return;
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('close-mobile-sidebar'));
+    }
 
     setIsCompleting(true);
     try {
@@ -233,6 +241,13 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
 
     let rafId: number | null = null;
 
+    // Force open mobile sidebar for steps that require it
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      if (['doctor-sidebar-availability', 'doctor-sidebar-appointments', 'doctor-sidebar-dashboard'].includes(currentStepData.targetId)) {
+        window.dispatchEvent(new CustomEvent('open-mobile-sidebar'));
+      }
+    }
+
     const updateTarget = () => {
       // Auto-advance if we are on Step 1 and the billing tab appears
       if (safeCurrentStep === 0) {
@@ -284,10 +299,15 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
       attributes: true,
     });
 
+    // Handle CSS Transitions catching up! 
+    // This continuously checks while the sidebar finishes its 300ms slide-in animation.
+    const transitionInterval = setInterval(scheduleUpdate, 100);
+
     return () => {
       window.removeEventListener('resize', scheduleUpdate);
       window.removeEventListener('scroll', scheduleUpdate, true);
       observer.disconnect();
+      clearInterval(transitionInterval);
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
