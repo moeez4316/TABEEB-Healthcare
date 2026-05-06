@@ -21,7 +21,7 @@ export interface ChatMessage {
  * Check whether the configured model is a Gemma model (which doesn't support systemInstruction).
  */
 const isGemmaModel = (): boolean => {
-  const modelName = (process.env.GEMINI_MODEL || '').toLowerCase();
+  const modelName = (process.env.GEMINI_MODEL || '').toLowerCase().trim();
   return modelName.startsWith('gemma');
 };
 
@@ -35,7 +35,7 @@ const getModel = (systemInstruction: string) => {
   if (!apiKey) {
     throw new Error('Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.');
   }
-  const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite';
+  const modelName = (process.env.GEMINI_MODEL || 'gemma-4-31b-it').trim();
   const genAI = new GoogleGenerativeAI(apiKey);
 
   // Gemma models don't support systemInstruction — we handle it differently
@@ -345,16 +345,6 @@ export const searchMedicineAlternatives = async (
     );
   }
 
-  const chat = model.startChat({
-    history,
-    generationConfig: {
-      temperature: 0.2,
-      topP: 0.85,
-      topK: 40,
-      maxOutputTokens: 4096,
-    },
-  });
-
   // Build the final prompt with scraped data
   let userPrompt: string;
 
@@ -380,7 +370,23 @@ Respond with:
 4. Disclaimer about verifying prices`;
   }
 
-  const result = await chat.sendMessage(userPrompt);
+  // Use generateContent directly for large formatting tasks (more stable for Gemma than startChat)
+  const finalParts: Part[] = [];
+  if (isGemmaModel()) {
+    finalParts.push({ text: `[System Instructions]\n${MEDICINE_SEARCH_SYSTEM_PROMPT}\n\n---\n\n` });
+  }
+  finalParts.push({ text: userPrompt });
+
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts: finalParts }],
+    generationConfig: {
+      temperature: 0.2,
+      topP: 0.85,
+      topK: 40,
+      maxOutputTokens: 4096,
+    },
+  });
+
   const response = result.response;
 
   if (response.promptFeedback?.blockReason) {

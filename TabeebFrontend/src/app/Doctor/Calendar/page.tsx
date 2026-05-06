@@ -24,7 +24,7 @@ export default function DoctorCalendarPage() {
   const { token } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  
+
   const {
     data: appointmentsData,
     isLoading: appointmentsLoading,
@@ -73,19 +73,19 @@ export default function DoctorCalendarPage() {
   const getCalendarDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    
+
     const firstDay = new Date(year, month, 1);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
-    
+
     const days = [];
     const currentDateIteration = new Date(startDate);
-    
+
     for (let i = 0; i < 42; i++) {
       days.push(new Date(currentDateIteration));
       currentDateIteration.setDate(currentDateIteration.getDate() + 1);
     }
-    
+
     return days;
   };
 
@@ -168,254 +168,254 @@ export default function DoctorCalendarPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
 
-        {/* Error Display */}
-        {error && (
-          <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 shadow-lg">
-            <div className="text-red-800 dark:text-red-400">
-              {error instanceof Error ? error.message : 'Failed to load calendar data. Please try again.'}
-            </div>
-            <button
-              onClick={() => {
-                void refetchAppointments();
-                void refetchAvailability();
-              }}
-              className="mt-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Calendar */}
-          <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700">
-              {/* Calendar Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </h2>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => navigateMonth('prev')}
-                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded transition-colors"
-                  >
-                    <FaChevronLeft />
-                  </button>
-                  <button
-                    onClick={() => setCurrentDate(new Date())}
-                    className="px-4 py-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded transition-colors"
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={() => navigateMonth('next')}
-                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded transition-colors"
-                  >
-                    <FaChevronRight />
-                  </button>
-                </div>
+          {/* Error Display */}
+          {error && (
+            <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 shadow-lg">
+              <div className="text-red-800 dark:text-red-400">
+                {error instanceof Error ? error.message : 'Failed to load calendar data. Please try again.'}
               </div>
+              <button
+                onClick={() => {
+                  void refetchAppointments();
+                  void refetchAvailability();
+                }}
+                className="mt-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
 
-              {/* Calendar Grid */}
-              <div className="p-2 sm:p-6">
-                {/* Days of Week Header */}
-                <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="p-1.5 sm:p-3 text-center text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
-                      {day}
-                    </div>
-                  ))}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Calendar */}
+            <div className="lg:col-span-2">
+              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700">
+                {/* Calendar Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </h2>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => navigateMonth('prev')}
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded transition-colors"
+                    >
+                      <FaChevronLeft />
+                    </button>
+                    <button
+                      onClick={() => setCurrentDate(new Date())}
+                      className="px-4 py-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded transition-colors"
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => navigateMonth('next')}
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded transition-colors"
+                    >
+                      <FaChevronRight />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Calendar Days */}
-                <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
-                  {calendarDays.map((date, index) => {
-                    const dayAppointments = getAppointmentsForDate(date);
-                    const hasAvailabilityToday = hasAvailability(date);
-                    const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-                    
-                    return (
-                      <div
-                        key={index}
-                        onClick={() => setSelectedDate(date)}
-                        className={`
+                {/* Calendar Grid */}
+                <div className="p-2 sm:p-6">
+                  {/* Days of Week Header */}
+                  <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="p-1.5 sm:p-3 text-center text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Calendar Days */}
+                  <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+                    {calendarDays.map((date, index) => {
+                      const dayAppointments = getAppointmentsForDate(date);
+                      const hasAvailabilityToday = hasAvailability(date);
+                      const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => setSelectedDate(date)}
+                          className={`
                           p-1 sm:p-2 h-16 sm:h-24 border border-gray-200 dark:border-slate-600 cursor-pointer transition-all duration-200 relative overflow-hidden
                           ${isToday(date) ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-700' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}
                           ${isSelected ? 'ring-1 sm:ring-2 ring-teal-500 dark:ring-teal-400 bg-teal-50 dark:bg-teal-900/20' : ''}
                           ${!isCurrentMonth(date) ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}
                         `}
-                      >
-                        <div className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${isToday(date) ? 'text-teal-600 dark:text-teal-400' : ''}`}>
-                          {date.getDate()}
-                        </div>
-                        
-                        {/* Availability indicator */}
-                        {hasAvailabilityToday && (
-                          <div className="absolute top-0.5 sm:top-1 right-0.5 sm:right-1">
-                            <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 bg-green-500 rounded-full" title="Available"></div>
+                        >
+                          <div className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${isToday(date) ? 'text-teal-600 dark:text-teal-400' : ''}`}>
+                            {date.getDate()}
                           </div>
-                        )}
-                        
-                        {/* Appointment indicators */}
-                        <div className="space-y-0.5 sm:space-y-1">
-                          {dayAppointments.slice(0, 1).map((appointment, idx) => (
-                            <div
-                              key={idx}
-                              className={`text-[10px] sm:text-xs px-0.5 sm:px-1 py-0.5 rounded text-white truncate ${getStatusColor(appointment.status)}`}
-                            >
-                              <span className="hidden sm:inline">{formatTime(appointment.startTime)} - </span>
-                              {appointment.patient?.name?.split(' ')[0] || 'Patient'}
-                            </div>
-                          ))}
-                          {dayAppointments.length > 1 && (
-                            <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                              +{dayAppointments.length - 1}
+
+                          {/* Availability indicator */}
+                          {hasAvailabilityToday && (
+                            <div className="absolute top-0.5 sm:top-1 right-0.5 sm:right-1">
+                              <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 bg-green-500 rounded-full" title="Available"></div>
                             </div>
                           )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Selected Date Appointments */}
-          <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700">
-              <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-                <div className="flex items-center space-x-3">
-                  <FaCalendarAlt className="text-teal-600 dark:text-teal-400" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {selectedDate 
-                      ? formatDate(selectedDate)
-                      : 'Select a date'
-                    }
-                  </h3>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                {!selectedDate ? (
-                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                    Click on a date to view appointments
-                  </p>
-                ) : (
-                  <div>
-                    {/* Availability Status */}
-                    {(() => {
-                      const availability = getAvailabilityForDate(selectedDate);
-                      return availability ? (
-                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-4">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="text-green-800 dark:text-green-300 font-medium">Available</span>
-                          </div>
-                          <div className="text-sm text-green-700 dark:text-green-400 mt-1">
-                            {availability.startTime} - {availability.endTime}
-                            {availability.slotDuration && ` (${availability.slotDuration} min slots)`}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                              <span className="text-amber-800 dark:text-amber-300 font-medium">No availability set</span>
-                            </div>
-                          </div>
-                          <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">
-                            Set your availability to allow patients to book appointments on this date.
-                          </p>
-                          <Link 
-                            href="/Doctor/availability"
-                            className="inline-flex items-center space-x-2 bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-                          >
-                            <Clock className="w-4 h-4" />
-                            <span>Set Availability</span>
-                            <ChevronRight className="w-4 h-4" />
-                          </Link>
-                        </div>
-                      );
-                    })()}
-
-                    {selectedDateAppointments.length === 0 ? (
-                      <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                        No appointments scheduled for this date
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        {selectedDateAppointments.map(appointment => (
-                          <div key={appointment.id} className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center space-x-2">
-                                <FaUser className="text-gray-500 dark:text-gray-400 text-sm" />
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {appointment.patient?.name || 'Unknown Patient'}
-                                </span>
+                          {/* Appointment indicators */}
+                          <div className="space-y-0.5 sm:space-y-1">
+                            {dayAppointments.slice(0, 1).map((appointment, idx) => (
+                              <div
+                                key={idx}
+                                className={`text-[10px] sm:text-xs px-0.5 sm:px-1 py-0.5 rounded text-white truncate ${getStatusColor(appointment.status)}`}
+                              >
+                                <span className="hidden sm:inline">{formatTime(appointment.startTime)} - </span>
+                                {appointment.patient?.name?.split(' ')[0] || 'Patient'}
                               </div>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                                {appointment.status}
-                              </span>
-                            </div>
-                            
-                            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                              <FaClock className="text-gray-400 dark:text-gray-500" />
-                              <span>
-                                {formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}
-                              </span>
-                            </div>
-                            
-                            {appointment.patientNotes && (
-                              <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                <strong>Notes:</strong> {appointment.patientNotes}
+                            ))}
+                            {dayAppointments.length > 1 && (
+                              <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+                                +{dayAppointments.length - 1}
                               </div>
                             )}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
               </div>
             </div>
 
-            {/* Legend */}
-            <div className="mt-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Legend</h4>
-              
-              {/* Availability Legend */}
-              <div className="mb-4">
-                <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Availability</h5>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Available for appointments</span>
+            {/* Selected Date Appointments */}
+            <div className="lg:col-span-1">
+              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+                  <div className="flex items-center space-x-3">
+                    <FaCalendarAlt className="text-teal-600 dark:text-teal-400" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {selectedDate
+                        ? formatDate(selectedDate)
+                        : 'Select a date'
+                      }
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  {!selectedDate ? (
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                      Click on a date to view appointments
+                    </p>
+                  ) : (
+                    <div>
+                      {/* Availability Status */}
+                      {(() => {
+                        const availability = getAvailabilityForDate(selectedDate);
+                        return availability ? (
+                          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-4">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-green-800 dark:text-green-300 font-medium">Available</span>
+                            </div>
+                            <div className="text-sm text-green-700 dark:text-green-400 mt-1">
+                              {availability.startTime} - {availability.endTime}
+                              {availability.slotDuration && ` (${availability.slotDuration} min slots)`}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                                <span className="text-amber-800 dark:text-amber-300 font-medium">No availability set</span>
+                              </div>
+                            </div>
+                            <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">
+                              Set your availability to allow patients to book appointments on this date.
+                            </p>
+                            <Link
+                              href="/Doctor/availability"
+                              className="inline-flex items-center space-x-2 bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                            >
+                              <Clock className="w-4 h-4" />
+                              <span>Set Availability</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </Link>
+                          </div>
+                        );
+                      })()}
+
+                      {selectedDateAppointments.length === 0 ? (
+                        <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                          No appointments scheduled for this date
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {selectedDateAppointments.map(appointment => (
+                            <div key={appointment.id} className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  <FaUser className="text-gray-500 dark:text-gray-400 text-sm" />
+                                  <span className="font-medium text-gray-900 dark:text-white">
+                                    {appointment.patient?.name || 'Unknown Patient'}
+                                  </span>
+                                </div>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                                  {appointment.status}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                                <FaClock className="text-gray-400 dark:text-gray-500" />
+                                <span>
+                                  {formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}
+                                </span>
+                              </div>
+
+                              {appointment.patientNotes && (
+                                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                  <strong>Notes:</strong> {appointment.patientNotes}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-              
-              {/* Status Legend */}
-              <div>
-                <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Appointment Status</h5>
-                <div className="space-y-2 text-sm">
-                  {[
-                    { status: 'CONFIRMED', color: 'bg-green-500', label: 'Confirmed' },
-                    { status: 'PENDING', color: 'bg-yellow-500', label: 'Pending' },
-                    { status: 'IN_PROGRESS', color: 'bg-blue-500', label: 'In Progress' },
-                    { status: 'COMPLETED', color: 'bg-gray-500', label: 'Completed' },
-                    { status: 'CANCELLED', color: 'bg-red-500', label: 'Cancelled' }
-                  ].map(item => (
-                    <div key={item.status} className="flex items-center space-x-2">
-                      <div className={`w-3 h-3 rounded ${item.color}`}></div>
-                      <span className="text-gray-700 dark:text-gray-300">{item.label}</span>
-                    </div>
-                  ))}
+
+              {/* Legend */}
+              <div className="mt-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-slate-700">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Legend</h4>
+
+                {/* Availability Legend */}
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Availability</h5>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Available for appointments</span>
+                  </div>
+                </div>
+
+                {/* Status Legend */}
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Appointment Status</h5>
+                  <div className="space-y-2 text-sm">
+                    {[
+                      { status: 'CONFIRMED', color: 'bg-green-500', label: 'Confirmed' },
+                      { status: 'PENDING', color: 'bg-yellow-500', label: 'Pending' },
+                      { status: 'IN_PROGRESS', color: 'bg-blue-500', label: 'In Progress' },
+                      { status: 'COMPLETED', color: 'bg-gray-500', label: 'Completed' },
+                      { status: 'CANCELLED', color: 'bg-red-500', label: 'Cancelled' }
+                    ].map(item => (
+                      <div key={item.status} className="flex items-center space-x-2">
+                        <div className={`w-3 h-3 rounded ${item.color}`}></div>
+                        <span className="text-gray-700 dark:text-gray-300">{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </div>
       </main>
     </div>
