@@ -50,3 +50,8 @@ BUILD-TEST.md
 TESTING-WINDOWS.md
 test-docker-windows.ps1
 preflight-check.sh
+
+# Design and Presentation
+.claude-design/
+TABEEB_Technical_Presentation.html
+

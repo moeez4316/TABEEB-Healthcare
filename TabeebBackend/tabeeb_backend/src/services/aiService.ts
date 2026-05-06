@@ -112,7 +112,13 @@ export const sendChatMessage = async (
     return 'I was unable to generate a response. Please try rephrasing your question.';
   }
 
-  const text = candidates[0]?.content?.parts?.[0]?.text;
+  const textParts = candidates[0]?.content?.parts || [];
+  const text = textParts
+    .filter((part: any) => !part.thought)
+    .map((part: any) => part.text)
+    .join('\n')
+    .trim();
+
   if (!text) {
     console.warn('[AI Chat] Empty text in candidate:', JSON.stringify(candidates[0]?.finishReason));
     return 'I was unable to generate a response. Please try again.';
@@ -207,7 +213,13 @@ export const summarizeMedicalDocument = async (
     return 'Unable to summarize the document. Please try again.';
   }
 
-  const text = candidates[0]?.content?.parts?.[0]?.text;
+  const textParts = candidates[0]?.content?.parts || [];
+  const text = textParts
+    .filter((part: any) => !part.thought)
+    .map((part: any) => part.text)
+    .join('\n')
+    .trim();
+
   if (!text) {
     console.warn('[AI Summarize] Empty text in candidate:', JSON.stringify(candidates[0]?.finishReason));
     return 'Unable to generate a summary. Please try again.';
@@ -381,7 +393,13 @@ Respond with:
     return 'Unable to find results. Please try again with a different medicine name.';
   }
 
-  const resultText = candidates[0]?.content?.parts?.[0]?.text;
+  const textParts = candidates[0]?.content?.parts || [];
+  const resultText = textParts
+    .filter((part: any) => !part.thought)
+    .map((part: any) => part.text)
+    .join('\n')
+    .trim();
+
   if (!resultText) {
     console.warn('[Medicine Search] Empty text in candidate:', JSON.stringify(candidates[0]?.finishReason));
     return 'Unable to generate results. Please try again.';
