@@ -26,6 +26,7 @@ export default function SidebarDoctor() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLockedOpen, setIsLockedOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   // Check if we're on mobile screen size
@@ -38,6 +39,26 @@ export default function SidebarDoctor() {
     window.addEventListener('resize', checkScreenSize);
 
     return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Listen for custom events to open/close sidebar from onboarding
+  useEffect(() => {
+    const openMenu = () => {
+      setIsMobileMenuOpen(true);
+      setIsLockedOpen(true); // Lock it open during onboarding
+    };
+    const closeMenu = () => {
+      setIsLockedOpen(false);
+      setIsMobileMenuOpen(false);
+    };
+
+    window.addEventListener('open-mobile-sidebar', openMenu);
+    window.addEventListener('close-mobile-sidebar', closeMenu);
+
+    return () => {
+      window.removeEventListener('open-mobile-sidebar', openMenu);
+      window.removeEventListener('close-mobile-sidebar', closeMenu);
+    };
   }, []);
 
   const handleSignOut = async () => {
@@ -126,7 +147,7 @@ export default function SidebarDoctor() {
                   href={item.href}
                   data-onboarding-id={item.onboardingId}
                   onClick={() => {
-                    if (isMobile) {
+                    if (isMobile && !isLockedOpen) {
                       setIsMobileMenuOpen(false);
                     }
                   }}
@@ -157,7 +178,7 @@ export default function SidebarDoctor() {
           <div className="mb-4 p-3 bg-white/10 rounded-lg transition-opacity duration-300">
             <p className="text-sm text-gray-600 dark:text-gray-400">Signed in as:</p>
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-              {profile?.email || (user.email && !user.email.endsWith('@tabeeb.phone') ? user.email : (user.displayName || 'Doctor'))}
+              {profile?.email || user.email || user.displayName || 'Doctor'}
             </p>
           </div>
         )}
@@ -196,8 +217,9 @@ export default function SidebarDoctor() {
       {/* Mobile Menu Button - Only show on mobile */}
       {isMobile && (
         <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-slate-800 rounded-xl shadow-md"
+          onClick={() => !isLockedOpen && setIsMobileMenuOpen(!isMobileMenuOpen)}
+          disabled={isLockedOpen}
+          className={`lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-slate-800 rounded-xl shadow-md ${isLockedOpen ? 'opacity-50 cursor-not-allowed hidden' : ''}`}
         >
           {isMobileMenuOpen ? (
             <FaTimes className="w-5 h-5 text-gray-700 dark:text-gray-300" />
@@ -210,8 +232,8 @@ export default function SidebarDoctor() {
       {/* Mobile Backdrop - Only show on mobile */}
       {isMobile && isMobileMenuOpen && (
         <div 
-          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-          onClick={() => setIsMobileMenuOpen(false)}
+          className={`lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 ${isLockedOpen ? 'pointer-events-none' : ''}`}
+          onClick={() => !isLockedOpen && setIsMobileMenuOpen(false)}
         />
       )}
 

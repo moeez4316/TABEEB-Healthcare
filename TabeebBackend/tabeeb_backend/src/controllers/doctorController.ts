@@ -58,10 +58,10 @@ export const createDoctor = async (req: Request, res: Response) => {
       });
     }
 
-    // Validate that at least email or phone is provided
-    if (!cleanEmail && !cleanPhone) {
+    // Validate that email is provided (phone is optional contact info)
+    if (!cleanEmail) {
       return res.status(400).json({ 
-        error: 'At least one of email or phone is required' 
+        error: 'Email is required' 
       });
     }
 
@@ -101,20 +101,6 @@ export const createDoctor = async (req: Request, res: Response) => {
         error: 'Doctor profile already exists for this user',
         existing: true
       });
-    }
-
-    // If phone is provided, check if it belongs to another doctor
-    if (cleanPhone) {
-      const phoneConflict = await prisma.doctor.findUnique({ 
-        where: { phone: cleanPhone },
-        select: { uid: true } 
-      });
-      
-      if (phoneConflict && phoneConflict.uid !== uid) {
-        return res.status(409).json({ 
-          error: 'This phone number is already registered with another account' 
-        });
-      }
     }
 
     // Create database records in a transaction (atomic operation)

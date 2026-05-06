@@ -1,5 +1,5 @@
 import express from 'express';
-import { sendOtp, verifyOtpCode, validateOtpCode, verifyMagicLink, resetPassword, sendPhoneResetOtp, resetPhonePassword } from '../controllers/authController';
+import { sendOtp, verifyOtpCode, validateOtpCode, verifyMagicLink, resetPassword } from '../controllers/authController';
 import { authLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
@@ -15,9 +15,5 @@ router.post('/send-otp', sendOtp);
 router.post('/verify-otp', verifyOtpCode);
 router.post('/validate-otp', validateOtpCode);
 router.post('/reset-password', resetPassword);
-
-// Phone user password reset (sends OTP to their real email)
-router.post('/phone/send-reset-otp', sendPhoneResetOtp);
-router.post('/phone/reset-password', resetPhonePassword);
 
 export default router;

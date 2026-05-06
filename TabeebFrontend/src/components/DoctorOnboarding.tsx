@@ -14,6 +14,7 @@ interface OnboardingStep {
   details: string[];
   placement?: 'right' | 'left' | 'bottom';
   missingHint?: string;
+  disableTargetClick?: boolean;
 }
 
 interface DoctorOnboardingProps {
@@ -120,6 +121,7 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
       ],
       placement: 'right',
       missingHint: 'Open the sidebar menu to continue.',
+      disableTargetClick: true,
     },
     {
       id: 7,
@@ -133,6 +135,7 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
       ],
       placement: 'right',
       missingHint: 'Open the sidebar menu to continue.',
+      disableTargetClick: true,
     },
     {
       id: 8,
@@ -145,6 +148,7 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
       ],
       placement: 'right',
       missingHint: 'Open the sidebar menu to continue.',
+      disableTargetClick: true,
     },
   ], []);
 
@@ -157,7 +161,11 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
 
   const getTargetRect = useCallback((targetId: string) => {
     const target = getTargetElement(targetId);
-    return target ? target.getBoundingClientRect() : null;
+    if (!target) return null;
+    const rect = target.getBoundingClientRect();
+    // Consider element "missing" if it's display:none or off-screen to the left (like a closed mobile sidebar)
+    if (rect.width === 0 || rect.height === 0 || rect.right <= 0) return null;
+    return rect;
   }, [getTargetElement]);
 
   const clamp = (value: number, min: number, max: number) =>
@@ -175,6 +183,10 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
 
   const markOnboardingComplete = async () => {
     if (!token) return;
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('close-mobile-sidebar'));
+    }
 
     setIsCompleting(true);
     try {
@@ -229,6 +241,13 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
 
     let rafId: number | null = null;
 
+    // Force open mobile sidebar for steps that require it
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      if (['doctor-sidebar-availability', 'doctor-sidebar-appointments', 'doctor-sidebar-dashboard'].includes(currentStepData.targetId)) {
+        window.dispatchEvent(new CustomEvent('open-mobile-sidebar'));
+      }
+    }
+
     const updateTarget = () => {
       // Auto-advance if we are on Step 1 and the billing tab appears
       if (safeCurrentStep === 0) {
@@ -280,10 +299,15 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
       attributes: true,
     });
 
+    // Handle CSS Transitions catching up! 
+    // This continuously checks while the sidebar finishes its 300ms slide-in animation.
+    const transitionInterval = setInterval(scheduleUpdate, 100);
+
     return () => {
       window.removeEventListener('resize', scheduleUpdate);
       window.removeEventListener('scroll', scheduleUpdate, true);
       observer.disconnect();
+      clearInterval(transitionInterval);
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
@@ -355,8 +379,16 @@ export const DoctorOnboarding: React.FC<DoctorOnboardingProps> = ({ isOpen, onCo
     <>
       {targetRect && highlightStyle && (
         <div
-          className="fixed z-[9998] pointer-events-none rounded-lg border-2 border-teal-400/90 shadow-[0_0_20px_rgba(20,184,166,0.45)]"
+          className={`fixed z-[9998] rounded-lg border-2 border-teal-400/90 shadow-[0_0_20px_rgba(20,184,166,0.45)] ${
+            currentStepData.disableTargetClick ? 'pointer-events-auto cursor-default' : 'pointer-events-none'
+          }`}
           style={highlightStyle}
+          onClick={(e) => {
+            if (currentStepData.disableTargetClick) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
         />
       )}
       {tooltipStyle && (
