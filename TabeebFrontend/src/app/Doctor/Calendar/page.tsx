@@ -47,7 +47,7 @@ export default function DoctorCalendarPage() {
     staleTime: 30 * 1000,
   });
 
-  const appointments = (appointmentsData || []) as Appointment[];
+  const appointments = appointmentsData?.appointments || [];
   const availabilities = Array.isArray(availabilityData) ? availabilityData : [];
   const loading = appointmentsLoading || availabilityLoading;
   const error = appointmentsError || availabilityError;

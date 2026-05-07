@@ -25,15 +25,25 @@ export const usePatientAppointments = (token: string | null, enabled: boolean = 
     staleTime: 30 * 1000,
   });
 
+export interface PaginatedAppointments {
+  appointments: AppointmentWithDetails[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export const useDoctorAppointments = (
   token: string | null,
   limit: number = 100,
   enabled: boolean = true
 ) =>
-  useApiQuery<AppointmentWithDetails[]>({
+  useApiQuery<PaginatedAppointments>({
     queryKey: appointmentKeys.doctorList(limit),
     queryFn: () =>
-      apiFetchJson<AppointmentWithDetails[]>(`${API_BASE}/doctor?limit=${limit}`, {
+      apiFetchJson<PaginatedAppointments>(`${API_BASE}/doctor?limit=${limit}`, {
         token,
         headers: {
           'Content-Type': 'application/json',
