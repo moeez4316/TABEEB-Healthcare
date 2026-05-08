@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { FaStar, FaCheckCircle, FaMapMarkerAlt, FaBriefcase, FaGraduationCap } from 'react-icons/fa';
 import { MdVerified } from 'react-icons/md';
 import { PublicDoctorProfile } from '@/types/doctor-profile';
+import { sanitizeName } from '@/lib/profile-utils';
 
 interface ProfileHeaderProps {
   profile: PublicDoctorProfile;
@@ -57,7 +58,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <div className="flex-1 text-center md:text-left">
             <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
               <h1 className="text-4xl font-bold text-white">
-                Dr. {profile.name}
+                Dr. {sanitizeName(profile.name)}
               </h1>
               {profile.verification.isVerified && (
                 <FaCheckCircle className="text-green-400" size={28} title="Verified" />

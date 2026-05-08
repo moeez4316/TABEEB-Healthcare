@@ -20,6 +20,12 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      res.status(400).json({ error: 'Please enter a valid email address.' });
+      return;
+    }
+
     if (!['EMAIL_VERIFY', 'PASSWORD_RESET'].includes(type)) {
       res.status(400).json({ error: 'Invalid OTP type. Must be EMAIL_VERIFY or PASSWORD_RESET.' });
       return;

@@ -6,7 +6,7 @@ import { User, UserCheck, Stethoscope, Heart, Mail, Phone, GraduationCap, Award,
 import Image from "next/image";
 import { getDoctorRedirectPath } from "@/lib/doctorRedirect";
 import ProfileImageUpload from "@/components/shared/ProfileImageUpload";
-import { formatPhoneNumber, isValidEmail, isValidPhoneNumber, pakistaniMedicalSpecializations, pakistaniMedicalQualifications } from "@/lib/profile-utils";
+import { formatPhoneNumber, isValidEmail, isValidPhoneNumber, isValidName, pakistaniMedicalSpecializations, pakistaniMedicalQualifications } from "@/lib/profile-utils";
 import { APP_CONFIG } from "@/lib/config/appConfig";
 import { uploadFile } from "@/lib/cloudinary-upload";
 import { fetchWithRateLimit } from "@/lib/api-utils";
@@ -129,7 +129,16 @@ export default function SelectRolePage() {
     const age = today.getFullYear() - dobDate.getFullYear();
     
     if (!doctorForm.firstName.trim()) errors.firstName = "First name is required";
+    else if (/^(dr|prof)\.?\s+/i.test(doctorForm.firstName.trim())) {
+      errors.firstName = "First name should not include \"Dr.\" or \"Prof.\" title as it is added automatically";
+    }
+    else if (!isValidName(doctorForm.firstName)) errors.firstName = "First name should only contain letters";
+
     if (!doctorForm.lastName.trim()) errors.lastName = "Last name is required";
+    else if (/^(dr|prof)\.?\s+/i.test(doctorForm.lastName.trim())) {
+      errors.lastName = "Last name should not include \"Dr.\" or \"Prof.\" title as it is added automatically";
+    }
+    else if (!isValidName(doctorForm.lastName)) errors.lastName = "Last name should only contain letters";
     
     // Email: required for phone auth users, pre-filled and disabled for email auth
     if (isPhoneAuth) {
@@ -178,7 +187,10 @@ export default function SelectRolePage() {
     const age = today.getFullYear() - dobDate.getFullYear();
     
     if (!patientForm.firstName.trim()) errors.firstName = "First name is required";
+    else if (!isValidName(patientForm.firstName)) errors.firstName = "First name should only contain letters";
+
     if (!patientForm.lastName.trim()) errors.lastName = "Last name is required";
+    else if (!isValidName(patientForm.lastName)) errors.lastName = "Last name should only contain letters";
     
     // Email: required for phone auth users, pre-filled and disabled for email auth
     if (isPhoneAuth) {

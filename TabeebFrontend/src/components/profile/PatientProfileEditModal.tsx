@@ -9,7 +9,7 @@ import { resetProfile } from '@/store/slices/patientSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import HeightInput from '../shared/HeightInput';
 import { formatCNIC, formatPhoneNumber, pakistaniProvinces, bloodGroups, pakistaniLanguages } from '@/lib/profile-utils';
-import { ValidationErrors, getFieldError } from '@/lib/profile-validation';
+import { ValidationErrors, getFieldError, validatePatientProfile } from '@/lib/profile-validation';
 import { Toast } from '../Toast';
 import { useRouter } from 'next/navigation';
 import { uploadFile } from '@/lib/cloudinary-upload';
@@ -236,6 +236,18 @@ export default function PatientProfileEditModal({ isOpen, onClose, initialTab }:
     if (!token) return;
     
     console.log('Save button clicked');
+    
+    // Step 0: Validate profile
+    const validation = validatePatientProfile(profile);
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      setToastMessage('Please fix the errors in your profile');
+      setToastType('error');
+      setShowToast(true);
+      setSaving(false);
+      return;
+    }
+
     setSaving(true);
     setErrors({});
     
@@ -358,12 +370,20 @@ export default function PatientProfileEditModal({ isOpen, onClose, initialTab }:
 
   const handleInputChange = (field: string, value: unknown) => {
     handleUpdateProfile({ [field]: value });
+    // Clear error for this field if it exists
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
   };
 
   const handleAddressChange = (field: string, value: string) => {
     handleUpdateProfile({
       address: {
-        ...profile.address,
+        ...(profile.address || { street: '', city: '', province: '', postalCode: '' }),
         [field]: value
       }
     });
@@ -372,7 +392,7 @@ export default function PatientProfileEditModal({ isOpen, onClose, initialTab }:
   const handleEmergencyContactChange = (field: string, value: string) => {
     handleUpdateProfile({
       emergencyContact: {
-        ...profile.emergencyContact,
+        ...(profile.emergencyContact || { name: '', relationship: '', phone: '' }),
         [field]: value
       }
     });
@@ -381,7 +401,7 @@ export default function PatientProfileEditModal({ isOpen, onClose, initialTab }:
   const handleNotificationChange = (field: string, value: boolean) => {
     handleUpdateProfile({
       notifications: {
-        ...profile.notifications,
+        ...(profile.notifications || { email: true, sms: true, push: true }),
         [field]: value
       }
     });
@@ -901,10 +921,10 @@ export default function PatientProfileEditModal({ isOpen, onClose, initialTab }:
                     <label className="flex items-center">
                       <input 
                         type="checkbox" 
-                        checked={profile.privacy.shareDataForResearch}
+                        checked={profile.privacy?.shareDataForResearch || false}
                         onChange={(e) => handleUpdateProfile({
                           privacy: {
-                            ...profile.privacy,
+                            ...(profile.privacy || { shareDataForResearch: false, allowMarketing: false }),
                             shareDataForResearch: e.target.checked
                           }
                         })}
@@ -915,10 +935,10 @@ export default function PatientProfileEditModal({ isOpen, onClose, initialTab }:
                     <label className="flex items-center">
                       <input 
                         type="checkbox" 
-                        checked={profile.privacy.allowMarketing}
+                        checked={profile.privacy?.allowMarketing || false}
                         onChange={(e) => handleUpdateProfile({
                           privacy: {
-                            ...profile.privacy,
+                            ...(profile.privacy || { shareDataForResearch: false, allowMarketing: false }),
                             allowMarketing: e.target.checked
                           }
                         })}

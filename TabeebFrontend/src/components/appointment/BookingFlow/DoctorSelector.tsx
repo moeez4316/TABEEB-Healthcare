@@ -4,6 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import { Doctor } from '@/types/appointment';
 import { FaStar, FaUserMd } from 'react-icons/fa';
+import { sanitizeName } from '@/lib/profile-utils';
 
 interface DoctorSelectorProps {
   doctors: Doctor[];
@@ -70,7 +71,7 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
                 {doctor.profileImageUrl ? (
                   <Image 
                     src={doctor.profileImageUrl} 
-                    alt={`Dr. ${doctor.name}`} 
+                    alt={`Dr. ${sanitizeName(doctor.name)}`} 
                     width={64}
                     height={64}
                     className="w-full h-full object-cover"
@@ -84,8 +85,8 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
               <div className="flex-1">
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Dr. {doctor.firstName && doctor.lastName 
-                    ? `${doctor.firstName} ${doctor.lastName}`
-                    : doctor.name
+                    ? `${sanitizeName(doctor.firstName)} ${sanitizeName(doctor.lastName)}`
+                    : sanitizeName(doctor.name)
                   }
                 </h4>
                 <p className="text-teal-600 dark:text-teal-400 font-medium">{doctor.specialization}</p>

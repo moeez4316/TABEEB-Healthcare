@@ -189,7 +189,48 @@ export const loadPatientProfile = createAsyncThunk(
         return rejectWithValue(errorData.error || 'Failed to load profile');
       }
 
-      const profileData = await response.json();
+      const backendData = await response.json();
+      
+      // Transform backend data to frontend format with safe defaults
+      const profileData: PatientProfile = {
+        ...defaultProfile,
+        firstName: backendData.firstName || '',
+        lastName: backendData.lastName || '',
+        email: backendData.email || '',
+        phone: backendData.phone || '',
+        cnic: backendData.cnic || '',
+        dateOfBirth: backendData.dateOfBirth ? new Date(backendData.dateOfBirth).toISOString().split('T')[0] : '',
+        gender: backendData.gender || '',
+        profileImage: backendData.profileImageUrl || '',
+        bloodType: backendData.bloodType || '',
+        height: backendData.height || '',
+        weight: backendData.weight || '',
+        allergies: backendData.allergies || [],
+        medications: backendData.medications || [],
+        medicalConditions: backendData.medicalConditions || [],
+        emergencyContact: {
+          name: backendData.emergencyContact?.name || '',
+          relationship: backendData.emergencyContact?.relationship || '',
+          phone: backendData.emergencyContact?.phone || ''
+        },
+        address: {
+          street: backendData.addressStreet || backendData.address?.street || '',
+          city: backendData.addressCity || backendData.address?.city || '',
+          province: backendData.addressProvince || backendData.address?.province || '',
+          postalCode: backendData.addressPostalCode || backendData.address?.postalCode || ''
+        },
+        language: backendData.language || 'English',
+        notifications: {
+          email: backendData.notificationsEmail !== undefined ? backendData.notificationsEmail : (backendData.notifications?.email ?? true),
+          sms: backendData.notificationsSms !== undefined ? backendData.notificationsSms : (backendData.notifications?.sms ?? true),
+          push: backendData.notificationsPush !== undefined ? backendData.notificationsPush : (backendData.notifications?.push ?? true)
+        },
+        privacy: {
+          shareDataForResearch: backendData.privacyShareData || backendData.privacy?.shareDataForResearch || false,
+          allowMarketing: backendData.privacyMarketing || backendData.privacy?.allowMarketing || false
+        }
+      };
+      
       return profileData;
     } catch {
       return rejectWithValue('Network error: Failed to load profile');

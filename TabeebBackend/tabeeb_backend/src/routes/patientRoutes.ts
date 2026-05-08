@@ -13,13 +13,14 @@ import {
   submitFinancialAidRequest,
 } from '../controllers/financialAidController';
 import { verifyToken } from '../middleware/verifyToken';
+import { validatePatientProfile, verifyEmailVerified } from '../middleware/userValidation';
 
 const router = express.Router();
 
 // Patient profile routes - All use JSON body (no multer needed)
-router.post('/', verifyToken, createPatient);
+router.post('/', verifyToken, verifyEmailVerified, validatePatientProfile, createPatient);
 router.get('/', verifyToken, getPatient);
-router.put('/', verifyToken, updatePatient);
+router.put('/', verifyToken, validatePatientProfile, updatePatient);
 router.delete('/', verifyToken, deletePatient);
 router.post('/restore', verifyToken, restorePatient);
 

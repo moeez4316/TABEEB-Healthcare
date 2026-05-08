@@ -12,6 +12,15 @@ import {
   invalidateAdminCaches,
 } from '../services/cacheService';
 
+/**
+ * Sanitizes doctor names by removing redundant titles (Dr., Prof.)
+ */
+const sanitizeDoctorName = (name: string): string => {
+  if (!name) return '';
+  // Remove "Dr.", "Dr ", "Prof.", "Prof " prefix (case insensitive)
+  return name.replace(/^(dr|prof)\.?\s+/i, '').replace(/^(dr|prof)\./i, '').trim();
+};
+
 export const createDoctor = async (req: Request, res: Response) => {
   const uid = req.user?.uid;
   const { 
@@ -113,12 +122,15 @@ export const createDoctor = async (req: Request, res: Response) => {
       });
       
       // Create Doctor record (now safe since we checked for conflicts)
+      const sanitizedFirstName = sanitizeDoctorName(firstName);
+      const sanitizedLastName = sanitizeDoctorName(lastName);
+      
       const newDoctor = await tx.doctor.create({
         data: {
           uid: uid as string,
-          firstName,
-          lastName,
-          name: name || `${firstName} ${lastName}`,
+          firstName: sanitizedFirstName,
+          lastName: sanitizedLastName,
+          name: name ? sanitizeDoctorName(name) : `${sanitizedFirstName} ${sanitizedLastName}`,
           email: cleanEmail,
           phone: cleanPhone,
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
@@ -316,9 +328,14 @@ export const updateDoctor = async (req: Request, res: Response) => {
     // Ensure name is updated if firstName or lastName changes
     if (updateData.firstName || updateData.lastName) {
       const currentDoctor = await prisma.doctor.findUnique({ where: { uid } });
-      const firstName = updateData.firstName || currentDoctor?.firstName || '';
-      const lastName = updateData.lastName || currentDoctor?.lastName || '';
+      const firstName = sanitizeDoctorName(updateData.firstName || currentDoctor?.firstName || '');
+      const lastName = sanitizeDoctorName(updateData.lastName || currentDoctor?.lastName || '');
+      
+      updateData.firstName = firstName;
+      updateData.lastName = lastName;
       updateData.name = `${firstName} ${lastName}`.trim();
+    } else if (updateData.name) {
+      updateData.name = sanitizeDoctorName(updateData.name);
     }
 
     const doctor = await prisma.doctor.update({

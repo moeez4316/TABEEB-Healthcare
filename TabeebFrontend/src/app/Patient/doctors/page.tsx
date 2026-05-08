@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { FaSearch, FaSort, FaUserMd, FaStar, FaCalendarAlt } from 'react-icons/fa';
 import { useApiQuery } from '@/lib/hooks/useApiQuery';
 import { apiFetchJson } from '@/lib/api-client';
+import { sanitizeName } from '@/lib/profile-utils';
 
 interface Doctor {
   uid: string;
@@ -246,7 +247,7 @@ export default function DoctorsPage() {
                   {doctor.profileImageUrl ? (
                     <Image 
                       src={doctor.profileImageUrl} 
-                      alt={`Dr. ${doctor.name}`} 
+                      alt={`Dr. ${sanitizeName(doctor.name)}`} 
                       width={64}
                       height={64}
                       className="w-full h-full object-cover"
@@ -257,8 +258,8 @@ export default function DoctorsPage() {
                 </div>
                 <h3 className="text-xl font-semibold text-white text-center drop-shadow-sm">
                   Dr. {doctor.firstName && doctor.lastName 
-                    ? `${doctor.firstName} ${doctor.lastName}`
-                    : doctor.name
+                    ? `${sanitizeName(doctor.firstName)} ${sanitizeName(doctor.lastName)}`
+                    : sanitizeName(doctor.name)
                   }
                 </h3>
               </div>
