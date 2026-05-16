@@ -27,7 +27,6 @@ export const createDoctor = async (req: Request, res: Response) => {
     firstName, 
     lastName, 
     name, 
-    email, 
     phone, 
     dateOfBirth,
     gender,
@@ -55,8 +54,8 @@ export const createDoctor = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'User UID is required' });
   }
 
-  // Convert empty strings to null for email and phone
-  const cleanEmail = email?.trim() || null;
+  // Enforce one valid email from Firebase auth
+  const cleanEmail = req.user?.email || null;
   const cleanPhone = normalizePhoneForDB(phone);
 
   try {
@@ -67,10 +66,10 @@ export const createDoctor = async (req: Request, res: Response) => {
       });
     }
 
-    // Validate that email is provided (phone is optional contact info)
+    // Validate that email is provided
     if (!cleanEmail) {
       return res.status(400).json({ 
-        error: 'Email is required' 
+        error: 'Verified email is required from Auth token' 
       });
     }
 
@@ -249,10 +248,11 @@ export const updateDoctor = async (req: Request, res: Response) => {
       updateData.dateOfBirth = new Date(updateData.dateOfBirth);
     }
 
-    // Convert empty strings to null for email and phone
+    // Prevent email updates as Firebase is the source of truth
     if ('email' in updateData) {
-      updateData.email = updateData.email?.trim() || null;
+      delete updateData.email;
     }
+
     if ('phone' in updateData) {
       updateData.phone = normalizePhoneForDB(updateData.phone);
     }

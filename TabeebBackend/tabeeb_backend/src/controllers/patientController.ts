@@ -17,7 +17,6 @@ export const createPatient = async (req: Request, res: Response) => {
   const { 
     firstName, 
     lastName, 
-    email, 
     phone, 
     cnic,
     dateOfBirth, 
@@ -50,15 +49,15 @@ export const createPatient = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'User UID is required' });
   }
 
-  // Convert empty strings to null for email and phone
-  const cleanEmail = email?.trim() || null;
+  // Enforce one valid email from Firebase auth
+  const cleanEmail = req.user?.email || null;
   const cleanPhone = normalizePhoneForDB(phone);
   const cleanEmergencyPhone = normalizePhoneForDB(emergencyContactPhone);
 
-  // Validate that email is provided (phone is optional contact info)
+  // Validate that email is provided
   if (!cleanEmail) {
     return res.status(400).json({ 
-      error: 'Email is required' 
+      error: 'Verified email is required from Auth token' 
     });
   }
 
@@ -249,7 +248,6 @@ export const updatePatient = async (req: Request, res: Response) => {
   const { 
     firstName, 
     lastName, 
-    email, 
     phone, 
     cnic,
     dateOfBirth, 
@@ -278,24 +276,14 @@ export const updatePatient = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Account is deactivated' });
     }
 
-    // Convert empty strings to null for email and phone
-    const cleanEmail = email?.trim() || null;
     const cleanPhone = normalizePhoneForDB(phone);
     const cleanEmergencyPhone = emergencyContact?.phone ? normalizePhoneForDB(emergencyContact.phone) : undefined;
-
-    // Validate that email is not cleared when updating
-    if (email !== undefined && !cleanEmail) {
-      return res.status(400).json({ 
-        error: 'Email is required' 
-      });
-    }
 
     const patient = await prisma.patient.update({
       where: { uid },
       data: {
         firstName,
         lastName,
-        email: cleanEmail,
         phone: cleanPhone,
         cnic,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,

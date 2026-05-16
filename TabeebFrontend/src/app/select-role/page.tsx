@@ -84,10 +84,6 @@ export default function SelectRolePage() {
   
   const router = useRouter();
 
-  // Auth method: phone auth removed — treat as email-based account.
-  const isPhoneAuth = false;
-  const isEmailAuth = !!user?.email;
-
   // Pre-fill form with user data when user becomes available
   useEffect(() => {
     if (user) {
@@ -96,14 +92,14 @@ export default function SelectRolePage() {
         firstName: '',
         lastName: '',
         email: user.email || '',
-        phone: user.phoneNumber ? formatPhoneNumber(user.phoneNumber) : prev.phone || '',
+        phone: prev.phone || '',
       }));
       setPatientForm(prev => ({
         ...prev,
         firstName: '',
         lastName: '',
         email: user.email || '',
-        phone: user.phoneNumber ? formatPhoneNumber(user.phoneNumber) : prev.phone || '',
+        phone: prev.phone || '',
       }));
     }
   }, [user]);
@@ -140,27 +136,19 @@ export default function SelectRolePage() {
     }
     else if (!isValidName(doctorForm.lastName)) errors.lastName = "Last name should only contain letters";
     
-    // Email: required for phone auth users, pre-filled and disabled for email auth
-    if (isPhoneAuth) {
-      // Phone auth: email is optional, validate only if provided
-      if (doctorForm.email.trim() && !isValidEmail(doctorForm.email)) errors.email = "Invalid email format";
-    } else {
-      // Email auth: email is pre-filled and required (disabled)
-      if (!doctorForm.email.trim()) errors.email = "Email is required";
-      else if (!isValidEmail(doctorForm.email)) errors.email = "Invalid email format";
-    }
+    // Email: pre-filled from Firebase Auth and read-only
+    if (!doctorForm.email.trim()) errors.email = "Email is required";
+    else if (!isValidEmail(doctorForm.email)) errors.email = "Invalid email format";
     
-    // Phone: optional for email auth users, pre-filled and disabled for phone auth
-    if (isEmailAuth) {
-      // Email auth: phone is optional, validate only if provided and not just the prefix
+    // Phone: optional
+    if (doctorForm.phone.trim()) {
       const phoneValue = doctorForm.phone.trim();
       const isJustPrefix = phoneValue === '' || phoneValue === '+92-' || phoneValue === '+92' || phoneValue === '+';
-      if (phoneValue && !isJustPrefix && !isValidPhoneNumber(phoneValue)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
-    } else {
-      // Phone auth: phone is pre-filled and required (disabled)
-      if (!doctorForm.phone.trim()) errors.phone = "Phone number is required";
-      else if (!isValidPhoneNumber(doctorForm.phone)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
+      if (!isJustPrefix && !isValidPhoneNumber(phoneValue)) {
+        errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
+      }
     }
+    
     if (!doctorForm.dateOfBirth) errors.dateOfBirth = "Date of birth is required";
     else if (dobDate > today) errors.dateOfBirth = "Date of birth cannot be in the future";
     else if (age > 150) errors.dateOfBirth = "Invalid date of birth";
@@ -192,27 +180,19 @@ export default function SelectRolePage() {
     if (!patientForm.lastName.trim()) errors.lastName = "Last name is required";
     else if (!isValidName(patientForm.lastName)) errors.lastName = "Last name should only contain letters";
     
-    // Email: required for phone auth users, pre-filled and disabled for email auth
-    if (isPhoneAuth) {
-      // Phone auth: email is optional, validate only if provided
-      if (patientForm.email.trim() && !isValidEmail(patientForm.email)) errors.email = "Invalid email format";
-    } else {
-      // Email auth: email is pre-filled and required (disabled)
-      if (!patientForm.email.trim()) errors.email = "Email is required";
-      else if (!isValidEmail(patientForm.email)) errors.email = "Invalid email format";
-    }
+    // Email: pre-filled from Firebase Auth and read-only
+    if (!patientForm.email.trim()) errors.email = "Email is required";
+    else if (!isValidEmail(patientForm.email)) errors.email = "Invalid email format";
     
-    // Phone: optional for email auth users, pre-filled and disabled for phone auth
-    if (isEmailAuth) {
-      // Email auth: phone is optional, validate only if provided and not just the prefix
+    // Phone: optional
+    if (patientForm.phone.trim()) {
       const phoneValue = patientForm.phone.trim();
       const isJustPrefix = phoneValue === '' || phoneValue === '+92-' || phoneValue === '+92' || phoneValue === '+';
-      if (phoneValue && !isJustPrefix && !isValidPhoneNumber(phoneValue)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
-    } else {
-      // Phone auth: phone is pre-filled and required (disabled)
-      if (!patientForm.phone.trim()) errors.phone = "Phone number is required";
-      else if (!isValidPhoneNumber(patientForm.phone)) errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
+      if (!isJustPrefix && !isValidPhoneNumber(phoneValue)) {
+        errors.phone = "Invalid phone number. Use Pakistani format: +923001234567 or 03001234567";
+      }
     }
+    
     if (!patientForm.dateOfBirth) errors.dateOfBirth = "Date of birth is required";
     else if (dobDate > today) errors.dateOfBirth = "Date of birth cannot be in the future";
     else if (age > 150) errors.dateOfBirth = "Invalid date of birth";
@@ -661,10 +641,10 @@ export default function SelectRolePage() {
                         type="email"
                         name="email"
                         required
-                        disabled={false}
+                        disabled={true}
                         value={doctorForm.email}
                         onChange={handleDoctorChange}
-                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-slate-800 dark:disabled:text-gray-400 disabled:cursor-not-allowed ${
                           formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
                         }`}
                         placeholder="Enter your email"
@@ -970,10 +950,10 @@ export default function SelectRolePage() {
                         type="email"
                         name="email"
                         required
-                        disabled={false}
+                        disabled={true}
                         value={patientForm.email}
                         onChange={handlePatientChange}
-                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
+                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-slate-800 dark:disabled:text-gray-400 disabled:cursor-not-allowed ${
                           formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
                         }`}
                         placeholder="Enter your email"
@@ -998,7 +978,7 @@ export default function SelectRolePage() {
                         value={patientForm.phone}
                         onChange={handlePatientChange}
                         className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                          formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-blue-500'
+                          formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-slate-600 focus:ring-teal-500'
                         }`}
                         placeholder="+92-123-4567890"
                       />

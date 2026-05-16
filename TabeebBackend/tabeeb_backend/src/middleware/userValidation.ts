@@ -58,7 +58,7 @@ export const verifyEmailVerified = async (req: Request, res: Response, next: Nex
  * Middleware to validate patient profile data (signup and update)
  */
 export const validatePatientProfile = (req: Request, res: Response, next: NextFunction) => {
-  const { firstName, lastName, email } = req.body;
+  const { firstName, lastName, email, dateOfBirth, gender, bloodType, cnic, allergies, medications, medicalConditions } = req.body;
 
   const errors: string[] = [];
 
@@ -74,6 +74,40 @@ export const validatePatientProfile = (req: Request, res: Response, next: NextFu
     errors.push('A valid email address is required');
   }
 
+  if (dateOfBirth !== undefined) {
+    const dob = new Date(dateOfBirth);
+    if (isNaN(dob.getTime())) {
+      errors.push('Invalid date of birth format');
+    } else if (dob > new Date()) {
+      errors.push('Date of birth cannot be in the future');
+    }
+  }
+
+  if (gender !== undefined) {
+    const validGenders = ['male', 'female', 'other'];
+    if (!validGenders.includes(gender.toLowerCase())) {
+      errors.push('Invalid gender selected');
+    }
+  }
+
+  if (bloodType !== undefined && bloodType !== null && bloodType.trim() !== '') {
+    const validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    if (!validBloodTypes.includes(bloodType)) {
+      errors.push('Invalid blood type');
+    }
+  }
+
+  if (cnic !== undefined && cnic !== null && cnic.trim() !== '') {
+    if (cnic.length > 20) {
+      errors.push('CNIC is too long');
+    }
+  }
+
+  // Prevent massive payloads in arrays
+  if (allergies && typeof allergies === 'string' && allergies.length > 2000) errors.push('Allergies list is too long');
+  if (medications && typeof medications === 'string' && medications.length > 2000) errors.push('Medications list is too long');
+  if (medicalConditions && typeof medicalConditions === 'string' && medicalConditions.length > 2000) errors.push('Medical conditions list is too long');
+
   if (errors.length > 0) {
     return res.status(400).json({ error: errors.join('. ') });
   }
@@ -85,7 +119,7 @@ export const validatePatientProfile = (req: Request, res: Response, next: NextFu
  * Middleware to validate doctor profile data (signup and update)
  */
 export const validateDoctorProfile = (req: Request, res: Response, next: NextFunction) => {
-  const { firstName, lastName, email, specialization, qualification } = req.body;
+  const { firstName, lastName, email, specialization, qualification, dateOfBirth, gender } = req.body;
 
   const errors: string[] = [];
 
@@ -115,6 +149,22 @@ export const validateDoctorProfile = (req: Request, res: Response, next: NextFun
 
   if (qualification !== undefined && (!qualification || qualification.trim().length < 2)) {
     errors.push('Qualification is required');
+  }
+
+  if (dateOfBirth !== undefined) {
+    const dob = new Date(dateOfBirth);
+    if (isNaN(dob.getTime())) {
+      errors.push('Invalid date of birth format');
+    } else if (dob > new Date()) {
+      errors.push('Date of birth cannot be in the future');
+    }
+  }
+
+  if (gender !== undefined) {
+    const validGenders = ['male', 'female', 'other'];
+    if (!validGenders.includes(gender.toLowerCase())) {
+      errors.push('Invalid gender selected');
+    }
   }
 
   if (errors.length > 0) {
