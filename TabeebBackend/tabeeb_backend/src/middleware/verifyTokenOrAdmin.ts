@@ -37,11 +37,18 @@ export const verifyTokenOrAdmin = async (req: Request, res: Response, next: Next
 
       req.user = { uid: decoded.uid };
       return next();
-    } catch {
+    } catch (err: any) {
+      if (err.code === 'auth/id-token-expired') {
+        return res.status(401).json({ error: 'Session expired. Please refresh the page or log in again.' });
+      }
+
       // Fall back to admin token validation.
       const validation = await validateAdminAccessToken(token);
       if (!validation.ok) {
-        return res.status(validation.statusCode).json({ error: validation.message });
+        // If it looks like it was meant to be a firebase token (long, etc.) we could return a different error.
+        // But for now, returning the admin error or a generic one.
+        // We'll return "Invalid token" if it failed both rather than specifically "Invalid admin token".
+        return res.status(validation.statusCode).json({ error: validation.message === 'Invalid admin token' ? 'Invalid or expired token' : validation.message });
       }
 
       (req as any).admin = {

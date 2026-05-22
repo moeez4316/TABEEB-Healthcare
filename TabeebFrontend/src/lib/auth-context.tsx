@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import {
   User,
-  onAuthStateChanged,
+  onIdTokenChanged,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithPopup,
@@ -221,7 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onIdTokenChanged(auth, async (user) => {
       setUser(user);
       if (user) {
         const token = await user.getIdToken();
