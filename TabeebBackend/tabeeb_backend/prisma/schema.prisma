@@ -89,6 +89,7 @@ model Appointment {
   createdAt               DateTime                    @default(now())
   updatedAt               DateTime                    @updatedAt
   completedAt             DateTime?
+  paymentExpiresAt        DateTime?
   sharedDocuments         AppointmentSharedDocument[]
   doctor                  doctor                      @relation(fields: [doctorUid], references: [uid], onDelete: Cascade)
   patient                 patient                     @relation(fields: [patientUid], references: [uid], onDelete: Cascade)
@@ -106,10 +107,13 @@ model Appointment {
 }
 
 model AppointmentPayment {
-  id               String                   @id @default(cuid())
-  appointmentId    String                   @unique @db.VarChar(255)
-  paymentStatus    AppointmentPaymentStatus @default(UNPAID)
-  paymentMethod    String                   @default("manual_bank_transfer") @db.VarChar(50)
+  id                String                   @id @default(cuid())
+  appointmentId     String                   @unique @db.VarChar(255)
+  paymentStatus     AppointmentPaymentStatus @default(UNPAID)
+  paymentMethod     String                   @default("safepay") @db.VarChar(50)
+  safepayTracker    String?                  @db.VarChar(255)
+  safepayOrderRef   String?                  @db.VarChar(255)
+  safepayCheckoutUrl String?                 @db.Text
   proofUrl         String?                  @db.Text
   proofUploadedAt  DateTime?
   patientReference String?                  @db.VarChar(255)
@@ -462,6 +466,7 @@ enum AppointmentPaymentStatus {
   PAID
   PAID_TO_DOCTOR
   DISPUTED
+  REFUNDED
 }
 
 enum PlatformReviewRole {

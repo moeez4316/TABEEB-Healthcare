@@ -165,8 +165,14 @@ export default function BookAppointmentPage() {
       const amountAfterFollowUp = pricing?.amountAfterFollowUp ?? finalAmount;
       const followUpDiscountPct = pricing?.followUpDiscountPct ?? appointment.followUpDiscountPct ?? 0;
       const financialAidDiscountPct = pricing?.financialAidDiscountPct ?? appointment.financialAidDiscountPct ?? 0;
+      if (finalAmount === 0) {
+        // Zero-fee appointment (e.g., 100% financial aid) bypasses payment completely
+        setBookedAppointment(appointment);
+        setCurrentStep('confirmation');
+        return;
+      }
       
-      // Redirect to payment page with appointment details
+      // Redirect to payment launcher page for non-zero amounts
       const paymentParams = new URLSearchParams({
         appointmentId: appointment.id,
         amount: finalAmount.toString(),

@@ -11,7 +11,7 @@ import { handleRateLimit } from './api-utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export type UploadType = 'profile-image' | 'medical-record' | 'verification-doc' | 'chat-media' | 'blog-image' | 'financial-aid-doc' | 'payment-proof';
+export type UploadType = 'profile-image' | 'medical-record' | 'verification-doc' | 'chat-media' | 'blog-image' | 'financial-aid-doc';
 
 export interface UploadSignature {
   signature: string;

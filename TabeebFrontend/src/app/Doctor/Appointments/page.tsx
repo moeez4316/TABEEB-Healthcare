@@ -513,16 +513,16 @@ export default function DoctorAppointmentsPage() {
                               <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">
                                 Final: PKR {finalFee.toLocaleString('en-PK')}
                               </p>
-                              {appointment.doctorPayment && (
+                              {appointment.patientPayment && (
                                 <div className="text-[11px] mt-1 text-slate-700 dark:text-slate-300 space-y-1">
                                   <p>
-                                    <span className={`inline-flex rounded-full px-2 py-0.5 font-semibold ${getPaymentStatusClass(appointment.doctorPayment.status)}`}>
-                                      Payment: {appointment.doctorPayment.status.replaceAll('_', ' ')}
+                                    <span className={`inline-flex rounded-full px-2 py-0.5 font-semibold ${getPaymentStatusClass(appointment.patientPayment.status)}`}>
+                                      Payment: {appointment.patientPayment.status.replaceAll('_', ' ')}
                                     </span>
                                   </p>
                                   <p>
-                                    <span className={`inline-flex rounded-full px-2 py-0.5 font-semibold ${appointment.doctorPayment.isPaidToDoctor ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'}`}>
-                                      Payout: {appointment.doctorPayment.isPaidToDoctor ? 'Paid To Doctor' : 'Pending'}
+                                    <span className={`inline-flex rounded-full px-2 py-0.5 font-semibold ${appointment.patientPayment.isPaidToDoctor ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'}`}>
+                                      Payout: {appointment.patientPayment.isPaidToDoctor ? 'Paid To Doctor' : 'Pending'}
                                     </span>
                                   </p>
                                 </div>

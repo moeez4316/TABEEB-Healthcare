@@ -17,8 +17,6 @@ import {
   shareDocumentsWithAppointment,
   unshareDocumentFromAppointment,
   getAppointmentSharedDocuments,
-  confirmAppointmentPayment,
-  submitAppointmentPaymentProof,
   getAppointmentPaymentStatus,
   checkFollowUpEligibility,
   bookFollowUpAppointment
@@ -51,9 +49,7 @@ router.post('/:id/share-documents', validateCUID('id'), shareDocumentsWithAppoin
 router.delete('/:id/shared-documents/:documentId', validateCUID('id'), unshareDocumentFromAppointment);
 router.get('/:id/shared-documents', validateCUID('id'), getAppointmentSharedDocuments);
 
-// Payment confirmation route (dummy for now)
-router.post('/:appointmentId/confirm-payment', confirmAppointmentPayment);
-router.post('/:appointmentId/payment-proof', validateCUID('appointmentId'), submitAppointmentPaymentProof);
+// Payment confirmation route
 router.get('/:appointmentId/payment-status', validateCUID('appointmentId'), getAppointmentPaymentStatus);
 
 export default router;

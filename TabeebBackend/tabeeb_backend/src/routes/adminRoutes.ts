@@ -24,7 +24,6 @@ import {
 import { getDoctorPayoutMethodsForAdmin } from '../controllers/doctorPayoutController';
 import {
   getAppointmentPaymentsForAdmin,
-  reviewAppointmentPaymentByAdmin,
   markAppointmentPaymentPaidToDoctorByAdmin,
   getAppointmentPaymentRevenueSummaryForAdmin,
 } from '../controllers/appointmentController';
@@ -81,7 +80,7 @@ router.patch('/financial-aid/requests/:requestId/reject', authenticateAdminFromH
 // Appointment payment review routes
 router.get('/appointments/payments', authenticateAdminFromHeaders, getAppointmentPaymentsForAdmin);
 router.get('/appointments/payments/revenue-summary', authenticateAdminFromHeaders, getAppointmentPaymentRevenueSummaryForAdmin);
-router.post('/appointments/:appointmentId/payments/review', authenticateAdminFromHeaders, reviewAppointmentPaymentByAdmin);
+
 router.post('/appointments/:appointmentId/payments/mark-paid-to-doctor', authenticateAdminFromHeaders, markAppointmentPaymentPaidToDoctorByAdmin);
 
 // Admin inbox routes

@@ -16,6 +16,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.12.0",
+    "@sfpy/node-sdk": "^3.0.2",
     "@socket.io/redis-adapter": "^8.2.1",
     "@types/cheerio": "^0.22.35",
     "@types/jsonwebtoken": "^9.0.10",

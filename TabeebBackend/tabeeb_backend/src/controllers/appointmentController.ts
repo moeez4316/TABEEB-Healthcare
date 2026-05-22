@@ -201,30 +201,44 @@ const toVisiblePaymentStatus = (status: AppointmentPaymentStatus | undefined): V
   return 'UNPAID';
 };
 
-const parseAppointmentEndDate = (appointmentDate: Date | string, endTime?: string | null): Date => {
-  const baseDate = new Date(appointmentDate);
-  const [hours, minutes] = String(endTime || '00:00').split(':').map((part) => parseInt(part, 10) || 0);
-  const end = new Date(baseDate);
-  end.setHours(hours, minutes, 0, 0);
-  return end;
-};
-
 const buildPaymentWindow = (params: {
-  appointmentDate: Date | string;
-  endTime?: string | null;
-  completedAt?: Date | null;
+  paymentExpiresAt?: Date | null;
 }) => {
   const now = new Date();
-  const anchor = params.completedAt ?? parseAppointmentEndDate(params.appointmentDate, params.endTime);
-  const dueAt = new Date(anchor);
-  dueAt.setHours(dueAt.getHours() + 24);
+  const dueAt = params.paymentExpiresAt ? new Date(params.paymentExpiresAt) : new Date(now.getTime() + 30 * 60000);
 
   return {
     dueAt,
     now,
     isOverdue: now > dueAt,
-    isWindowStarted: now >= anchor,
+    isWindowStarted: true,
   };
+};
+
+const autoCancelExpiredPayments = async () => {
+  try {
+    const expiredAppointments = await prisma.appointment.findMany({
+      where: {
+        status: 'PENDING',
+        paymentExpiresAt: {
+          lt: new Date()
+        }
+      }
+    });
+
+    if (expiredAppointments.length > 0) {
+      const expiredIds = expiredAppointments.map(a => a.id);
+      await prisma.appointment.updateMany({
+        where: { id: { in: expiredIds } },
+        data: {
+          status: 'CANCELLED',
+          cancelReason: 'payment_timeout'
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Error auto-cancelling expired payments:', err);
+  }
 };
 
 const toNumericFee = (value: unknown): number => {
@@ -274,7 +288,7 @@ const ensureAppointmentPayment = async (appointmentId: string) => {
   return createAppointmentPaymentRecord({
     appointmentId,
     paymentStatus: 'UNPAID',
-    paymentMethod: 'manual_bank_transfer',
+    paymentMethod: 'safepay',
   });
 };
 
@@ -333,6 +347,8 @@ const buildAppointmentPricing = (params: {
 // Book appointment (updated to work without TimeSlot)
 export const bookAppointment = async (req: Request, res: Response) => {
   try {
+    await autoCancelExpiredPayments();
+
     const patientUid = req.user!.uid;
     const { doctorUid, appointmentDate, startTime, patientNotes, sharedDocumentIds } = req.body;
 
@@ -468,6 +484,7 @@ export const bookAppointment = async (req: Request, res: Response) => {
         baseConsultationFees: pricing.baseConsultationFees,
         followUpDiscountPct: pricing.followUpDiscountPct,
         financialAidDiscountPct: pricing.financialAidDiscountPct,
+        paymentExpiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes to pay
       } as any;
 
     const appointment = await prisma.appointment.create({
@@ -493,6 +510,13 @@ export const bookAppointment = async (req: Request, res: Response) => {
       await autoSettleZeroAmountAppointmentPayment({
         appointmentId: appointment.id,
         consultationFees: pricing.finalConsultationFees,
+      });
+    } else {
+      // Create UNPAID SafePay record immediately
+      await createAppointmentPaymentRecord({
+        appointmentId: appointment.id,
+        paymentStatus: 'UNPAID',
+        paymentMethod: 'safepay',
       });
     }
 
@@ -576,6 +600,8 @@ export const bookAppointment = async (req: Request, res: Response) => {
 // Get doctor appointments (updated)
 export const getDoctorAppointments = async (req: Request, res: Response) => {
   try {
+    await autoCancelExpiredPayments();
+    
     const doctorUid = req.user!.uid;
     const { status, date, page = 1, limit = 10 } = req.query;
 
@@ -593,9 +619,27 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
       whereClause.appointmentDate = new Date(date as string);
     }
 
+    // Filter to hide UNPAID PENDING appointments from doctors
+    const finalWhereClause = {
+      ...whereClause,
+      OR: [
+        { status: { not: 'PENDING' } },
+        {
+          status: 'PENDING',
+          payment: {
+            paymentStatus: { in: ['PAID', 'PAID_TO_DOCTOR'] }
+          }
+        },
+        {
+          status: 'PENDING',
+          consultationFees: 0
+        }
+      ]
+    };
+
     const [appointments, total] = await Promise.all([
       prisma.appointment.findMany({
-        where: whereClause,
+        where: finalWhereClause,
         include: {
           patient: {
             select: {
@@ -625,7 +669,7 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
         skip,
         take: limitNum
       }),
-      prisma.appointment.count({ where: whereClause })
+      prisma.appointment.count({ where: finalWhereClause })
     ]);
 
     const appointmentIds = appointments.map((appointment: any) => appointment.id);
@@ -683,6 +727,8 @@ export const getDoctorAppointments = async (req: Request, res: Response) => {
 // Get patient appointments (updated)
 export const getPatientAppointments = async (req: Request, res: Response) => {
   try {
+    await autoCancelExpiredPayments();
+    
     const patientUid = req.user!.uid;
     const { status, upcoming } = req.query;
 
@@ -754,9 +800,7 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
       const paymentStatus = (payment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
       const visibleStatus = toVisiblePaymentStatus(paymentStatus);
       const window = buildPaymentWindow({
-        appointmentDate: appointment.appointmentDate,
-        endTime: appointment.endTime,
-        completedAt: appointment.completedAt ?? null,
+        paymentExpiresAt: appointment.paymentExpiresAt,
       });
 
       return {
@@ -768,13 +812,10 @@ export const getPatientAppointments = async (req: Request, res: Response) => {
           canPayNow:
             paymentStatus !== 'PAID' &&
             paymentStatus !== 'PAID_TO_DOCTOR' &&
-            !payment?.proofUploadedAt &&
-            !payment?.proofUrl,
+            paymentStatus !== 'DISPUTED',
           dueAt: window.dueAt,
           isOverdue: window.isOverdue,
           isWindowStarted: window.isWindowStarted,
-          proofUrl: payment?.proofUrl || null,
-          proofUploadedAt: payment?.proofUploadedAt || null,
           patientReference: payment?.patientReference || null,
           reviewedAt: payment?.reviewedAt || null,
           reviewNotes: payment?.reviewNotes || null,
@@ -1328,138 +1369,6 @@ export const getAppointmentSharedDocuments = async (req: Request, res: Response)
   }
 };
 
-// Confirm payment for appointment (manual transfer flow)
-export const confirmAppointmentPayment = async (req: Request, res: Response) => {
-  try {
-    const patientUid = req.user!.uid;
-    const { appointmentId } = req.params;
-    const { paymentMethod } = req.body;
-
-    // Validate appointment exists and belongs to patient
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId }
-    });
-
-    if (!appointment) {
-      return res.status(404).json({ error: 'Appointment not found' });
-    }
-
-    if (appointment.patientUid !== patientUid) {
-      return res.status(403).json({ error: 'You can only confirm payment for your own appointment' });
-    }
-
-    const existingPayment = await ensureAppointmentPayment(appointmentId);
-    const currentStatus = (existingPayment.paymentStatus || 'UNPAID') as AppointmentPaymentStatus;
-
-    if (!canTransitionPaymentStatus(currentStatus, 'IN_REVIEW') && currentStatus !== 'IN_REVIEW') {
-      return res.status(400).json({
-        error: `Cannot confirm payment while status is ${currentStatus}`,
-      });
-    }
-
-    const paymentRecord = await updateAppointmentPaymentByAppointmentId(appointmentId, {
-      paymentMethod: typeof paymentMethod === 'string' && paymentMethod.trim().length > 0
-        ? paymentMethod.trim()
-        : 'manual_bank_transfer',
-      paymentStatus: 'IN_REVIEW',
-    });
-
-    res.json({
-      success: true,
-      message: 'Payment marked for review. Please upload proof for faster verification.',
-      payment: paymentRecord,
-    });
-
-    emitAppointmentEvent({
-      appointmentId,
-      doctorUid: appointment.doctorUid,
-      patientUid: appointment.patientUid,
-      actorRole: 'patient',
-      actorUid: req.user?.uid,
-      payload: {
-        action: 'payment_confirmed',
-        paymentStatus: 'IN_REVIEW'
-      }
-    });
-
-  } catch (error) {
-    console.error('Error confirming payment:', error);
-    res.status(500).json({ error: 'Failed to confirm payment' });
-  }
-};
-
-export const submitAppointmentPaymentProof = async (req: Request, res: Response) => {
-  try {
-    const patientUid = req.user!.uid;
-    const { appointmentId } = req.params;
-    const { publicId, resourceType } = req.body;
-
-    if (!publicId || typeof publicId !== 'string') {
-      return res.status(400).json({ error: 'publicId is required' });
-    }
-
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-    });
-
-    if (!appointment) {
-      return res.status(404).json({ error: 'Appointment not found' });
-    }
-
-    if (appointment.patientUid !== patientUid) {
-      return res.status(403).json({ error: 'You can only submit proof for your own appointment' });
-    }
-
-    const isOwner = verifyPublicIdOwnership(publicId, patientUid, 'payment-proof' as any);
-    if (!isOwner) {
-      return res.status(403).json({ error: 'Uploaded file does not belong to this user' });
-    }
-
-    const payment = await ensureAppointmentPayment(appointmentId);
-    const currentStatus = (payment.paymentStatus || 'UNPAID') as AppointmentPaymentStatus;
-
-    if (payment.proofUploadedAt || payment.proofUrl) {
-      return res.status(409).json({ error: 'Payment proof has already been submitted for this appointment' });
-    }
-
-    if (!canTransitionPaymentStatus(currentStatus, 'IN_REVIEW') && currentStatus !== 'IN_REVIEW') {
-      return res.status(400).json({
-        error: `Cannot upload proof while status is ${currentStatus}`,
-      });
-    }
-
-    const normalizedResourceType = resourceType === 'raw' || resourceType === 'video' ? resourceType : 'image';
-    const proofUrl = buildCloudinaryUrl(publicId, normalizedResourceType);
-
-    const updated = await updateAppointmentPaymentByAppointmentId(appointmentId, {
-      proofUrl,
-      proofUploadedAt: new Date(),
-      paymentStatus: 'IN_REVIEW',
-    });
-
-    res.json({
-      success: true,
-      message: 'Payment proof uploaded and submitted for admin review',
-      payment: updated,
-    });
-
-    emitAppointmentEvent({
-      appointmentId,
-      doctorUid: appointment.doctorUid,
-      patientUid: appointment.patientUid,
-      actorRole: 'patient',
-      actorUid: patientUid,
-      payload: {
-        action: 'payment_proof_submitted',
-        paymentStatus: 'IN_REVIEW',
-      },
-    });
-  } catch (error) {
-    console.error('Error submitting payment proof:', error);
-    res.status(500).json({ error: 'Failed to submit payment proof' });
-  }
-};
-
 export const getAppointmentPaymentStatus = async (req: Request, res: Response) => {
   try {
     const userUid = req.user!.uid;
@@ -1494,9 +1403,7 @@ export const getAppointmentPaymentStatus = async (req: Request, res: Response) =
     const currentStatus = (settledPayment?.paymentStatus as AppointmentPaymentStatus | undefined) ?? 'UNPAID';
     const visibleStatus = toVisiblePaymentStatus(currentStatus);
     const window = buildPaymentWindow({
-      appointmentDate: appointment.appointmentDate,
-      endTime: (appointment as any).endTime,
-      completedAt: (appointment as any).completedAt ?? null,
+      paymentExpiresAt: (appointment as any).paymentExpiresAt,
     });
 
     const isPatientViewer = appointment.patientUid === userUid;
@@ -1511,13 +1418,10 @@ export const getAppointmentPaymentStatus = async (req: Request, res: Response) =
           canPayNow:
             currentStatus !== 'PAID' &&
             currentStatus !== 'PAID_TO_DOCTOR' &&
-            !settledPayment?.proofUploadedAt &&
-            !settledPayment?.proofUrl,
+            currentStatus !== 'DISPUTED',
           dueAt: window.dueAt,
           isOverdue: window.isOverdue,
           isWindowStarted: window.isWindowStarted,
-          proofUrl: settledPayment?.proofUrl || null,
-          proofUploadedAt: settledPayment?.proofUploadedAt || null,
         },
       });
     }
@@ -1539,7 +1443,7 @@ export const getAppointmentPaymentStatus = async (req: Request, res: Response) =
       payment: payment || {
         appointmentId,
         paymentStatus: 'UNPAID',
-        paymentMethod: 'manual_bank_transfer',
+        paymentMethod: 'safepay',
         proofUrl: null,
         proofUploadedAt: null,
         patientReference: null,
@@ -1862,9 +1766,7 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
     const overdueFilteredPayments = isOverdueUnpaidOnly
       ? statusFilteredPayments.filter((payment: any) => {
           const window = buildPaymentWindow({
-            appointmentDate: payment.appointment.appointmentDate,
-            endTime: payment.appointment.endTime,
-            completedAt: payment.appointment.completedAt ?? null,
+            paymentExpiresAt: payment.appointment.paymentExpiresAt,
           });
           return window.isOverdue;
         })
@@ -1888,9 +1790,7 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
     const unpaidAppointmentsWithoutPaymentRows = await fetchAppointmentsWithoutPaymentRecordsForAdmin();
     const syntheticOverdueUnpaidCount = unpaidAppointmentsWithoutPaymentRows.filter((row: any) => {
       const window = buildPaymentWindow({
-        appointmentDate: row.appointmentDate,
-        endTime: row.endTime,
-        completedAt: row.completedAt ?? null,
+        paymentExpiresAt: row.paymentExpiresAt,
       });
       return window.isOverdue;
     }).length;
@@ -1900,7 +1800,7 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
     let paid = 0;
     let paidToDoctor = 0;
     let disputed = 0;
-    let overdueUnpaidCountSource: Array<{ appointment: { appointmentDate: Date | string; endTime: string | null; completedAt: Date | null } }> = [];
+    let overdueUnpaidCountSource: Array<any> = [];
 
     if (appointmentPaymentDelegate) {
       try {
@@ -1915,9 +1815,7 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
             select: {
               appointment: {
                 select: {
-                  appointmentDate: true,
-                  endTime: true,
-                  completedAt: true,
+                  paymentExpiresAt: true,
                 },
               },
             },
@@ -1934,7 +1832,7 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
           "SELECT `paymentStatus`, COUNT(*) AS `count` FROM `appointment_payments` GROUP BY `paymentStatus`"
         ),
         prisma.$queryRawUnsafe<any[]>(
-          `SELECT a.\`appointmentDate\` AS \`appointmentDate\`, a.\`endTime\` AS \`endTime\`, a.\`completedAt\` AS \`completedAt\`
+          `SELECT a.\`paymentExpiresAt\` AS \`paymentExpiresAt\`
            FROM \`appointment_payments\` ap
            INNER JOIN \`appointments\` a ON a.\`id\` = ap.\`appointmentId\`
            WHERE ap.\`paymentStatus\` = 'UNPAID'`
@@ -1952,18 +1850,14 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
       disputed = statusCountMap.get('DISPUTED') || 0;
       overdueUnpaidCountSource = overdueUnpaidRows.map((row: any) => ({
         appointment: {
-          appointmentDate: row.appointmentDate,
-          endTime: row.endTime,
-          completedAt: row.completedAt,
+          paymentExpiresAt: row.paymentExpiresAt,
         },
       }));
     }
 
     const overdueUnpaidCount = overdueUnpaidCountSource.filter((payment: any) => {
       const window = buildPaymentWindow({
-        appointmentDate: payment.appointment.appointmentDate,
-        endTime: payment.appointment.endTime,
-        completedAt: payment.appointment.completedAt ?? null,
+        paymentExpiresAt: payment.appointment.paymentExpiresAt,
       });
       return window.isOverdue;
     }).length + syntheticOverdueUnpaidCount;
@@ -1991,64 +1885,6 @@ export const getAppointmentPaymentsForAdmin = async (req: Request, res: Response
   }
 };
 
-export const reviewAppointmentPaymentByAdmin = async (req: Request, res: Response) => {
-  try {
-    const { appointmentId } = req.params;
-    const { status, reviewNotes } = req.body;
-    const admin = (req as any).admin;
-    const nextStatus = parsePaymentStatus(status);
-
-    if (!nextStatus || !['PAID', 'DISPUTED', 'IN_REVIEW'].includes(nextStatus)) {
-      return res.status(400).json({ error: 'Status must be one of: PAID, DISPUTED, IN_REVIEW' });
-    }
-
-    const existing = await ensureAppointmentPayment(appointmentId);
-    const currentStatus = (existing.paymentStatus || 'UNPAID') as AppointmentPaymentStatus;
-
-    if (!canTransitionPaymentStatus(currentStatus, nextStatus) && currentStatus !== nextStatus) {
-      return res.status(400).json({
-        error: `Invalid status transition from ${currentStatus} to ${nextStatus}`,
-      });
-    }
-
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-      select: { doctorUid: true, patientUid: true },
-    });
-
-    if (!appointment) {
-      return res.status(404).json({ error: 'Appointment not found' });
-    }
-
-    const updated = await updateAppointmentPaymentByAppointmentId(appointmentId, {
-      paymentStatus: nextStatus,
-      reviewedByAdminId: admin?.id || null,
-      reviewedAt: new Date(),
-      reviewNotes: typeof reviewNotes === 'string' && reviewNotes.trim().length > 0 ? reviewNotes.trim() : null,
-    });
-
-    res.json({
-      success: true,
-      message: `Payment marked as ${nextStatus}`,
-      payment: updated,
-    });
-
-    emitAppointmentEvent({
-      appointmentId,
-      doctorUid: appointment.doctorUid,
-      patientUid: appointment.patientUid,
-      actorRole: 'admin',
-      actorUid: admin?.id,
-      payload: {
-        action: 'payment_reviewed',
-        paymentStatus: nextStatus,
-      },
-    });
-  } catch (error) {
-    console.error('Error reviewing appointment payment:', error);
-    res.status(500).json({ error: 'Failed to review appointment payment' });
-  }
-};
 
 export const markAppointmentPaymentPaidToDoctorByAdmin = async (req: Request, res: Response) => {
   try {

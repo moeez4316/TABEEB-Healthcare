@@ -9,6 +9,7 @@ import {
   extractEmailFromMailboxHeader,
   resolveInboundMailboxRouting,
 } from '../services/adminMailboxService';
+import { SafepayService } from '../services/safepayService';
 
 // ========================================
 // RESEND WEBHOOK EVENT TYPES
@@ -273,3 +274,132 @@ async function saveInboundEmail(
     console.error(`❌ Error saving ${type} email to DB:`, error);
   }
 }
+
+// ========================================
+// SAFEPAY WEBHOOK HANDLER
+// ========================================
+
+export const handleSafepayWebhook = async (req: Request, res: Response) => {
+  try {
+    const signatureV1 = req.headers['x-sfpy-merchant-secret'] as string;
+    const signatureV2 = req.headers['x-sfpy-signature'] as string;
+    
+    // Validate signature (either V1 or V2 format)
+    if (!SafepayService.validateWebhookSignature(signatureV1 || signatureV2)) {
+      console.error('❌ Invalid SafePay webhook signature');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    // SafePay Sandbox formats vary wildly. We must handle the actual payload received.
+    const payload = req.body.root || req.body;
+    let state, order_id, reference;
+
+    if (payload.data && payload.data.notification) {
+      // New format seen in raw logs: { data: { type: "payment:created", notification: { state: "PAID", tracker: "...", metadata: { order_id: "..." } } } }
+      state = payload.data.notification.state;
+      reference = payload.data.notification.tracker || payload.data.notification.reference;
+      order_id = payload.data.notification.metadata?.order_id;
+    } else if (payload.type === 'payment.succeeded' && payload.data) {
+      // Payment 2.0 format nested data
+      state = 'PAID';
+      order_id = payload.data.reference; 
+      reference = payload.data.tracker;
+    } else {
+      // Legacy format
+      state = payload.state;
+      order_id = payload.order_id;
+      reference = payload.reference || payload.tracker;
+      
+      // If order_id isn't at the root, check payment_metadata array
+      if (!order_id && Array.isArray(payload.payment_metadata)) {
+        const orderMeta = payload.payment_metadata.find((meta: any) => meta.meta_key === 'order_id');
+        if (orderMeta) {
+          order_id = orderMeta.meta_value;
+        }
+      }
+    }
+
+    if (!order_id) {
+      return res.status(400).json({ error: 'Missing order_id' });
+    }
+
+    console.log(`💸 SafePay webhook received for order ${order_id} with state: ${state}`);
+
+    // Idempotency guard: if already PAID, skip processing
+    const payment = await prisma.appointmentPayment.findFirst({
+      where: { appointmentId: order_id }
+    });
+
+    if (payment?.paymentStatus === 'PAID') {
+      console.log(`✅ Order ${order_id} is already marked as PAID. Ignoring duplicate webhook.`);
+      return res.status(200).json({ received: true });
+    }
+
+    if (state === 'PAID') {
+      // 1. Update Payment Record
+      await prisma.appointmentPayment.update({
+        where: { appointmentId: order_id },
+        data: {
+          paymentStatus: 'PAID',
+          paymentMethod: 'safepay',
+          ...(reference ? { safepayTracker: reference } : {})
+        }
+      });
+      // Note: Appointment.status stays PENDING (awaiting doctor confirmation)
+
+      // 2. Send Patient Confirmation Email
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: order_id },
+        include: { patient: true }
+      });
+
+      if (appointment?.patient?.email) {
+        try {
+          await sendEmail({
+            to: appointment.patient.email,
+            subject: 'Payment Received — Tabeeb Healthcare',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #0d9488, #0891b2); padding: 24px; border-radius: 12px 12px 0 0;">
+                  <h2 style="color: white; margin: 0;">Payment Successful</h2>
+                </div>
+                <div style="padding: 24px; background: #f8fffe; border: 1px solid #e0f2f1; border-top: none; border-radius: 0 0 12px 12px;">
+                  <p>Your payment for appointment <strong>${order_id}</strong> has been successfully received.</p>
+                  <p>Your appointment is currently <strong>awaiting doctor confirmation</strong>. You will be notified once confirmed.</p>
+                </div>
+              </div>
+            `
+          });
+          console.log(`✉️ Payment confirmation email sent to ${appointment.patient.email}`);
+        } catch (e) {
+          console.error('⚠️ Failed to send SafePay payment confirmation email:', e);
+        }
+      }
+    }
+
+    return res.status(200).json({ received: true });
+  } catch (error: any) {
+    console.error('❌ Error handling SafePay webhook:', error);
+    return res.status(500).json({ error: 'Webhook processing error' });
+  }
+};
+
+// ========================================
+// SAFEPAY REDIRECT HANDLER (Handles POST/GET from SafePay)
+// ========================================
+
+export const handleSafepayRedirect = async (req: Request, res: Response) => {
+  try {
+    const appointmentId = req.query.appointmentId as string;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    
+    console.log(`🔀 SafePay Redirect triggered for appointment: ${appointmentId}`);
+    
+    // Safely redirect the browser to the frontend success page via 302
+    return res.redirect(`${frontendUrl}/Patient/payment/success?appointmentId=${appointmentId}`);
+  } catch (error) {
+    console.error('❌ Error handling SafePay redirect:', error);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    return res.redirect(`${frontendUrl}/Patient/payment/error`);
+  }
+};
