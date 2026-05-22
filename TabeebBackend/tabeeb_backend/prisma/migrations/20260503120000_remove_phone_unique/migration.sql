@@ -3,11 +3,11 @@
 
 SET FOREIGN_KEY_CHECKS=0;
 
--- Drop Doctor phone unique index if it exists
-DROP INDEX IF EXISTS `Doctor_phone_key` ON `doctor`;
+-- Drop Doctor phone unique index
+DROP INDEX `Doctor_phone_key` ON `doctor`;
 
--- Drop Patient phone unique index if it exists
-DROP INDEX IF EXISTS `Patient_phone_key` ON `patient`;
+-- Drop Patient phone unique index
+DROP INDEX `Patient_phone_key` ON `patient`;
 
 SET FOREIGN_KEY_CHECKS=1;
 
