@@ -49,7 +49,7 @@ export default function DoctorBlogsPage() {
       title: 'Browse Blogs',
       description: 'Explore published articles from the medical community and stay updated',
       icon: BookOpen,
-      href: '/blogs',
+      href: '/Doctor/blogs/browse',
       color: 'from-blue-500 to-indigo-500',
       bgColor: 'bg-blue-50 dark:bg-blue-900/20',
       borderColor: 'border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600',

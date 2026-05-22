@@ -3,6 +3,7 @@
 import React, { use } from 'react';
 import Link from 'next/link';
 import { useBlogBySlug } from '@/lib/hooks/useBlog';
+import { useBasePath } from '@/lib/hooks/useBasePath';
 import { BlogHeader } from '@/components/blog/public/BlogHeader';
 import { BlogContent } from '@/components/blog/public/BlogContent';
 import { ShareButtons } from '@/components/blog/public/ShareButtons';
@@ -20,6 +21,7 @@ interface BlogDetailPageProps {
 export default function BlogDetailPage({ params }: BlogDetailPageProps) {
   const { slug } = use(params);
   const { data: blog, isLoading, error } = useBlogBySlug(slug);
+  const basePath = useBasePath();
 
   // Loading State
   if (isLoading) {
@@ -49,7 +51,7 @@ export default function BlogDetailPage({ params }: BlogDetailPageProps) {
             {error.message}
           </p>
           <Link
-            href="/blogs"
+            href={basePath}
             className="inline-block px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors"
           >
             Back to Blogs
@@ -79,14 +81,14 @@ export default function BlogDetailPage({ params }: BlogDetailPageProps) {
                 <Home className="w-4 h-4" />
               </Link>
               <ChevronRight className="w-4 h-4" />
-              <Link href="/blogs" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
+              <Link href={basePath} className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
                 Health Blog
               </Link>
               {blog.tags && blog.tags[0] && (
                 <>
                   <ChevronRight className="w-4 h-4" />
                   <Link
-                    href={`/blogs?tag=${blog.tags[0].slug}`}
+                    href={`${basePath}?tag=${blog.tags[0].slug}`}
                     className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
                   >
                     {blog.tags[0].name}
@@ -205,7 +207,7 @@ export default function BlogDetailPage({ params }: BlogDetailPageProps) {
                       {blog.tags.map((tag) => (
                         <Link
                           key={tag.id}
-                          href={`/blogs?tag=${tag.slug}`}
+                          href={`${basePath}?tag=${tag.slug}`}
                           className="text-sm font-medium text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-3 py-1 rounded-full hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors"
                         >
                           {tag.name}

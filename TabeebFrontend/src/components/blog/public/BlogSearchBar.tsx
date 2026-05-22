@@ -3,22 +3,24 @@
 import React, { useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useBasePath } from '@/lib/hooks/useBasePath';
 
 export const BlogSearchBar: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('search') || '');
+  const basePath = useBasePath();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/blogs?search=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(`${basePath}?search=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 
   const handleClear = () => {
     setSearchQuery('');
-    router.push('/blogs');
+    router.push(basePath);
   };
 
   return (

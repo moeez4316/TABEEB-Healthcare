@@ -2,8 +2,9 @@
 
 import React, { Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, usePathname } from 'next/navigation';
 import { useFeaturedBlogs, useBlogs, useBlogTags } from '@/lib/hooks/useBlog';
+import { useBasePath } from '@/lib/hooks/useBasePath';
 import { FeaturedBlogsCarousel } from '@/components/blog/public/FeaturedBlogsCarousel';
 import { BlogCard } from '@/components/blog/public/BlogCard';
 import { BlogCardSkeleton } from '@/components/blog/public/BlogCardSkeleton';
@@ -14,6 +15,7 @@ import { BookOpen, TrendingUp, AlertCircle, ChevronRight, Home } from 'lucide-re
 
 function BlogsPageContent() {
   const searchParams = useSearchParams();
+  const basePath = useBasePath();
   const page = parseInt(searchParams?.get('page') || '1');
   const search = searchParams?.get('search') || '';
   const tag = searchParams?.get('tag') || '';
@@ -120,7 +122,7 @@ function BlogsPageContent() {
                         const params = new URLSearchParams(searchParams?.toString());
                         params.set('sortBy', value);
                         params.delete('page');
-                        window.location.href = `/blogs?${params.toString()}`;
+                        window.location.href = `${basePath}?${params.toString()}`;
                       }}
                       className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-left transition-colors ${
                         sortBy === value
@@ -187,7 +189,7 @@ function BlogsPageContent() {
                 </p>
                 {(search || tag) && (
                   <button
-                    onClick={() => (window.location.href = '/blogs')}
+                    onClick={() => (window.location.href = basePath)}
                     className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors"
                   >
                     View All Blogs

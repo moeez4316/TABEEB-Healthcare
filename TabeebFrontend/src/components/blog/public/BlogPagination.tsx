@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useBasePath } from '@/lib/hooks/useBasePath';
 
 interface BlogPaginationProps {
   currentPage: number;
@@ -17,11 +18,12 @@ export const BlogPagination: React.FC<BlogPaginationProps> = ({
 }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const basePath = useBasePath();
 
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams(searchParams?.toString());
     params.set('page', page.toString());
-    router.push(`/blogs?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
     
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });

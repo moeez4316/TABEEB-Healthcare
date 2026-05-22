@@ -4,6 +4,7 @@ import React from 'react';
 import { BlogTag } from '@/types/blog';
 import { X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useBasePath } from '@/lib/hooks/useBasePath';
 
 interface CategoryFilterProps {
   tags: BlogTag[];
@@ -13,6 +14,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({ tags }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedTag = searchParams?.get('tag');
+  const basePath = useBasePath();
 
   const handleTagClick = (tagSlug: string) => {
     const params = new URLSearchParams(searchParams?.toString());
@@ -24,13 +26,13 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({ tags }) => {
       params.delete('page'); // Reset to first page
     }
 
-    router.push(`/blogs${params.toString() ? `?${params.toString()}` : ''}`);
+    router.push(`${basePath}${params.toString() ? `?${params.toString()}` : ''}`);
   };
 
   const handleClearFilter = () => {
     const params = new URLSearchParams(searchParams?.toString());
     params.delete('tag');
-    router.push(`/blogs${params.toString() ? `?${params.toString()}` : ''}`);
+    router.push(`${basePath}${params.toString() ? `?${params.toString()}` : ''}`);
   };
 
   if (!tags || tags.length === 0) {

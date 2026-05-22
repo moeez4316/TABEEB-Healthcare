@@ -1,9 +1,12 @@
+'use client';
+
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Blog } from '@/types/blog';
 import { Calendar, Clock, Eye, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useBasePath } from '@/lib/hooks/useBasePath';
 
 interface BlogCardProps {
   blog: Blog;
@@ -11,10 +14,11 @@ interface BlogCardProps {
 }
 
 export const BlogCard: React.FC<BlogCardProps> = ({ blog, priority = false }) => {
+  const basePath = useBasePath();
   const publishedDate = formatDistanceToNow(new Date(blog.publishedAt || blog.createdAt), { addSuffix: true });
 
   return (
-    <Link href={`/blogs/${blog.slug}`} className="group">
+    <Link href={`${basePath}/${blog.slug}`} className="group">
       <article className="bg-white dark:bg-slate-800 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col">
         {/* Cover Image */}
         <div className="relative h-48 w-full overflow-hidden bg-gray-200 dark:bg-slate-700">
