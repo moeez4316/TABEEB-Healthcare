@@ -83,8 +83,9 @@ export default function PaymentPage() {
               // Forcefully take the user to the success page!
               router.push(`/Patient/payment/success?appointmentId=${appointmentId}`);
             }
-          } catch (e: any) {
-            console.warn('Polling check failed (ignoring until next tick):', e.message);
+          } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            console.warn('Polling check failed (ignoring until next tick):', message);
           }
         }, 3000);
 
