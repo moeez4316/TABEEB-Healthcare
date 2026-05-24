@@ -34,9 +34,15 @@ export default function PaymentPage() {
 
   const handlePayNow = async () => {
     if (!appointmentId || !token) return;
-
+    
     setError('');
     setProcessing(true); // Disable button to prevent double-clicks
+
+    // 1. Open a blank popup immediately to bypass popup blockers (must be synchronous with the click)
+    const popup = window.open('', 'SafePayCheckout', 'width=500,height=700');
+    if (popup) {
+      popup.document.write('<html><head><title>Loading SafePay...</title></head><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background-color:#f8fafc;color:#334155;"><h2>Connecting to SafePay securely...</h2></body></html>');
+    }
 
     try {
       const response = await apiFetchJson<{ success: boolean; redirectUrl?: string; message?: string }>(
@@ -49,26 +55,26 @@ export default function PaymentPage() {
       );
 
       if (response.success && response.redirectUrl) {
-        // Open SafePay in a popup window to prevent losing the current tab state
-        const popup = window.open(response.redirectUrl, 'SafePayCheckout', 'width=500,height=700');
-
-        if (!popup) {
-          setError('Popup blocked! Please allow popups for this site or disable your adblocker.');
-          setProcessing(false);
+        if (popup) {
+          // 2. Redirect the existing popup to SafePay
+          popup.location.href = response.redirectUrl;
+        } else {
+          // Fallback just in case the popup was still blocked (extremely strict settings)
+          window.location.href = response.redirectUrl;
           return;
         }
 
-        // Poll our backend every 3 seconds to check if the webhook marked it as PAID
+        // 3. Poll our backend every 3 seconds to check if the webhook marked it as PAID
         const pollInterval = setInterval(async () => {
           try {
             const check = await apiFetchJson<{ success: boolean; status?: string; data?: { state?: string } }>(
               `${process.env.NEXT_PUBLIC_API_URL}/api/safepay/verify-payment/${appointmentId}`,
               { token, method: 'GET' }
             );
-
+            
             // Check both possible response structures (status or data.state)
             const paymentState = check.status || check.data?.state;
-
+            
             if (check.success && paymentState === 'PAID') {
               clearInterval(pollInterval);
               if (popup && !popup.closed) {
@@ -77,9 +83,8 @@ export default function PaymentPage() {
               // Forcefully take the user to the success page!
               router.push(`/Patient/payment/success?appointmentId=${appointmentId}`);
             }
-          } catch (e) {
-            const message = e instanceof Error ? e.message : 'Unknown error';
-            console.warn('Polling check failed (ignoring until next tick):', message);
+          } catch (e: any) {
+            console.warn('Polling check failed (ignoring until next tick):', e.message);
           }
         }, 3000);
 
@@ -93,10 +98,12 @@ export default function PaymentPage() {
         }, 1000);
 
       } else {
+        if (popup) popup.close();
         setError(response.message || 'Failed to initiate payment session.');
         setProcessing(false); // Re-enable if it failed so user can try again
       }
     } catch (err) {
+      if (popup) popup.close();
       console.error('SafePay session error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while connecting to SafePay.');
       setProcessing(false);
