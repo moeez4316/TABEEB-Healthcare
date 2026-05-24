@@ -50,16 +50,15 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Select a Doctor</h3>
-      
+
       {doctors.map((doctor) => (
         <div
           key={doctor.uid}
           className={`
             bg-white dark:bg-slate-800 border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 shadow-lg
-            ${
-              selectedDoctor?.uid === doctor.uid
-                ? 'border-teal-500 dark:border-teal-400 bg-teal-50 dark:bg-teal-900/20 shadow-xl'
-                : 'border-gray-200 dark:border-slate-600 hover:border-teal-300 dark:hover:border-teal-500 hover:shadow-xl'
+            ${selectedDoctor?.uid === doctor.uid
+              ? 'border-teal-500 dark:border-teal-400 bg-teal-50 dark:bg-teal-900/20 shadow-xl'
+              : 'border-gray-200 dark:border-slate-600 hover:border-teal-300 dark:hover:border-teal-500 hover:shadow-xl'
             }
           `}
           onClick={() => onDoctorSelect(doctor)}
@@ -69,9 +68,9 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
               {/* Doctor Avatar */}
               <div className="w-16 h-16 bg-teal-100 dark:bg-teal-800 rounded-full flex items-center justify-center overflow-hidden">
                 {doctor.profileImageUrl ? (
-                  <Image 
-                    src={doctor.profileImageUrl} 
-                    alt={`Dr. ${sanitizeName(doctor.name)}`} 
+                  <Image
+                    src={doctor.profileImageUrl}
+                    alt={`Dr. ${sanitizeName(doctor.name)}`}
                     width={64}
                     height={64}
                     className="w-full h-full object-cover"
@@ -80,11 +79,11 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
                   <FaUserMd className="w-8 h-8 text-teal-600 dark:text-teal-400" />
                 )}
               </div>
-              
+
               {/* Doctor Info */}
               <div className="flex-1">
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Dr. {doctor.firstName && doctor.lastName 
+                  Dr. {doctor.firstName && doctor.lastName
                     ? `${sanitizeName(doctor.firstName)} ${sanitizeName(doctor.lastName)}`
                     : sanitizeName(doctor.name)
                   }
@@ -96,7 +95,7 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
                 {doctor.experience && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">{doctor.experience} years experience</p>
                 )}
-                
+
                 <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
                   {typeof doctor.rating === 'number' && (doctor.reviewCount ?? 0) > 0 ? (
                     <div className="flex items-center space-x-1">
@@ -110,7 +109,7 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
                       <span className="text-xs font-medium">No reviews</span>
                     </div>
                   )}
-                  
+
                   {doctor.consultationFees && (
                     <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2">
                       <span className="font-medium text-green-600 dark:text-green-400">PKR {doctor.consultationFees.toLocaleString('en-PK')}/hr</span>
@@ -121,25 +120,19 @@ export const DoctorSelector: React.FC<DoctorSelectorProps> = ({
                       )}
                     </div>
                   )}
-                  
-                  {doctor.isAvailable && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
-                      Available
-                    </span>
-                  )}
+
                 </div>
               </div>
             </div>
-            
+
             {/* Select Button */}
             <div className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0">
               <button
                 className={`
                   w-full sm:w-auto px-4 py-2 rounded-lg font-medium transition-colors shadow-md
-                  ${
-                    selectedDoctor?.uid === doctor.uid
-                      ? 'bg-teal-600 dark:bg-teal-500 text-white hover:bg-teal-700 dark:hover:bg-teal-600'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ${selectedDoctor?.uid === doctor.uid
+                    ? 'bg-teal-600 dark:bg-teal-500 text-white hover:bg-teal-700 dark:hover:bg-teal-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }
                 `}
               >

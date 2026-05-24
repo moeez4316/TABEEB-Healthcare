@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, RefreshCw, Search, CheckCircle } from 'lucide-react';
+import { Clock, RefreshCw, Search } from 'lucide-react';
 import AdminLoading from '@/components/admin/AdminLoading';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminPageShell from '@/components/admin/AdminPageShell';

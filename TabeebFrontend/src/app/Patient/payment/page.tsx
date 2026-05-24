@@ -34,7 +34,7 @@ export default function PaymentPage() {
 
   const handlePayNow = async () => {
     if (!appointmentId || !token) return;
-    
+
     setError('');
     setProcessing(true); // Disable button to prevent double-clicks
 
@@ -51,7 +51,7 @@ export default function PaymentPage() {
       if (response.success && response.redirectUrl) {
         // Open SafePay in a popup window to prevent losing the current tab state
         const popup = window.open(response.redirectUrl, 'SafePayCheckout', 'width=500,height=700');
-        
+
         if (!popup) {
           setError('Popup blocked! Please allow popups for this site or disable your adblocker.');
           setProcessing(false);
@@ -65,10 +65,10 @@ export default function PaymentPage() {
               `${process.env.NEXT_PUBLIC_API_URL}/api/safepay/verify-payment/${appointmentId}`,
               { token, method: 'GET' }
             );
-            
+
             // Check both possible response structures (status or data.state)
             const paymentState = check.status || check.data?.state;
-            
+
             if (check.success && paymentState === 'PAID') {
               clearInterval(pollInterval);
               if (popup && !popup.closed) {
@@ -77,8 +77,9 @@ export default function PaymentPage() {
               // Forcefully take the user to the success page!
               router.push(`/Patient/payment/success?appointmentId=${appointmentId}`);
             }
-          } catch (e: any) {
-            console.warn('Polling check failed (ignoring until next tick):', e.message);
+          } catch (e) {
+            const message = e instanceof Error ? e.message : 'Unknown error';
+            console.warn('Polling check failed (ignoring until next tick):', message);
           }
         }, 3000);
 
@@ -137,7 +138,7 @@ export default function PaymentPage() {
               <span className="text-gray-600 dark:text-gray-400">Time</span>
               <span className="font-medium text-gray-900 dark:text-white">{appointmentTime}</span>
             </div>
-            
+
             <div className="border-t border-gray-200 dark:border-slate-600 pt-3 mt-3 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Base Fee</span>
@@ -157,7 +158,7 @@ export default function PaymentPage() {
                   <span>Applied</span>
                 </div>
               )}
-              
+
               <div className="flex justify-between items-center pt-2">
                 <span className="font-semibold text-gray-900 dark:text-white">Total Amount</span>
                 <span className="text-2xl font-bold text-teal-600 dark:text-teal-400">
@@ -197,7 +198,7 @@ export default function PaymentPage() {
               </>
             )}
           </button>
-          
+
           <button
             onClick={handleCancel}
             disabled={processing}

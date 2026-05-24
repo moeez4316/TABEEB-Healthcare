@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaUser, FaClock } from 'react-icons/fa';

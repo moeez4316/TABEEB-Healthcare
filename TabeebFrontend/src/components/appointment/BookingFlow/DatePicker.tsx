@@ -235,74 +235,29 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           </div>
         </div>
       ) : (
-        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-xs">👆</span>
-            </div>
-            <div className="text-sm font-medium text-blue-900 dark:text-blue-400">
-              Select a date to continue
-            </div>
-          </div>
-          <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-7">
-            Choose from highlighted dates with green dots for available appointments
-          </div>
+        <div className="mt-4 p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+          Select a date to continue
         </div>
       )}
 
       {/* Enhanced Legend */}
       <div className="mt-4 space-y-3">
         {availableDates.length > 0 && (
-          <div className="p-3 bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-green-800 dark:text-green-400">Doctor Availability</h4>
-              <span className="text-xs text-green-600 dark:text-green-300 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
-                {availableDates.length} dates available
-              </span>
+          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2 h-2 bg-green-500 rounded-full" />
+              <span>Available dates</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
-                  <div className="w-4 h-4 bg-teal-50 dark:bg-teal-900/30 border-2 border-teal-300 dark:border-teal-600 rounded flex items-center justify-center relative">
-                    <span className="text-xs font-medium text-teal-700 dark:text-teal-300">13</span>
-                    <div className="absolute top-0 right-0 w-2 h-2 bg-green-500 rounded-full transform translate-x-1/2 -translate-y-1/2"></div>
-                  </div>
-                </div>
-                <span className="text-green-800 dark:text-green-300 font-medium">Available dates</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded flex items-center justify-center">
-                  <span className="text-xs text-gray-400 dark:text-gray-500">15</span>
-                </div>
-                <span className="text-gray-600 dark:text-gray-400">No availability</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 ring-2 ring-teal-500 dark:ring-teal-400 bg-teal-50 dark:bg-teal-900/20 rounded flex items-center justify-center">
-                  <span className="text-xs font-medium text-teal-700 dark:text-teal-300">16</span>
-                </div>
-                <span className="text-gray-600 dark:text-gray-400">Selected date</span>
-              </div>
-            </div>
-            <div className="mt-2 text-xs text-green-700 dark:text-green-400">
-              💡 Click on highlighted dates with green dots to see available time slots
-            </div>
+            <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+              {availableDates.length} available
+            </span>
           </div>
         )}
-        
+
         {availableDates.length === 0 && (
-          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
-                <span className="text-xs text-yellow-800">!</span>
-              </div>
-              <span className="text-yellow-800 dark:text-yellow-400 font-medium text-sm">
-                No availability found for this doctor
-              </span>
-            </div>
-            <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1 ml-6">
-              The doctor may not have set their availability yet. Please try selecting another doctor or check back later.
-            </p>
-          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+            No availability set for this doctor
+          </p>
         )}
       </div>
     </div>

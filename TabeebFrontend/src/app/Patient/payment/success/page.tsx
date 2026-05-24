@@ -13,7 +13,6 @@ export default function PaymentSuccessPage() {
 
   const appointmentId = searchParams.get('appointmentId') || '';
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!appointmentId) {

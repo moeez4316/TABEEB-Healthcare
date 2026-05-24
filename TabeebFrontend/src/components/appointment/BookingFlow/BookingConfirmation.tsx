@@ -32,7 +32,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
       {/* Appointment Details Card */}
       <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-6 mb-6">
         <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Appointment Details</h3>
-        
+
         <div className="space-y-4">
           {/* Doctor Information */}
           <div className="flex items-center space-x-3 p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-100 dark:border-teal-800">
@@ -100,26 +100,15 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         </div>
       </div>
 
-      {/* Important Information */}
-      <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg p-4 mb-6">
-        <h4 className="font-semibold text-teal-900 dark:text-teal-400 mb-2">What&apos;s Next?</h4>
-        <ul className="text-sm text-teal-800 dark:text-teal-300 space-y-1">
-          <li>• You&apos;ll receive a confirmation notification once the doctor approves your appointment</li>
-          <li>• Please arrive 15 minutes before your scheduled time</li>
-          <li>• Bring a valid ID and insurance card if applicable</li>
-          <li>• You can reschedule or cancel up to 2 hours before the appointment</li>
-        </ul>
-      </div>
-
       {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4">        
+      <div className="flex flex-col sm:flex-row gap-4">
         <button
           onClick={onViewAppointments}
           className="flex-1 bg-teal-600 dark:bg-teal-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
         >
           View My Appointments
         </button>
-        
+
         <button
           onClick={onNewBooking}
           className="flex-1 bg-green-600 dark:bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 dark:hover:bg-green-600 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"

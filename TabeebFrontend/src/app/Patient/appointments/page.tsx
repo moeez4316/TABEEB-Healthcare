@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Appointment } from '@/types/appointment';
 import { useAuth } from '@/lib/auth-context';
 import { formatTime, formatDate } from '@/lib/dateUtils';
-import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp, FaStar, FaRedo, FaComments, FaInfoCircle } from 'react-icons/fa';
+import { FaCalendarPlus, FaTimes, FaClock, FaUserMd, FaVideo, FaChevronDown, FaChevronUp, FaStar, FaRedo, FaComments } from 'react-icons/fa';
 import PatientVideoCallModal from '@/components/VideoCall/PatientVideoCallModal';
 import PatientReviewModal from '@/components/appointment/PatientReviewModal';
 import { Toast } from '@/components/Toast';
@@ -28,7 +28,6 @@ interface FollowUpEligibility {
 export default function PatientAppointmentsPage() {
   const { token, user } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'pending' | 'completed'>('upcoming');
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
   const [showVideoCall, setShowVideoCall] = useState(false);

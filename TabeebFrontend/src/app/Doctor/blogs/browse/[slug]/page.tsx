@@ -1,5 +1,8 @@
+import type { ComponentProps } from 'react';
 import BlogDetailPage from '@/app/blogs/[slug]/page';
 
-export default function DoctorBrowseBlogDetailPage(props: any) {
+type BlogDetailProps = ComponentProps<typeof BlogDetailPage>;
+
+export default function DoctorBrowseBlogDetailPage(props: BlogDetailProps) {
   return <BlogDetailPage {...props} />;
 }

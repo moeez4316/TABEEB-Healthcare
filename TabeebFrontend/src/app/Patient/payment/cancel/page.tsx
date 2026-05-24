@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FaTimesCircle, FaCalendarAlt, FaRedo } from 'react-icons/fa';
+import { FaTimesCircle, FaRedo } from 'react-icons/fa';
 
 export default function PaymentCancelPage() {
   const router = useRouter();

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Star, Loader2, Send, CheckCircle } from 'lucide-react';
 import { submitPlatformReview, checkMyPlatformReview } from '@/lib/platform-review-api';
@@ -24,6 +24,25 @@ const PlatformReviewModal = ({ isOpen, onClose }: PlatformReviewModalProps) => {
   const [success, setSuccess] = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
+  const checkStatus = useCallback(async () => {
+    if (!token) {
+      setIsChecking(false);
+      return;
+    }
+
+    setIsChecking(true);
+    try {
+      const res = await checkMyPlatformReview(token);
+      if (res.recentlySubmitted) {
+        setAlreadySubmitted(true);
+      }
+    } catch (err) {
+      console.error('Failed to check review status', err);
+    } finally {
+      setIsChecking(false);
+    }
+  }, [token]);
+
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -35,26 +54,12 @@ const PlatformReviewModal = ({ isOpen, onClose }: PlatformReviewModalProps) => {
       setAlreadySubmitted(false);
       
       if (token) {
-        checkStatus();
+        void checkStatus();
       } else {
         setIsChecking(false);
       }
     }
-  }, [isOpen, token]);
-
-  const checkStatus = async () => {
-    setIsChecking(true);
-    try {
-      const res = await checkMyPlatformReview(token!);
-      if (res.recentlySubmitted) {
-        setAlreadySubmitted(true);
-      }
-    } catch (err) {
-      console.error('Failed to check review status', err);
-    } finally {
-      setIsChecking(false);
-    }
-  };
+  }, [isOpen, token, checkStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,8 +93,9 @@ const PlatformReviewModal = ({ isOpen, onClose }: PlatformReviewModalProps) => {
       } else {
         setError(result.message || 'Failed to submit review');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

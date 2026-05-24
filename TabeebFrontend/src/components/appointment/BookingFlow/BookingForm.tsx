@@ -28,7 +28,6 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 }) => {
   const { token } = useAuth();
   const [patientNotes, setPatientNotes] = useState('');
-  const [emergencyContact, setEmergencyContact] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [showMedicationsModal, setShowMedicationsModal] = useState(false);
@@ -190,106 +189,56 @@ export const BookingForm: React.FC<BookingFormProps> = ({
         )}
       </div>
 
-      {/* Booking Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Patient Notes */}
         <div>
-          <label htmlFor="patientNotes" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="patientNotes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
             Reason for Visit / Symptoms
           </label>
           <textarea
             id="patientNotes"
             value={patientNotes}
             onChange={(e) => setPatientNotes(e.target.value)}
-            rows={4}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Please describe your symptoms or reason for the appointment..."
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            This information helps the doctor prepare for your consultation.
-          </p>
-        </div>
-
-        {/* Emergency Contact */}
-        <div>
-          <label htmlFor="emergencyContact" className="block text-sm font-medium text-gray-700 mb-2">
-            Emergency Contact (Optional)
-          </label>
-          <input
-            type="text"
-            id="emergencyContact"
-            value={emergencyContact}
-            onChange={(e) => setEmergencyContact(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Emergency contact name and phone number"
+            rows={3}
+            className="w-full border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+            placeholder="Describe your symptoms or reason for the appointment..."
           />
         </div>
 
         {/* Document Sharing */}
-        <div>
-          <DocumentSelector
-            selectedDocuments={selectedDocuments}
-            onSelectionChange={setSelectedDocuments}
-          />
-        </div>
+        <DocumentSelector
+          selectedDocuments={selectedDocuments}
+          onSelectionChange={setSelectedDocuments}
+        />
 
-        {/* Current Medications Button */}
-        <div className="bg-gradient-to-r from-teal-50 to-blue-50 dark:from-teal-900/20 dark:to-blue-900/20 border border-teal-200 dark:border-teal-700 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h5 className="font-medium text-gray-900 dark:text-white flex items-center">
-                <FaPills className="w-4 h-4 mr-2 text-teal-600 dark:text-teal-400" />
-                Current Medications
-              </h5>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Help your doctor understand your current treatment plan
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowMedicationsModal(true)}
-            className="w-full mt-3 flex items-center justify-center space-x-2 bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-slate-600 border-2 border-teal-600 dark:border-teal-500 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md"
-          >
-            <FaPills className="w-4 h-4" />
-            <span>View My Current Medications</span>
-          </button>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-            This information helps prevent drug interactions
-          </p>
-        </div>
+        {/* Current Medications */}
+        <button
+          type="button"
+          onClick={() => setShowMedicationsModal(true)}
+          className="flex items-center space-x-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium text-sm transition-colors"
+        >
+          <FaPills className="w-4 h-4" />
+          <span>View Current Medications</span>
+        </button>
 
-        {/* Terms and Conditions */}
+        {/* Terms */}
         <div className="flex items-start space-x-3">
           <input
             type="checkbox"
             id="agreeToTerms"
             checked={agreeToTerms}
             onChange={(e) => setAgreeToTerms(e.target.checked)}
-            className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            className="mt-0.5 h-4 w-4 text-teal-600 border-gray-300 dark:border-slate-600 rounded focus:ring-teal-500"
           />
-          <label htmlFor="agreeToTerms" className="text-sm text-gray-700">
+          <label htmlFor="agreeToTerms" className="text-sm text-gray-700 dark:text-gray-300">
             I agree to the{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700 underline">
-              Terms and Conditions
-            </a>{' '}
-            and{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700 underline">
+            <a href="/complaint-policy" className="text-teal-600 dark:text-teal-400 hover:underline">
+              Terms
+            </a>{' '}and{' '}
+            <a href="/privacy-policy" className="text-teal-600 dark:text-teal-400 hover:underline">
               Privacy Policy
-            </a>
-            . I understand that this appointment is subject to doctor&apos;s availability and confirmation.
+            </a>. Appointment subject to confirmation.
           </label>
-        </div>
-
-        {/* Important Notes */}
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-          <h5 className="font-medium text-amber-800 dark:text-amber-300 mb-2">Important Notes:</h5>
-          <ul className="text-sm text-amber-700 dark:text-amber-200 space-y-1">
-            <li>• Please arrive 15 minutes before your scheduled appointment</li>
-            <li>• Bring a valid ID and insurance card if applicable</li>
-            <li>• You will receive a confirmation notification once the doctor approves your appointment</li>
-            <li>• Cancellations must be made at least 2 hours in advance</li>
-          </ul>
         </div>
 
         {/* Submit Button */}
@@ -300,18 +249,18 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             w-full py-3 px-4 rounded-lg font-medium transition-all duration-200
             ${
               isLoading || !agreeToTerms
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
+                ? 'bg-gray-300 dark:bg-slate-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
+                : 'bg-teal-600 dark:bg-teal-500 text-white hover:bg-teal-700 dark:hover:bg-teal-600 shadow-md hover:shadow-lg'
             }
           `}
         >
           {isLoading ? (
             <div className="flex items-center justify-center space-x-2">
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>Booking Appointment...</span>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Booking...</span>
             </div>
           ) : (
-            'Book Appointment'
+            'Confirm Booking'
           )}
         </button>
       </form>

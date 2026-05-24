@@ -292,7 +292,6 @@ export default function DoctorVideoCallModal({
     };
 
     initializeCall();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, jitsiLoaded, appointmentId, firebaseToken, finalizeLeave]);
 
   // Cleanup effect

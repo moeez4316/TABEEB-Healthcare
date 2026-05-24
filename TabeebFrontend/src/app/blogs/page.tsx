@@ -2,7 +2,7 @@
 
 import React, { Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams, usePathname } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useFeaturedBlogs, useBlogs, useBlogTags } from '@/lib/hooks/useBlog';
 import { useBasePath } from '@/lib/hooks/useBasePath';
 import { FeaturedBlogsCarousel } from '@/components/blog/public/FeaturedBlogsCarousel';
