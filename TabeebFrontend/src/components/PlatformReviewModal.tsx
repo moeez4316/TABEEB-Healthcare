@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Star, Loader2, Send, CheckCircle } from 'lucide-react';
 import { submitPlatformReview, checkMyPlatformReview } from '@/lib/platform-review-api';
@@ -24,6 +24,20 @@ const PlatformReviewModal = ({ isOpen, onClose }: PlatformReviewModalProps) => {
   const [success, setSuccess] = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
+  const checkStatus = useCallback(async () => {
+    setIsChecking(true);
+    try {
+      const res = await checkMyPlatformReview(token!);
+      if (res.recentlySubmitted) {
+        setAlreadySubmitted(true);
+      }
+    } catch (err) {
+      console.error('Failed to check review status', err);
+    } finally {
+      setIsChecking(false);
+    }
+  }, [token]);
+
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -40,21 +54,7 @@ const PlatformReviewModal = ({ isOpen, onClose }: PlatformReviewModalProps) => {
         setIsChecking(false);
       }
     }
-  }, [isOpen, token]);
-
-  const checkStatus = async () => {
-    setIsChecking(true);
-    try {
-      const res = await checkMyPlatformReview(token!);
-      if (res.recentlySubmitted) {
-        setAlreadySubmitted(true);
-      }
-    } catch (err) {
-      console.error('Failed to check review status', err);
-    } finally {
-      setIsChecking(false);
-    }
-  };
+  }, [isOpen, token, checkStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,8 +88,12 @@ const PlatformReviewModal = ({ isOpen, onClose }: PlatformReviewModalProps) => {
       } else {
         setError(result.message || 'Failed to submit review');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || 'An unexpected error occurred');
+      } else {
+        setError(String(err) || 'An unexpected error occurred');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import Image from 'next/image';
+import React, { useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useApiQuery } from '@/lib/hooks/useApiQuery';
 import { apiFetchJson } from '@/lib/api-client';

@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Loader2, WifiOff, RefreshCw, LogOut } from 'lucide-react';
 import { getDoctorRedirectPath } from '@/lib/doctorRedirect';
 
