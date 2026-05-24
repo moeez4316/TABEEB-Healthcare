@@ -49,11 +49,12 @@ const PlatformReviewModal = ({ isOpen, onClose }: PlatformReviewModalProps) => {
       setAlreadySubmitted(false);
       
       if (token) {
-        checkStatus();
+        void checkStatus();
       } else {
         setIsChecking(false);
       }
     }
+  }, [isOpen, token, checkStatus]);
   }, [isOpen, token, checkStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {

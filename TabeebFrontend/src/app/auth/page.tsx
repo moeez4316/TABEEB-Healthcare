@@ -9,6 +9,7 @@ import { useAuth } from '../../lib/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 // Phone auth removed — keep email flows only
 import { APP_CONFIG } from '@/lib/config/appConfig';
+import { isValidEmail } from '@/lib/profile-utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
 
@@ -244,6 +245,12 @@ export default function AuthPage() {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
+    
+    if (!isValidEmail(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');

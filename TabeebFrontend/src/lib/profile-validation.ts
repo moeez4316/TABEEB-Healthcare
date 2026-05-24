@@ -9,6 +9,23 @@ export interface ValidationResult {
   errors: ValidationErrors
 }
 
+// Typed interfaces describing only the fields each validator needs.
+// Using interfaces instead of Record<string, unknown> means callers
+// can pass their typed profile objects directly — no casts needed.
+interface PatientProfileInput {
+  firstName?: string
+  lastName?: string
+  email?: string
+  phone?: string
+  dateOfBirth?: string
+  gender?: string
+  cnic?: string
+}
+
+interface DoctorProfileInput extends PatientProfileInput {
+  specialization?: string
+}
+
 // Validate email
 function validateEmail(email: string): string | null {
   if (!email.trim()) {
@@ -24,19 +41,34 @@ function validateEmail(email: string): string | null {
 }
 
 // Validate name fields
-function validateName(name: string, fieldName: string): string | null {
-  if (!name.trim()) {
+function validateName(name: string, fieldName: string, options: { isDoctor?: boolean } = {}): string | null {
+  if (!name || !name.trim()) {
     return `${fieldName} is required`
   }
   
-  if (name.trim().length < 2) {
+  const trimmedName = name.trim()
+  
+  // Check for common titles at the beginning (Dr., Mr., etc.)
+  // If it's a doctor, we specifically want to prevent "Dr." to avoid "Dr. Dr. Name"
+  if (options.isDoctor && /^(dr|prof)\.?\s+/i.test(trimmedName)) {
+    return `${fieldName} should not include "Dr." or "Prof." title as it is added automatically`
+  }
+  
+  if (trimmedName.length < 2) {
     return `${fieldName} must be at least 2 characters long`
   }
   
-  if (!/^[a-zA-Z\s]+$/.test(name.trim())) {
-    return `${fieldName} can only contain letters and spaces`
+  // Allow letters, spaces, hyphens, and dots (for initials)
+  // But reject if it contains numbers or other special characters
+  if (!/^[a-zA-Z\s.-]+$/.test(trimmedName)) {
+    return `${fieldName} can only contain letters, spaces, dots, and hyphens`
   }
   
+  // Check if it's just dots and hyphens
+  if (!/[a-zA-Z]/.test(trimmedName)) {
+    return `${fieldName} must contain at least one letter`
+  }
+
   return null
 }
 
@@ -104,31 +136,72 @@ function validateGender(gender: string): string | null {
 }
 
 // Main validation function for patient profile
-export function validateProfile(profile: Record<string, unknown>): ValidationResult {
+export function validatePatientProfile(profile: PatientProfileInput): ValidationResult {
   const errors: ValidationErrors = {}
   
   // Validate required fields
-  const firstNameError = validateName(profile.firstName as string, 'First name')
+  const firstNameError = validateName(profile.firstName ?? '', 'First name')
   if (firstNameError) errors.firstName = firstNameError
   
-  const lastNameError = validateName(profile.lastName as string, 'Last name')
+  const lastNameError = validateName(profile.lastName ?? '', 'Last name')
   if (lastNameError) errors.lastName = lastNameError
   
-  const emailError = validateEmail(profile.email as string)
-  if (emailError) errors.email = emailError
+  if (profile.email) {
+    const emailError = validateEmail(profile.email)
+    if (emailError) errors.email = emailError
+  }
   
-  const phoneError = validatePhoneNumber(profile.phone as string)
-  if (phoneError) errors.phone = phoneError
+  if (profile.phone) {
+    const phoneError = validatePhoneNumber(profile.phone)
+    if (phoneError) errors.phone = phoneError
+  }
   
-  const dateOfBirthError = validateDateOfBirth(profile.dateOfBirth as string)
-  if (dateOfBirthError) errors.dateOfBirth = dateOfBirthError
+  if (profile.dateOfBirth) {
+    const dateOfBirthError = validateDateOfBirth(profile.dateOfBirth)
+    if (dateOfBirthError) errors.dateOfBirth = dateOfBirthError
+  }
   
-  const genderError = validateGender(profile.gender as string)
-  if (genderError) errors.gender = genderError
+  if (profile.gender) {
+    const genderError = validateGender(profile.gender)
+    if (genderError) errors.gender = genderError
+  }
   
   // Validate optional fields
-  const cnicError = validateCNIC(profile.cnic as string)
-  if (cnicError) errors.cnic = cnicError
+  if (profile.cnic) {
+    const cnicError = validateCNIC(profile.cnic)
+    if (cnicError) errors.cnic = cnicError
+  }
+  
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors
+  }
+}
+
+// Main validation function for doctor profile
+export function validateDoctorProfile(profile: DoctorProfileInput): ValidationResult {
+  const errors: ValidationErrors = {}
+  
+  // Validate required fields
+  const firstNameError = validateName(profile.firstName ?? '', 'First name', { isDoctor: true })
+  if (firstNameError) errors.firstName = firstNameError
+  
+  const lastNameError = validateName(profile.lastName ?? '', 'Last name', { isDoctor: true })
+  if (lastNameError) errors.lastName = lastNameError
+  
+  if (profile.email) {
+    const emailError = validateEmail(profile.email)
+    if (emailError) errors.email = emailError
+  }
+  
+  if (profile.phone) {
+    const phoneError = validatePhoneNumber(profile.phone)
+    if (phoneError) errors.phone = phoneError
+  }
+
+  if (profile.specialization !== undefined && !profile.specialization.trim()) {
+    errors.specialization = 'Specialization is required'
+  }
   
   return {
     isValid: Object.keys(errors).length === 0,

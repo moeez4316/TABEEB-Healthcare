@@ -54,9 +54,8 @@ export async function submitPlatformReview(
     }
 
     return result;
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { success: false, message: message || 'Network error' };
+  } catch (error: any) {
+    return { success: false, message: error.message || 'Network error' };
   }
 }
 

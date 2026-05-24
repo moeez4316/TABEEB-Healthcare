@@ -22,13 +22,14 @@ import {
   getDoctorAvailabilitySummary
 } from '../controllers/publicDoctorController';
 import { verifyToken } from '../middleware/verifyToken';
+import { validateDoctorProfile, verifyEmailVerified } from '../middleware/userValidation';
 
 const router = express.Router();
 
 // Doctor profile routes - All use JSON body (no multer needed)
-router.post('/', verifyToken, createDoctor);
+router.post('/', verifyToken, verifyEmailVerified, validateDoctorProfile, createDoctor);
 router.get('/', verifyToken, getDoctor);
-router.put('/', verifyToken, updateDoctor);
+router.put('/', verifyToken, validateDoctorProfile, updateDoctor);
 router.delete('/', verifyToken, deleteDoctor);
 router.post('/restore', verifyToken, restoreDoctor);
 

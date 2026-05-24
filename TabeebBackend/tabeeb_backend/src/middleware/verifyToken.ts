@@ -37,7 +37,10 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
       });
     }
 
-    req.user = { uid: decoded.uid };
+    req.user = { 
+      uid: decoded.uid,
+      email: decoded.email
+    };
     next();
   } catch (err) {
     res.status(401).json({ error: 'Invalid token' });

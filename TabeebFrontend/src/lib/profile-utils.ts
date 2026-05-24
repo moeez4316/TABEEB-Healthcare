@@ -199,3 +199,27 @@ export function isValidPhoneNumber(phone: string): boolean {
   
   return false;
 }
+
+// Validate name (min 2 chars, no numbers)
+export function isValidName(name: string): boolean {
+  if (!name) return false;
+  
+  // Clean name from common titles for validation check
+  const cleanedName = sanitizeName(name).trim();
+  
+  if (cleanedName.length < 2) return false;
+  
+  // Regex: allow letters, spaces, hyphens, and dots (standard for names)
+  // But strictly no numbers
+  const nameRegex = /^[a-zA-Z\s\-\.]+$/;
+  return nameRegex.test(cleanedName);
+}
+
+// Sanitize name by removing common titles to avoid redundancy (e.g., Dr. Dr. Name)
+export function sanitizeName(name: string): string {
+  if (!name) return '';
+  
+  // Remove "Dr.", "Dr ", "Mr.", "Mr ", "Ms.", "Ms ", "Mrs.", "Mrs ", "Prof.", "Prof " prefix (case insensitive)
+  // We handle both with and without dots
+  return name.replace(/^(dr|mr|mrs|ms|prof)\.?\s+/i, '').replace(/^(dr|mr|mrs|ms|prof)\./i, '').trim();
+}

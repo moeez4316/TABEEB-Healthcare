@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { updateProfile, saveDoctorProfile, DoctorProfile, resetProfile } from '@/store/slices/doctorSlice';
 import ProfileImageUpload from '../shared/ProfileImageUpload';
 import { formatPhoneNumber, pakistaniProvinces } from '@/lib/profile-utils';
+import { ValidationErrors, getFieldError, validateDoctorProfile } from '@/lib/profile-validation';
 import { Toast } from '../Toast';
 import { useRouter } from 'next/navigation';
 import { uploadFile } from '@/lib/cloudinary-upload';
@@ -232,6 +233,7 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
 
     const [activeTab, setActiveTab] = useState('personal');
     const [saving, setSaving] = useState(false);
+    const [errors, setErrors] = useState<ValidationErrors>({});
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
@@ -340,7 +342,20 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
         if (!token) return;
         
         console.log('Save button clicked');
+        
+        // Step 0: Validate profile
+        const validation = validateDoctorProfile(profile);
+        if (!validation.isValid) {
+            setErrors(validation.errors);
+            setToastMessage('Please fix the errors in your profile');
+            setToastType('error');
+            setShowToast(true);
+            setSaving(false);
+            return;
+        }
+
         setSaving(true);
+        setErrors({});
         
         try {
             const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -461,23 +476,40 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
 
     const handleInputChange = (field: string, value: unknown) => {
         handleUpdateProfile({ [field]: value });
+        // Clear error for this field if it exists
+        if (errors[field]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[field];
+                return newErrors;
+            });
+        }
     };
 
     const handleAddressChange = (field: string, value: string) => {
         handleUpdateProfile({
             address: {
-                ...(profile.address || { street: '', city: '', province: '', postalCode: '' }),
-                [field]: value
-            }
+                ...(profile.address || {
+                    street: '',
+                    city: '',
+                    province: '',
+                    postalCode: '',
+                }),
+                [field]: value,
+            },
         });
     };
 
     const handleNotificationChange = (field: string, value: boolean) => {
         handleUpdateProfile({
             notifications: {
-                ...profile.notifications,
-                [field]: value
-            }
+                ...(profile.notifications || {
+                    email: true,
+                    sms: false,
+                    push: true,
+                }),
+                [field]: value,
+            },
         });
     };
 
@@ -866,8 +898,15 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                             type="text"
                                             value={profile.firstName}
                                             onChange={(e) => handleInputChange('firstName', e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white ${
+                                                getFieldError(errors, 'firstName') 
+                                                    ? 'border-red-500 dark:border-red-400' 
+                                                    : 'border-gray-300 dark:border-gray-600'
+                                            }`}
                                         />
+                                        {getFieldError(errors, 'firstName') && (
+                                            <p className="text-red-500 text-xs mt-1">{getFieldError(errors, 'firstName')}</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -878,8 +917,15 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                             type="text"
                                             value={profile.lastName}
                                             onChange={(e) => handleInputChange('lastName', e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white ${
+                                                getFieldError(errors, 'lastName') 
+                                                    ? 'border-red-500 dark:border-red-400' 
+                                                    : 'border-gray-300 dark:border-gray-600'
+                                            }`}
                                         />
+                                        {getFieldError(errors, 'lastName') && (
+                                            <p className="text-red-500 text-xs mt-1">{getFieldError(errors, 'lastName')}</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -890,8 +936,15 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                             type="email"
                                             value={profile.email || ''}
                                             onChange={(e) => handleInputChange('email', e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white ${
+                                                getFieldError(errors, 'email') 
+                                                    ? 'border-red-500 dark:border-red-400' 
+                                                    : 'border-gray-300 dark:border-gray-600'
+                                            }`}
                                         />
+                                        {getFieldError(errors, 'email') && (
+                                            <p className="text-red-500 text-xs mt-1">{getFieldError(errors, 'email')}</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -963,13 +1016,20 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                         <select
                                             value={profile.specialization || ''}
                                             onChange={(e) => handleInputChange('specialization', e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:bg-slate-700 dark:text-white ${
+                                                getFieldError(errors, 'specialization') 
+                                                    ? 'border-red-500 dark:border-red-400' 
+                                                    : 'border-gray-300 dark:border-gray-600'
+                                            }`}
                                         >
                                             <option value="">Select Specialization</option>
                                             {medicalSpecializations.map((spec) => (
                                                 <option key={spec} value={spec}>{spec}</option>
                                             ))}
                                         </select>
+                                        {getFieldError(errors, 'specialization') && (
+                                            <p className="text-red-500 text-xs mt-1">{getFieldError(errors, 'specialization')}</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -1612,7 +1672,10 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                                 checked={profile.privacy?.shareDataForResearch || false}
                                                 onChange={(e) => handleUpdateProfile({
                                                     privacy: {
-                                                        ...profile.privacy,
+                                                        ...(profile.privacy || {
+                                                            shareDataForResearch: false,
+                                                            allowMarketing: false
+                                                        }),
                                                         shareDataForResearch: e.target.checked
                                                     }
                                                 })}
@@ -1626,7 +1689,10 @@ export default function DoctorProfileEditModal({ isOpen, onClose, initialTab }: 
                                                 checked={profile.privacy?.allowMarketing || false}
                                                 onChange={(e) => handleUpdateProfile({
                                                     privacy: {
-                                                        ...profile.privacy,
+                                                        ...(profile.privacy || {
+                                                            shareDataForResearch: false,
+                                                            allowMarketing: false
+                                                        }),
                                                         allowMarketing: e.target.checked
                                                     }
                                                 })}
