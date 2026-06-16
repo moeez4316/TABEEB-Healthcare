@@ -17,6 +17,7 @@ fi
 if [ -z "$SITE_ADDRESS" ]; then
     SITE_ADDRESS="localhost"
 fi
+
 echo "🚀 Tabeeb Healthcare - Pre-built Image Deploy"
 echo "=============================================="
 
@@ -45,10 +46,11 @@ echo "⏳ Waiting for Redis to be ready..."
 sleep 5
 
 # Step 5: Run database migrations
-echo "Running database migrations..."
+echo "🗄️  Running database migrations..."
 docker compose -f docker-compose.prebuilt.yml run --rm \
   backend npx prisma migrate deploy
 
+# Step 6: Check TLS certificates
 cert_dir="$ROOT_DIR/nginx/certbot/conf/live/${SITE_ADDRESS}"
 if [ ! -f "$cert_dir/fullchain.pem" ]; then
     echo "❌ Missing TLS certificates for $SITE_ADDRESS."
@@ -56,13 +58,13 @@ if [ ! -f "$cert_dir/fullchain.pem" ]; then
     exit 1
 fi
 
-# Step 6: Start all services
+# Step 7: Start all services (--force-recreate ensures fresh env vars are picked up)
 echo "🚀 Starting all services..."
-docker compose -f docker-compose.prebuilt.yml up -d
+docker compose -f docker-compose.prebuilt.yml up -d --force-recreate
 
-# Step 7: Ensure Certbot renewal cron (host)
+# Step 8: Ensure Certbot renewal cron (host)
 if [ "$SITE_ADDRESS" != "localhost" ] && [ -f "$cert_dir/fullchain.pem" ]; then
-    echo "Setting up Certbot renewal cron..."
+    echo "🔒 Setting up Certbot renewal cron..."
     cat > "$ROOT_DIR/nginx/renew-certbot.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
@@ -84,7 +86,7 @@ EOF
     fi
 fi
 
-# Step 8: Show status
+# Step 9: Show status
 echo ""
 echo "✅ Deployment complete!"
 docker compose -f docker-compose.prebuilt.yml ps
@@ -95,17 +97,3 @@ else
     echo "🌐 Your app should be live at: http://localhost"
 fi
 echo "🔧 Health check: curl http://localhost:5002/api/health"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
