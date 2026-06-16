@@ -7,13 +7,7 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
   if (!token) return res.status(401).json({ error: 'No token provided' });
 
   try {
-    // Log the Firebase token
-    console.log('🔑 Firebase Token:', token);
-    
     const decoded = await admin.auth().verifyIdToken(token);
-    
-    // Log decoded user info
-    console.log('✅ Token verified for user:', decoded.uid);
     
     // Check if the user account is active (check both doctor and patient tables)
     const [doctor, patient] = await Promise.all([
