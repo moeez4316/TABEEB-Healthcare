@@ -32,15 +32,16 @@ const roundCurrency = (value: number): number => Number(value.toFixed(2));
 
 const clampPercent = (value: number): number => Math.min(100, Math.max(0, Math.round(value)));
 
-type AppointmentPaymentStatus = 'UNPAID' | 'IN_REVIEW' | 'PAID' | 'PAID_TO_DOCTOR' | 'DISPUTED';
-type VisiblePaymentStatus = 'UNPAID' | 'IN_PROGRESS' | 'CONFIRMED' | 'DISPUTED';
+type AppointmentPaymentStatus = 'UNPAID' | 'IN_REVIEW' | 'PAID' | 'PAID_TO_DOCTOR' | 'DISPUTED' | 'REFUNDED';
+type VisiblePaymentStatus = 'UNPAID' | 'IN_PROGRESS' | 'CONFIRMED' | 'DISPUTED' | 'REFUNDED';
 
 const PAYMENT_TRANSITIONS: Record<AppointmentPaymentStatus, AppointmentPaymentStatus[]> = {
   UNPAID: ['IN_REVIEW'],
   IN_REVIEW: ['PAID', 'DISPUTED'],
-  PAID: ['PAID_TO_DOCTOR'],
+  PAID: ['PAID_TO_DOCTOR', 'REFUNDED'],
   PAID_TO_DOCTOR: [],
-  DISPUTED: ['IN_REVIEW'],
+  DISPUTED: ['IN_REVIEW', 'REFUNDED'],
+  REFUNDED: [],
 };
 
 const prismaWithPayments = prisma as any;
@@ -188,7 +189,7 @@ const canTransitionPaymentStatus = (
 const parsePaymentStatus = (value: unknown): AppointmentPaymentStatus | null => {
   if (typeof value !== 'string') return null;
   const normalized = value.toUpperCase();
-  const validStatuses: AppointmentPaymentStatus[] = ['UNPAID', 'IN_REVIEW', 'PAID', 'PAID_TO_DOCTOR', 'DISPUTED'];
+  const validStatuses: AppointmentPaymentStatus[] = ['UNPAID', 'IN_REVIEW', 'PAID', 'PAID_TO_DOCTOR', 'DISPUTED', 'REFUNDED'];
   return validStatuses.includes(normalized as AppointmentPaymentStatus)
     ? (normalized as AppointmentPaymentStatus)
     : null;
@@ -196,6 +197,7 @@ const parsePaymentStatus = (value: unknown): AppointmentPaymentStatus | null => 
 
 const toVisiblePaymentStatus = (status: AppointmentPaymentStatus | undefined): VisiblePaymentStatus => {
   if (status === 'DISPUTED') return 'DISPUTED';
+  if (status === 'REFUNDED') return 'REFUNDED';
   if (status === 'IN_REVIEW') return 'IN_PROGRESS';
   if (status === 'PAID' || status === 'PAID_TO_DOCTOR') return 'CONFIRMED';
   return 'UNPAID';
