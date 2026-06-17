@@ -10,6 +10,8 @@ if [ -z "$DOCKER_BIN" ]; then
     DOCKER_BIN="/usr/bin/docker"
 fi
 
+cd "$ROOT_DIR"
+
 if [ -z "$SITE_ADDRESS" ] && [ -f "$ROOT_DIR/.env" ]; then
     SITE_ADDRESS=$(grep -E "^SITE_ADDRESS=" "$ROOT_DIR/.env" | head -n1 | cut -d= -f2- | sed 's/^"//;s/"$//')
 fi
