@@ -80,7 +80,7 @@ export class SafepayService {
       checkoutUrl.searchParams.append('env', this.environment);
       checkoutUrl.searchParams.append('beacon', tracker);
       checkoutUrl.searchParams.append('order_id', params.appointmentId);
-      // Use the ngrok host if webhookUrl is available, otherwise fallback to frontendUrl (which won't intercept POST but will work for GET)
+      // Use the webhook URL host for redirects (your production domain), otherwise fallback to frontendUrl
       let redirectHost = this.frontendUrl;
       if (this.webhookUrl) {
         try {

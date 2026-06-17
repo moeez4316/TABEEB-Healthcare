@@ -4,6 +4,10 @@
 
 set -e
 
+export NEXT_PUBLIC_API_URL="http://localhost:5002"
+export FRONTEND_URL="http://localhost:3000"
+export SITE_ADDRESS="localhost"
+
 echo "🐳 Starting TABEEB Healthcare Locally"
 echo "======================================"
 
@@ -33,7 +37,7 @@ docker-compose down 2>/dev/null || true
 # Start services
 echo ""
 echo "🚀 Starting all services..."
-docker-compose up -d
+docker-compose up -d --force-recreate
 
 # Wait for MySQL to be ready
 echo ""
