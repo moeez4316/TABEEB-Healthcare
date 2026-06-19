@@ -2,15 +2,28 @@
 
 # 🏥 TABEEB Healthcare Platform
 
+**طبیب** — *Arabic/Urdu for "Doctor"*
 
 A full-stack digital healthcare platform connecting patients and doctors, built for the Pakistani market.
 
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2015-black)]()
-[![Node.js](https://img.shields.io/badge/Backend-Node.js%20Express-339933)]()
-[![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6)]()
-[![MySQL](https://img.shields.io/badge/DB-MySQL%20%2B%20MongoDB-4479A1)]()
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED)]()
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
+![Next.js](https://img.shields.io/badge/Next.js%2015-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React%2019-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind%20CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
+![Socket.io](https://img.shields.io/badge/Socket.io-010101?style=for-the-badge&logo=socketdotio&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white)
+![Cloudinary](https://img.shields.io/badge/Cloudinary-3448C5?style=for-the-badge&logo=cloudinary&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)
+![MIT License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+
+**Live:** [tabeeb.dpdns.org](https://tabeeb.dpdns.org) &nbsp;·&nbsp; **API:** [api.tabeeb.dpdns.org](https://api.tabeeb.dpdns.org)
 
 </div>
 
