@@ -2,18 +2,15 @@
 
 # 🏥 TABEEB Healthcare Platform
 
-**طبیب** — *Arabic/Urdu for "Doctor"*
 
 A full-stack digital healthcare platform connecting patients and doctors, built for the Pakistani market.
 
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js%2015-black)]()
 [![Node.js](https://img.shields.io/badge/Backend-Node.js%20Express-339933)]()
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6)]()
-[![MySQL](https://img.shields.io/badge/DB-MySQL%20%2B%20Prisma-4479A1)]()
+[![MySQL](https://img.shields.io/badge/DB-MySQL%20%2B%20MongoDB-4479A1)]()
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
-
-**Live:** [tabeeb.dpdns.org](https://tabeeb.dpdns.org) · **API:** [api.tabeeb.dpdns.org](https://api.tabeeb.dpdns.org)
 
 </div>
 
@@ -33,15 +30,14 @@ TABEEB is a monorepo healthcare platform with three user roles — **Patients**,
 | **State** | Redux Toolkit + Redux Persist, TanStack Query v5 |
 | **Backend** | Node.js, Express.js, TypeScript |
 | **Database** | MySQL via Prisma ORM |
-| **Cache** | Redis (optional — rate limiting + Socket.io adapter) |
 | **Auth** | Firebase Auth (client) + Firebase Admin SDK (server) |
-| **Realtime** | Socket.io (optional Redis adapter for scaling) |
+| **Realtime** | Socket.io with optional Redis adapter |
 | **Video Calls** | Jitsi Meet (self-hosted, JWT-based) |
 | **File Storage** | Cloudinary |
 | **Payments** | Safepay (PKR, sandbox + production) |
-| **Email** | Resend (transactional, via `tabeebemail.me`) |
-| **AI** | Google Gemini (`gemini-2.0-flash`) |
-| **Infra** | Docker, Nginx |
+| **Email** | Resend (transactional emails via `tabeebemail.me`) |
+| **AI** | Google Gemini API (`gemini-2.5-flash`) |
+| **Infra** | Docker, Nginx, PM2 |
 
 ---
 
@@ -89,14 +85,10 @@ TABEEB-Healthcare/
 │       │   │   ├── blogs/
 │       │   │   ├── admins/
 │       │   │   └── login/
-│       │   ├── auth/                  # Login, registration, verify
-│       │   ├── select-role/           # Role selection after signup
+│       │   ├── auth/                  # Login, registration, role selection
 │       │   ├── doctors/               # Public doctor discovery
 │       │   ├── blogs/                 # Public blog listing
-│       │   ├── about/
-│       │   ├── landing-page/
-│       │   ├── privacy-policy/
-│       │   └── complaint-policy/
+│       │   └── landing-page/
 │       ├── components/
 │       ├── lib/                       # API clients, hooks
 │       ├── store/                     # Redux slices & store
@@ -105,16 +97,16 @@ TABEEB-Healthcare/
 ├── TabeebBackend/
 │   └── tabeeb_backend/
 │       └── src/
-│           ├── routes/                # 20 route files
+│           ├── routes/                # 20 route files (see API section)
 │           ├── controllers/           # 25 controllers
 │           ├── services/              # Business logic
 │           ├── middleware/            # Auth, rate limiter, validators
 │           ├── realtime/              # Socket.io server
-│           ├── lib/                   # Prisma client, Redis client
-│           ├── config/                # Firebase, Gemini, Resend config
-│           └── utils/                 # Slot generation, dvago scraper
+│           ├── lib/                   # Prisma + Mongoose clients
+│           ├── config/                # Firebase, Resend config
+│           └── utils/                 # Auto-slot generation, scrapers
 │
-├── TabeebBackend/ML_Server/           # Legacy MedLlama service (unused)
+├── TabeebBackend/ML_Server/           # MedLlama Node.js service (legacy)
 ├── docker-compose.yml
 ├── docker-compose.prebuilt.yml
 ├── nginx/
@@ -132,34 +124,32 @@ TABEEB-Healthcare/
 - Online payment via Safepay (PKR)
 - Track prescriptions with progress tracking and status (Active / Expiring / Expired)
 - Upload and manage medical records (images, PDFs, reports) via Cloudinary
-- AI health assistant (Gemini) — medical chat and image/document analysis
+- AI health assistant (Gemini) — medical chat and image analysis
 - Medicine alternative search with live prices scraped from dvago.pk
 - Post-consultation reviews for doctors
 - PWA — installable on mobile and desktop
 
 ### Doctor
 - Manage professional profile, qualifications, specializations, fees
-- Submit PMDC license for verification (live PMDC API lookup with DB cache)
+- Submit PMDC license for verification (live PMDC API lookup + DB cache)
 - Set weekly availability templates; slots auto-generated 30 days ahead (runs daily at 2 AM)
 - Accept/cancel appointments; update status
 - Create digital prescriptions with diagnosis, medicines, dosage, duration
-- Conduct video consultations via Jitsi (doctor gets JWT moderator token; patient joins without JWT via lobby)
+- Conduct video consultations via Jitsi (doctor is moderator with JWT; patient joins via lobby)
 - Write and publish blog articles
 - AI chat assistant
 
 ### Admin
-- Separate login with username/password + optional TOTP 2-factor verification
-- Role-based permissions (Super Admin vs Admin) — only Super Admin can create/delete other admins
+- Separate login with username/password + TOTP 2FA
 - Review and approve/reject doctor PMDC verification
-- Manage users (suspend/activate patients and doctors)
-- View appointment payment records and revenue summary
-- Manage financial aid requests
-- Admin inbox (contact messages from users)
+- Full user management (patients, doctors, admin accounts)
 - Platform analytics dashboard
+- Manage complaints, financial aid requests, platform reviews
+- Admin mailbox (inbox)
 - Bootstrap superadmin on first startup via env config
 
 ### Realtime (Socket.io)
-- Authenticated connections: Firebase token for patients/doctors, admin JWT for admins
+- Authenticated connections: Firebase token for patients/doctors, JWT for admins
 - Room-based broadcasting: `user:{uid}`, `role:{role}`, `doctor:{uid}`, `patient:{uid}`
 - Events: `appointment.updated`, `verification.updated`
 - Optional Redis adapter for horizontal scaling
@@ -169,8 +159,8 @@ TABEEB-Healthcare/
 - Prescription ready notification
 - Verification approved / rejected
 - Welcome email for new users
-- OTP + magic-link for email verification and password reset
-- Admin credentials email
+- OTP / magic-link for email verification and password reset
+- Admin credentials email with TOTP setup instructions
 
 ---
 
@@ -180,23 +170,23 @@ TABEEB-Healthcare/
 |---|---|
 | `GET /api/health` | Health check |
 | `/api/user` | User profile |
-| `/api/auth` | OTP, magic-link verify, password reset |
+| `/api/auth` | OTP, verify-link, password reset |
 | `/api/doctor` | Doctor profiles, public search |
 | `/api/patient` | Patient data |
-| `/api/appointments` | Booking, status management, payment tracking |
+| `/api/appointments` | Booking, status management |
 | `/api/availability` | Weekly templates, daily slots |
 | `/api/prescriptions` | Prescription CRUD |
-| `/api/records` | Medical records (metadata in MySQL, files in Cloudinary) |
-| `/api/video-calls` | Jitsi JWT token generation |
+| `/api/records` | Medical records (Cloudinary + MySQL) |
+| `/api/video-calls` | Jitsi token generation |
 | `/api/reviews` | Doctor ratings & reviews |
 | `/api/platform-reviews` | Platform-level reviews |
-| `/api/blogs` | Blog articles (doctor-authored) |
-| `/api/upload` | Cloudinary upload signature |
-| `/api/email` | Triggered transactional emails |
+| `/api/blogs` | Doctor blog articles |
+| `/api/upload` | Cloudinary file uploads |
+| `/api/email` | Triggered emails |
 | `/api/ai` | Gemini chat, doc summarization, medicine search |
-| `/api/safepay` | Payment session, redirect, webhook |
-| `/api/verification` | PMDC lookup, doctor verification workflow |
-| `/api/admin` | Admin auth, user management, analytics, inbox, financial-aid |
+| `/api/safepay` | Payment session, webhook, redirect |
+| `/api/verification` | PMDC lookup, doctor verification |
+| `/api/admin` | Admin management, analytics, complaints |
 
 ---
 
@@ -206,11 +196,12 @@ TABEEB-Healthcare/
 
 - Node.js v18+
 - MySQL 8.0+
+- MongoDB (or MongoDB Atlas URI)
 - Docker & Docker Compose *(recommended)*
 - Firebase project
 - Cloudinary account
 - Resend account (for emails)
-- Safepay account (sandbox available at [sandbox.api.getsafepay.com](https://sandbox.api.getsafepay.com))
+- Safepay account (for payments — sandbox available)
 - Google Gemini API key
 
 ### Option A — Docker
@@ -265,7 +256,7 @@ npm run dev                   # :3000
 PORT=5002
 NODE_ENV=development
 
-# Database (MySQL)
+# Database
 DATABASE_URL="mysql://root:password@localhost:3306/tabeeb_db"
 
 # Firebase Admin SDK
@@ -285,7 +276,7 @@ RESEND_REPLY_TO="support@yourdomain.com"
 
 # Google Gemini AI
 GEMINI_API_KEY="AIzaSy..."
-GEMINI_MODEL="gemini-2.0-flash"
+GEMINI_MODEL="gemini-2.5-flash"
 
 # Jitsi Video Calls
 JITSI_APP_ID="your_app_id"
@@ -300,21 +291,21 @@ SAFEPAY_BASE_URL="https://sandbox.api.getsafepay.com"
 SAFEPAY_WEBHOOK_URL="https://your-public-url/api/safepay/webhook"
 FRONTEND_URL="http://localhost:3000"
 
-# Admin bootstrap (runs once on startup)
+# Admin bootstrap
 BOOTSTRAP_SUPERADMIN_USERNAME="admin"
 BOOTSTRAP_SUPERADMIN_EMAIL="admin@yourdomain.com"
 BOOTSTRAP_SUPERADMIN_PASSWORD="SecurePassword@123"
 ADMIN_JWT_SECRET="your-admin-jwt-secret"
-ADMIN_SKIP_2FA=true              # set to false in production
+ADMIN_SKIP_2FA=true              # set false in production
 
-# Socket.io / WebSocket
+# Socket.io
 WS_PATH=/ws
 WS_CORS_ORIGIN=http://localhost:3000
 
-# Redis (optional — enables rate limit store + Socket.io horizontal scaling)
+# Redis (optional — Socket.io horizontal scaling)
 # REDIS_URL=redis://:password@localhost:6379/0
 
-# Rate limiting (auto-enabled in production, off by default in dev)
+# Rate limiting
 RATE_LIMIT_ENABLED=false
 ```
 
