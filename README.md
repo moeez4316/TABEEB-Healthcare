@@ -2,8 +2,6 @@
 
 # 🏥 TABEEB Healthcare Platform
 
-**طبیب** — *Arabic/Urdu for "Doctor"*
-
 A full-stack digital healthcare platform connecting patients and doctors, built for the Pakistani market.
 
 ![Next.js](https://img.shields.io/badge/Next.js%2015-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
@@ -23,7 +21,6 @@ A full-stack digital healthcare platform connecting patients and doctors, built 
 ![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
-**Live:** [tabeeb.dpdns.org](https://tabeeb.dpdns.org) &nbsp;·&nbsp; **API:** [api.tabeeb.dpdns.org](https://api.tabeeb.dpdns.org)
 
 </div>
 
