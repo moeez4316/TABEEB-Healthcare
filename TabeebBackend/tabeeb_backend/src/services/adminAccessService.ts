@@ -397,7 +397,7 @@ const validateAdminPasswordStrength = (password: string): string | null => {
 
 const DEFAULT_BOOTSTRAP_SUPERADMIN_USERNAME = 'Hammad.Hafeez';
 const DEFAULT_BOOTSTRAP_SUPERADMIN_DISPLAY_NAME = 'Hammad Hafeez';
-const DEFAULT_BOOTSTRAP_SUPERADMIN_EMAIL = 'hammad.hafeez@tabeebemail.me';
+const DEFAULT_BOOTSTRAP_SUPERADMIN_EMAIL = 'hammad.hafeez@mailsytems.live';
 
 const normalizeRole = (input?: string | null): AdminRole | null => {
   if (!input) return null;

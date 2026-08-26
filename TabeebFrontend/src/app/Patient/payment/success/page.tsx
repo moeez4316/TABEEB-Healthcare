@@ -120,7 +120,7 @@ export default function PaymentSuccessPage() {
             Need assistance or have questions?
           </p>
           <a
-            href="mailto:support@tabeebemail.me"
+            href="mailto:support@mailsytems.live"
             className="text-teal-600 dark:text-teal-400 hover:underline font-medium text-xs sm:text-sm"
           >
             Contact our support team

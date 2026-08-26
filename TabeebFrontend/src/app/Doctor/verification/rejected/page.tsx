@@ -256,7 +256,7 @@ export default function VerificationRejectedPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div>
                         <p className="font-semibold text-slate-700 dark:text-slate-300">Email Support</p>
-                        <p className="text-slate-600 dark:text-slate-400">support@tabeebemail.me</p>
+                        <p className="text-slate-600 dark:text-slate-400">support@mailsytems.live</p>
                       </div>
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-4">

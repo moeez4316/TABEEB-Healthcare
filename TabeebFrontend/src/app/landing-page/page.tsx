@@ -670,7 +670,7 @@ const LandingPage = () => {
             </div>
             <div className="space-y-6">
               {[
-                { icon: Mail, title: 'Email', value: 'support@tabeebemail.me', color: 'teal' },
+                { icon: Mail, title: 'Email', value: 'support@mailsytems.live', color: 'teal' },
                 { icon: Phone, title: 'Phone', value: '03300353303', color: 'green' },
                 { icon: MapPin, title: 'Location', value: 'Lahore, Pakistan', color: 'orange' }
               ].map(item => (

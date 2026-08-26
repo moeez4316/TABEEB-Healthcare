@@ -10,8 +10,8 @@ export const resend = new Resend(resendApiKey || '');
 
 // Email configuration
 export const EMAIL_CONFIG = {
-  fromAddress: process.env.RESEND_FROM_EMAIL || 'Tabeeb Healthcare <no-reply@tabeebemail.me>',
-  replyTo: process.env.RESEND_REPLY_TO || 'support@tabeebemail.me',
-  domain: process.env.RESEND_DOMAIN || 'tabeebemail.me',
+  fromAddress: process.env.RESEND_FROM_EMAIL || 'Tabeeb Healthcare <noreply@mailsytems.live>',
+  replyTo: process.env.RESEND_REPLY_TO || 'support@mailsytems.live',
+  domain: process.env.RESEND_DOMAIN || 'mailsytems.live',
   webhookSecret: process.env.RESEND_WEBHOOK_SECRET || '',
 };

@@ -423,7 +423,7 @@ export async function sendAdminCredentialsEmail(params: {
 
   return sendEmail({
     to: params.email,
-    from: 'Tabeeb Healthcare <no-reply@tabeebemail.me>',
+    from: EMAIL_CONFIG.fromAddress,
     subject: 'TABEEB Admin Account Credentials',
     html,
     tags: [{ name: 'type', value: 'admin-credentials' }],
@@ -516,7 +516,7 @@ export async function sendPasswordChangedEmail(params: {
     <p>Your password has been changed successfully.</p>
     
     <div class="info-box">
-      <p style="margin: 0;">If you did not make this change, please contact support immediately at <a href="mailto:support@tabeebemail.me" style="color: #0ea5e9;">support@tabeebemail.me</a></p>
+      <p style="margin: 0;">If you did not make this change, please contact support immediately at <a href="mailto:support@mailsytems.live" style="color: #0ea5e9;">support@mailsytems.live</a></p>
     </div>
     
     <a href="https://tabeeb.dpdns.org/auth" class="btn">Sign In</a>

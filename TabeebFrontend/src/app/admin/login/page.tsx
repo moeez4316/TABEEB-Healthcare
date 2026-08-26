@@ -210,7 +210,7 @@ export default function AdminLoginPage() {
                     value={formData.username}
                     onChange={handleInputChange}
                     className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
-                    placeholder="Enter username or @tabeebemail.me address"
+                    placeholder="Enter username or @mailsytems.live address"
                   />
                 </div>
               </div>

@@ -53,7 +53,7 @@ const toObjectRecord = (value: unknown): Record<string, unknown> | null =>
 
 export const getMailboxDomain = (): string => {
   const configured = EMAIL_CONFIG.domain.trim().toLowerCase();
-  return configured || 'tabeebemail.me';
+  return configured || 'mailsytems.live';
 };
 
 export const normalizeMailboxAlias = (value: string): string => {

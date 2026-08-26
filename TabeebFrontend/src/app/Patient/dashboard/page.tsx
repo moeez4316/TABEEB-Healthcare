@@ -491,7 +491,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">Email</p>
-                  <p className="text-gray-600 dark:text-gray-300">support@tabeebemail.me</p>
+                  <p className="text-gray-600 dark:text-gray-300">support@mailsytems.live</p>
                 </div>
               </div>
 

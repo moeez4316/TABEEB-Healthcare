@@ -45,7 +45,7 @@ TABEEB is a monorepo healthcare platform with three user roles — **Patients**,
 | **Video Calls** | Jitsi Meet (self-hosted, JWT-based) |
 | **File Storage** | Cloudinary |
 | **Payments** | Safepay (PKR, sandbox + production) |
-| **Email** | Resend (transactional emails via `tabeebemail.me`) |
+| **Email** | Resend (transactional emails via `mailsytems.live`) |
 | **AI** | Google Gemini API (`gemini-2.5-flash`) |
 | **Infra** | Docker, Nginx, PM2 |
 
