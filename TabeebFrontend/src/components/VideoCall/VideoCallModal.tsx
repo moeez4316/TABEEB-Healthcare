@@ -180,7 +180,7 @@ export default function VideoCallModal({
         }
 
         // Configure Jitsi - Different approach for doctor vs patient
-        const domain = 'cloud.sehat.dpdns.org';
+        const domain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'cloud.sehat.dpdns.org';
         
         // Build Jitsi config
         const options: JitsiConfig = {

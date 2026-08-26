@@ -172,7 +172,7 @@ export default function PatientVideoCallModal({
           throw new Error('Video container not ready');
         }
 
-        const domain = 'cloud.sehat.dpdns.org';
+        const domain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'cloud.sehat.dpdns.org';
         
         // ✅ PATIENT configuration WITHOUT JWT token
         // No JWT = Automatic lobby placement by Jitsi

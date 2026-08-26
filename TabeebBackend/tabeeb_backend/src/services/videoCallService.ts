@@ -43,9 +43,9 @@ export const generateDoctorJitsiToken = (params: GenerateTokenParams): string =>
     expiryHours = 2, // Default 2 hours validity
   } = params;
 
-  const APP_ID = process.env.JITSI_APP_ID;
-  const APP_SECRET = process.env.JITSI_APP_SECRET;
-  const DOMAIN = process.env.JITSI_DOMAIN;
+  const APP_ID = process.env.JITSI_APP_ID || 'tabeeb-healthcare';
+  const APP_SECRET = process.env.JITSI_APP_SECRET || '035f90449ce32ae3ad5649d78b536236a197caabe324cd3300deba4ec9b8e13c';
+  const DOMAIN = process.env.JITSI_DOMAIN || 'cloud.sehat.dpdns.org';
 
   if (!APP_ID || !APP_SECRET || !DOMAIN) {
     throw new Error('Jitsi configuration missing in environment variables');
@@ -85,7 +85,7 @@ export const generatePatientMeetingLink = (
   appointmentId: string,
   userName?: string
 ): string => {
-  const DOMAIN = process.env.JITSI_DOMAIN;
+  const DOMAIN = process.env.JITSI_DOMAIN || 'cloud.sehat.dpdns.org';
   
   if (!DOMAIN) {
     throw new Error('Jitsi domain missing in environment variables');

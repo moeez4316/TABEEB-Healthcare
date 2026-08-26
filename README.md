@@ -289,9 +289,9 @@ GEMINI_API_KEY="AIzaSy..."
 GEMINI_MODEL="gemini-2.5-flash"
 
 # Jitsi Video Calls
-JITSI_APP_ID="your_app_id"
-JITSI_APP_SECRET="your_app_secret"
-JITSI_DOMAIN="your.jitsi.domain"
+JITSI_APP_ID="tabeeb-healthcare"
+JITSI_APP_SECRET="035f90449ce32ae3ad5649d78b536236a197caabe324cd3300deba4ec9b8e13c"
+JITSI_DOMAIN="cloud.sehat.dpdns.org"
 
 # Safepay (Pakistan payments)
 SAFEPAY_API_KEY="sec_..."
@@ -332,8 +332,9 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=000000000000
 NEXT_PUBLIC_FIREBASE_APP_ID=1:000000000000:web:xxxxx
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
 
-NEXT_PUBLIC_JITSI_APP_ID=your_jitsi_app_id
-NEXT_PUBLIC_JITSI_SECRET=your_jitsi_secret
+NEXT_PUBLIC_JITSI_APP_ID=tabeeb-healthcare
+NEXT_PUBLIC_JITSI_SECRET=035f90449ce32ae3ad5649d78b536236a197caabe324cd3300deba4ec9b8e13c
+NEXT_PUBLIC_JITSI_DOMAIN=cloud.sehat.dpdns.org
 ```
 
 > **Note:** Never commit `.env` files. All env files are gitignored.

@@ -110,9 +110,9 @@ heroku config:set CLOUDINARY_API_KEY="your-api-key" --app tabeeb-backend-api
 heroku config:set CLOUDINARY_API_SECRET="your-api-secret" --app tabeeb-backend-api
 
 # Jitsi Video Call
-heroku config:set JITSI_APP_ID="tabeeb" --app tabeeb-backend-api
-heroku config:set JITSI_APP_SECRET="your-jitsi-secret-key" --app tabeeb-backend-api
-heroku config:set JITSI_DOMAIN="meet.jit.si" --app tabeeb-backend-api
+heroku config:set JITSI_APP_ID="tabeeb-healthcare" --app tabeeb-backend-api
+heroku config:set JITSI_APP_SECRET="035f90449ce32ae3ad5649d78b536236a197caabe324cd3300deba4ec9b8e13c" --app tabeeb-backend-api
+heroku config:set JITSI_DOMAIN="cloud.sehat.dpdns.org" --app tabeeb-backend-api
 
 # Gemini AI Integration
 heroku config:set GEMINI_API_KEY="your-gemini-api-key" --app tabeeb-backend-api
@@ -176,8 +176,9 @@ heroku config:set NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="123456789012" --app 
 heroku config:set NEXT_PUBLIC_FIREBASE_APP_ID="1:123456789012:web:abcdef123456" --app tabeeb-frontend-web
 
 # Jitsi Video Call
-heroku config:set NEXT_PUBLIC_JITSI_DOMAIN="meet.jit.si" --app tabeeb-frontend-web
-heroku config:set NEXT_PUBLIC_JITSI_APP_ID="tabeeb" --app tabeeb-frontend-web
+heroku config:set NEXT_PUBLIC_JITSI_DOMAIN="cloud.sehat.dpdns.org" --app tabeeb-frontend-web
+heroku config:set NEXT_PUBLIC_JITSI_APP_ID="tabeeb-healthcare" --app tabeeb-frontend-web
+heroku config:set NEXT_PUBLIC_JITSI_SECRET="035f90449ce32ae3ad5649d78b536236a197caabe324cd3300deba4ec9b8e13c" --app tabeeb-frontend-web
 ```
 
 ### 3. Deploy Frontend Code using Git Subtree

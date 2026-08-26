@@ -182,7 +182,7 @@ export default function DoctorVideoCallModal({
           throw new Error('Video container not ready');
         }
 
-        const domain = 'cloud.sehat.dpdns.org';
+        const domain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'cloud.sehat.dpdns.org';
         
         // DOCTOR configuration with JWT token
         const options: JitsiConfig = {
