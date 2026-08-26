@@ -19,7 +19,8 @@ export const getGeminiModel = () => {
   if (!genAI) {
     throw new Error('Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.');
   }
-  return genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const modelName = (process.env.GEMINI_MODEL || 'gemini-3-flash-preview').trim();
+  return genAI.getGenerativeModel({ model: modelName });
 };
 
 export default genAI;

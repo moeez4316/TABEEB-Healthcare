@@ -35,7 +35,7 @@ const getModel = (systemInstruction: string) => {
   if (!apiKey) {
     throw new Error('Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.');
   }
-  const modelName = (process.env.GEMINI_MODEL || 'gemma-4-31b-it').trim();
+  const modelName = (process.env.GEMINI_MODEL || 'gemini-3-flash-preview').trim();
   const genAI = new GoogleGenerativeAI(apiKey);
 
   // Gemma models don't support systemInstruction — we handle it differently
