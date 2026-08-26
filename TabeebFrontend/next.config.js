@@ -9,7 +9,6 @@ const withPWA = require('next-pwa')({
 
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone', // Required for Docker deployment
   images: {
     remotePatterns: [
       {
@@ -34,9 +33,6 @@ const nextConfig = {
       },
     ],
   },
-  // turbopack: {
-  //   enabled: false, 
-  // },
 };
 
 module.exports = withPWA(nextConfig);
