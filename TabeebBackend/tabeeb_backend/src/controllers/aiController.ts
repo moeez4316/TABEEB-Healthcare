@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { sendChatMessage, summarizeMedicalDocument, searchMedicineAlternatives, ChatMessage } from '../services/aiService';
+import { sendChatMessage, sendChatMessageStream, summarizeMedicalDocument, searchMedicineAlternatives, ChatMessage } from '../services/aiService';
 
 /**
  * POST /api/ai/chat
@@ -7,6 +7,10 @@ import { sendChatMessage, summarizeMedicalDocument, searchMedicineAlternatives, 
  * Body: { message: string, conversationHistory?: ChatMessage[] }
  */
 export const chatWithAI = async (req: Request, res: Response) => {
+  if (req.query.stream === 'true') {
+    return chatWithAIStream(req, res);
+  }
+
   try {
     const { message, conversationHistory } = req.body;
 
@@ -88,6 +92,75 @@ export const chatWithAI = async (req: Request, res: Response) => {
       success: false,
       error: 'Failed to get AI response. Please try again.',
     });
+  }
+};
+
+/**
+ * POST /api/ai/chat/stream or /api/ai/chat?stream=true
+ * Stream responses from the AI medical chatbot in real-time using SSE.
+ */
+export const chatWithAIStream = async (req: Request, res: Response) => {
+  try {
+    const { message, conversationHistory } = req.body;
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message is required and must be a non-empty string.',
+      });
+    }
+
+    if (message.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message is too long. Please keep it under 5000 characters.',
+      });
+    }
+
+    const history: ChatMessage[] = [];
+    if (conversationHistory && Array.isArray(conversationHistory)) {
+      for (const msg of conversationHistory) {
+        if (
+          msg.role &&
+          (msg.role === 'user' || msg.role === 'model') &&
+          msg.content &&
+          typeof msg.content === 'string'
+        ) {
+          history.push({
+            role: msg.role,
+            content: msg.content.substring(0, 5000),
+          });
+        }
+      }
+      if (history.length > 20) {
+        history.splice(0, history.length - 20);
+      }
+    }
+
+    // Set SSE Headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    const fullResponse = await sendChatMessageStream(
+      message.trim(),
+      history,
+      (chunkText) => {
+        res.write(`data: ${JSON.stringify({ text: chunkText })}\n\n`);
+      }
+    );
+
+    res.write(`data: ${JSON.stringify({ done: true, fullText: fullResponse, role: 'model' })}\n\n`);
+    res.end();
+  } catch (error: any) {
+    console.error('[AI Chat Stream Error]:', error);
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, error: 'Failed to stream AI response.' });
+    }
+    res.write(`data: ${JSON.stringify({ error: error.message || 'Streaming failed' })}\n\n`);
+    res.end();
   }
 };
 

@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { sendChatMessage, ChatMessage } from './aiService';
+import { sendChatMessage, sendChatMessageStream, ChatMessage } from './aiService';
 
 const MAX_RECENT_MESSAGES = 40; // Messages sent to Gemini in full
 const SUMMARIZE_THRESHOLD = 60; // When to trigger rolling summarization
@@ -264,6 +264,77 @@ export const sendSessionMessage = async (
   const messageCount = await prisma.aIChatMessage.count({ where: { sessionId } });
   if (messageCount === 2 && session.title === 'New Chat') {
     // Fire and forget — don't block the response
+    generateSessionTitle(message).then((title) => {
+      prisma.aIChatSession.update({
+        where: { id: sessionId },
+        data: { title },
+      }).catch(() => {});
+    });
+  }
+
+  // Trigger rolling summarization in background if needed
+  maybeRollingSummarize(sessionId).catch(() => {});
+
+  return {
+    message: aiResponse,
+    messageId: savedResponse.id,
+  };
+};
+
+/**
+ * Send a message within a session with real-time response streaming:
+ * 1. Save user message to DB
+        * 2. Build smart history (summary + recent)
+ * 3. Stream response chunks from Gemini
+ * 4. Save AI response to DB
+ * 5. Trigger rolling summarization if needed
+ * 6. Auto-title on first message
+ */
+export const sendSessionMessageStream = async (
+  sessionId: string,
+  userUid: string,
+  message: string,
+  onChunk: (chunkText: string) => void
+) => {
+  // Verify ownership
+  const session = await prisma.aIChatSession.findFirst({
+    where: { id: sessionId, userUid },
+  });
+  if (!session) throw new Error('Session not found');
+
+  // Save user message
+  await prisma.aIChatMessage.create({
+    data: {
+      sessionId,
+      role: 'user',
+      content: message,
+    },
+  });
+
+  // Build smart history
+  const history = await buildSmartHistory(sessionId);
+
+  // Stream chunks from Gemini
+  const aiResponse = await sendChatMessageStream(message, history, onChunk);
+
+  // Save full AI response to DB
+  const savedResponse = await prisma.aIChatMessage.create({
+    data: {
+      sessionId,
+      role: 'model',
+      content: aiResponse,
+    },
+  });
+
+  // Update session timestamp
+  await prisma.aIChatSession.update({
+    where: { id: sessionId },
+    data: { updatedAt: new Date() },
+  });
+
+  // Auto-title the session after the first exchange
+  const messageCount = await prisma.aIChatMessage.count({ where: { sessionId } });
+  if (messageCount === 2 && session.title === 'New Chat') {
     generateSessionTitle(message).then((title) => {
       prisma.aIChatSession.update({
         where: { id: sessionId },

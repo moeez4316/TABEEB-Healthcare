@@ -128,6 +128,68 @@ export const sendChatMessage = async (
 };
 
 /**
+ * Send a medical chat message with conversation history, streaming chunks as they arrive.
+ */
+export const sendChatMessageStream = async (
+  message: string,
+  conversationHistory: ChatMessage[] = [],
+  onChunk: (chunkText: string) => void
+): Promise<string> => {
+  const model = getModel(MEDICAL_CHAT_SYSTEM_PROMPT);
+
+  // Build the conversation history (handles Gemma vs Gemini automatically)
+  const history = buildHistory(MEDICAL_CHAT_SYSTEM_PROMPT, conversationHistory);
+
+  const chat = model.startChat({
+    history,
+    generationConfig: {
+      temperature: 0.7,
+      topP: 0.9,
+      topK: 40,
+      maxOutputTokens: 1024,
+    },
+  });
+
+  const resultStream = await chat.sendMessageStream(message);
+  let accumulatedText = '';
+
+  for await (const chunk of resultStream.stream) {
+    const candidates = chunk.candidates;
+    if (!candidates || candidates.length === 0) continue;
+
+    const textParts = candidates[0]?.content?.parts || [];
+    const textChunk = textParts
+      .filter((part: any) => !part.thought)
+      .map((part: any) => part.text)
+      .join('\n');
+
+    if (textChunk) {
+      accumulatedText += textChunk;
+      onChunk(textChunk);
+    }
+  }
+
+  const response = await resultStream.response;
+  if (response.promptFeedback?.blockReason) {
+    console.warn('[AI Chat Stream] Response blocked:', response.promptFeedback.blockReason);
+    const fallback = 'I apologize, but I cannot respond to that query. Please rephrase your question about a medical or health topic.';
+    if (!accumulatedText) {
+      onChunk(fallback);
+      return fallback;
+    }
+  }
+
+  const trimmed = accumulatedText.trim();
+  if (!trimmed) {
+    const fallback = 'I was unable to generate a response. Please try again.';
+    onChunk(fallback);
+    return fallback;
+  }
+
+  return trimmed;
+};
+
+/**
  * Summarize a medical document (text or image).
  * Supports text input and base64-encoded images.
  */

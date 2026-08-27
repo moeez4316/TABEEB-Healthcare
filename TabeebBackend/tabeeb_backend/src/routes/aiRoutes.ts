@@ -1,6 +1,6 @@
 import express from 'express';
 import { verifyToken } from '../middleware/verifyToken';
-import { chatWithAI, summarizeDocument, searchMedicine } from '../controllers/aiController';
+import { chatWithAI, chatWithAIStream, summarizeDocument, searchMedicine } from '../controllers/aiController';
 import {
   createSessionCtrl,
   listSessionsCtrl,
@@ -8,6 +8,7 @@ import {
   deleteSessionCtrl,
   renameSessionCtrl,
   sendSessionMessageCtrl,
+  sendSessionMessageStreamCtrl,
 } from '../controllers/aiSessionController';
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.use(verifyToken);
 
 // Legacy stateless endpoints (still available)
 router.post('/chat', chatWithAI);
+router.post('/chat/stream', chatWithAIStream);
 router.post('/summarize', summarizeDocument);
 router.post('/medicine-search', searchMedicine);
 
@@ -30,5 +32,6 @@ router.get('/sessions/:sessionId', getSessionCtrl);
 router.delete('/sessions/:sessionId', deleteSessionCtrl);
 router.patch('/sessions/:sessionId', renameSessionCtrl);
 router.post('/sessions/:sessionId/messages', sendSessionMessageCtrl);
+router.post('/sessions/:sessionId/messages/stream', sendSessionMessageStreamCtrl);
 
 export default router;

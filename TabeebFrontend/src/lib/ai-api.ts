@@ -282,3 +282,94 @@ export const sendSessionChatMessage = async (
     return { success: false, error: 'Network error. Please try again.' };
   }
 };
+
+/**
+ * Stream a message response within a session in real time.
+ */
+export const sendSessionChatMessageStream = async (
+  token: string,
+  sessionId: string,
+  message: string,
+  onChunk: (chunkText: string) => void
+): Promise<AIChatResponse> => {
+  try {
+    const response = await fetch(`${API_URL}/api/ai/sessions/${sessionId}/messages?stream=true`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ message }),
+    });
+
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      return { success: false, error: errJson.error || 'Failed to get response stream.' };
+    }
+
+    if (!response.body) {
+      return { success: false, error: 'ReadableStream not supported by browser.' };
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          const jsonStr = trimmed.slice(6);
+          try {
+            const data = JSON.parse(jsonStr);
+            if (data.error) {
+              return { success: false, error: data.error };
+            }
+            if (data.text) {
+              fullText += data.text;
+              onChunk(data.text);
+            }
+            if (data.done) {
+              return {
+                success: true,
+                data: {
+                  message: data.fullText || fullText,
+                  role: 'model',
+                },
+              };
+            }
+          } catch {
+            // Ignore parse errors on partial frames
+          }
+        }
+      }
+    }
+
+    if (buffer.trim().startsWith('data: ')) {
+      try {
+        const data = JSON.parse(buffer.trim().slice(6));
+        if (data.text) {
+          fullText += data.text;
+          onChunk(data.text);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        message: fullText,
+        role: 'model',
+      },
+    };
+  } catch {
+    return { success: false, error: 'Network error during streaming. Please try again.' };
+  }
+};

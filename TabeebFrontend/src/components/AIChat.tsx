@@ -15,6 +15,7 @@ import {
   deleteAISession,
   renameAISession,
   sendSessionChatMessage,
+  sendSessionChatMessageStream,
   searchMedicineAlternatives,
   AISession,
   AISessionMessage,
@@ -426,8 +427,9 @@ export default function AIChat() {
       timestamp: new Date(),
     };
 
+    const modelMsgId = (Date.now() + 1).toString();
     const loadingMessage: DisplayMessage = {
-      id: (Date.now() + 1).toString(),
+      id: modelMsgId,
       role: 'model',
       content: '',
       timestamp: new Date(),
@@ -445,25 +447,40 @@ export default function AIChat() {
     }
 
     try {
-      const response = await sendSessionChatMessage(token, sessionId, messageText);
+      const response = await sendSessionChatMessageStream(
+        token,
+        sessionId,
+        messageText,
+        (chunkText) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === modelMsgId
+                ? { ...m, content: m.content + chunkText, isLoading: false }
+                : m
+            )
+          );
+        }
+      );
 
       if (response.success && response.data) {
-        const aiMessage: DisplayMessage = {
-          id: response.data.message ? (Date.now() + 2).toString() : (Date.now() + 2).toString(),
-          role: 'model',
-          content: response.data.message,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => prev.filter((m) => !m.isLoading).concat(aiMessage));
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === modelMsgId
+              ? { ...m, content: response.data?.message || m.content, isLoading: false }
+              : m
+          )
+        );
 
         // Refresh sessions to get updated title (auto-generated after first message)
         setTimeout(() => loadSessions(), 3000);
       } else {
-        setMessages((prev) => prev.filter((m) => !m.isLoading));
-        setError(response.error || 'Failed to get response. Please try again.');
+        setMessages((prev) => prev.filter((m) => m.id !== modelMsgId || m.content.length > 0));
+        if (!messages.some((m) => m.id === modelMsgId && m.content.length > 0)) {
+          setError(response.error || 'Failed to get response. Please try again.');
+        }
       }
     } catch {
-      setMessages((prev) => prev.filter((m) => !m.isLoading));
+      setMessages((prev) => prev.filter((m) => m.id !== modelMsgId || m.content.length > 0));
       setError('Network error. Please check your connection and try again.');
     } finally {
       setIsChatLoading(false);
@@ -662,8 +679,9 @@ export default function AIChat() {
         timestamp: new Date(),
       };
 
+      const modelMsgId = (Date.now() + 1).toString();
       const loadingMsg: DisplayMessage = {
-        id: (Date.now() + 1).toString(),
+        id: modelMsgId,
         role: 'model',
         content: '',
         timestamp: new Date(),
@@ -673,16 +691,29 @@ export default function AIChat() {
       setMessages([userMsg, loadingMsg]);
       setActiveTab('chat');
 
-      const response = await sendSessionChatMessage(token, newSession.id, contextMessage);
+      const response = await sendSessionChatMessageStream(
+        token,
+        newSession.id,
+        contextMessage,
+        (chunkText) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === modelMsgId
+                ? { ...m, content: m.content + chunkText, isLoading: false }
+                : m
+            )
+          );
+        }
+      );
 
       if (response.success && response.data) {
-        const aiMsg: DisplayMessage = {
-          id: (Date.now() + 2).toString(),
-          role: 'model',
-          content: response.data.message,
-          timestamp: new Date(),
-        };
-        setMessages([userMsg, aiMsg]);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === modelMsgId
+              ? { ...m, content: response.data?.message || m.content, isLoading: false }
+              : m
+          )
+        );
         setTimeout(() => loadSessions(), 3000);
       } else {
         setMessages([userMsg]);

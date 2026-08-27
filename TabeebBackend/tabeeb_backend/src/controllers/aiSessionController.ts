@@ -6,6 +6,7 @@ import {
   deleteSession,
   renameSession,
   sendSessionMessage,
+  sendSessionMessageStream,
 } from '../services/aiSessionService';
 
 /**
@@ -129,6 +130,10 @@ export const renameSessionCtrl = async (req: Request, res: Response) => {
  * Body: { message: string }
  */
 export const sendSessionMessageCtrl = async (req: Request, res: Response) => {
+  if (req.query.stream === 'true') {
+    return sendSessionMessageStreamCtrl(req, res);
+  }
+
   try {
     const userUid = req.user?.uid;
     if (!userUid) return res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -179,5 +184,56 @@ export const sendSessionMessageCtrl = async (req: Request, res: Response) => {
     }
 
     return res.status(500).json({ success: false, error: 'Failed to send message.' });
+  }
+};
+
+/**
+ * POST /api/ai/sessions/:sessionId/messages/stream or /api/ai/sessions/:sessionId/messages?stream=true
+ * Stream a message response within a session using SSE.
+ */
+export const sendSessionMessageStreamCtrl = async (req: Request, res: Response) => {
+  try {
+    const userUid = req.user?.uid;
+    if (!userUid) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { sessionId } = req.params;
+    const { message } = req.body;
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Message is required.' });
+    }
+
+    if (message.length > 5000) {
+      return res.status(400).json({ success: false, error: 'Message is too long. Max 5000 characters.' });
+    }
+
+    // Set SSE Headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    const result = await sendSessionMessageStream(
+      sessionId,
+      userUid,
+      message.trim(),
+      (chunkText) => {
+        res.write(`data: ${JSON.stringify({ text: chunkText })}\n\n`);
+      }
+    );
+
+    res.write(`data: ${JSON.stringify({ done: true, messageId: result.messageId, fullText: result.message, role: 'model' })}\n\n`);
+    res.end();
+  } catch (error: any) {
+    console.error('[AI Session Stream Error]:', error.message);
+    if (!res.headersSent) {
+      if (error.message === 'Session not found') {
+        return res.status(404).json({ success: false, error: 'Session not found.' });
+      }
+      return res.status(500).json({ success: false, error: 'Failed to send message.' });
+    }
+    res.write(`data: ${JSON.stringify({ error: error.message || 'Streaming failed' })}\n\n`);
+    res.end();
   }
 };
