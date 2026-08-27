@@ -277,8 +277,15 @@ export const updateVideoCallStatus = async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'Unauthorized to access this appointment' });
     }
 
-    if (!appointment.videoCall) {
-      return res.status(404).json({ message: 'Video call not found for this appointment' });
+    let videoCall = appointment.videoCall;
+    if (!videoCall) {
+      videoCall = await prisma.videoCall.create({
+        data: {
+          appointmentId,
+          roomName: `call-${appointmentId}`,
+          status: VideoCallStatus.SCHEDULED,
+        },
+      });
     }
 
     // Determine role by checking appointment data (MORE RELIABLE than token claims)
@@ -298,29 +305,29 @@ export const updateVideoCallStatus = async (req: Request, res: Response) => {
         }
         // If both have joined, mark as IN_PROGRESS
         if (
-          (isDoctor && appointment.videoCall.patientJoinedAt) ||
-          (isPatient && appointment.videoCall.doctorJoinedAt)
+          (isDoctor && videoCall.patientJoinedAt) ||
+          (isPatient && videoCall.doctorJoinedAt)
         ) {
           updateData.status = VideoCallStatus.IN_PROGRESS;
-          updateData.startedAt = appointment.videoCall.startedAt || now;
+          updateData.startedAt = videoCall.startedAt || now;
         }
         break;
 
       case 'start':
         updateData.status = VideoCallStatus.IN_PROGRESS;
-        updateData.startedAt = appointment.videoCall.startedAt || now;
+        updateData.startedAt = videoCall.startedAt || now;
         if (isDoctor) {
-          updateData.doctorJoinedAt = appointment.videoCall.doctorJoinedAt || now;
+          updateData.doctorJoinedAt = videoCall.doctorJoinedAt || now;
         } else {
-          updateData.patientJoinedAt = appointment.videoCall.patientJoinedAt || now;
+          updateData.patientJoinedAt = videoCall.patientJoinedAt || now;
         }
         break;
 
       case 'end':
         updateData.status = VideoCallStatus.COMPLETED;
         updateData.endedAt = now;
-        if (appointment.videoCall.startedAt) {
-          updateData.duration = calculateCallDuration(appointment.videoCall.startedAt, now);
+        if (videoCall.startedAt) {
+          updateData.duration = calculateCallDuration(videoCall.startedAt, now);
         }
         // Update appointment status to completed if not already
         if (appointment.status !== 'COMPLETED') {
