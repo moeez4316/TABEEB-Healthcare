@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { FaSpinner } from 'react-icons/fa';
+import React, { useEffect, useState, useCallback } from 'react';
+import { FaSpinner, FaTimes } from 'react-icons/fa';
 import VideoCallPrescriptionPanel from './VideoCallPrescriptionPanel';
+import LiveKitVideoRoom from './LiveKitVideoRoom';
 import { useLeaveConfirmation } from './useLeaveConfirmation';
 
 interface DoctorVideoCallModalProps {
@@ -12,46 +13,16 @@ interface DoctorVideoCallModalProps {
   firebaseToken: string;
 }
 
-interface JitsiAPI {
-  dispose: () => void;
-  addEventListener: (event: string, handler: () => void) => void;
-  removeEventListener?: (event: string, handler: () => void) => void;
-  executeCommand?: (command: string, ...args: unknown[]) => void;
-}
-
-interface JitsiConfig {
-  roomName: string;
-  jwt?: string;
-  width: string;
-  height: string;
-  parentNode: HTMLElement;
-  configOverwrite?: Record<string, unknown>;
-  interfaceConfigOverwrite?: Record<string, unknown>;
-  userInfo?: {
-    displayName?: string;
-  };
-}
-
-declare global {
-  interface Window {
-    JitsiMeetExternalAPI: {
-      new (domain: string, options: JitsiConfig): JitsiAPI;
-    };
-  }
-}
-
 export default function DoctorVideoCallModal({
   appointmentId,
   isOpen,
   onClose,
   firebaseToken,
 }: DoctorVideoCallModalProps) {
-  const jitsiContainer = useRef<HTMLDivElement>(null);
-  const apiRef = useRef<JitsiAPI | null>(null);
-  const [api, setApi] = useState<JitsiAPI | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [jitsiLoaded, setJitsiLoaded] = useState(false);
+  const [livekitToken, setLivekitToken] = useState<string | null>(null);
+  const [serverUrl, setServerUrl] = useState<string>('wss://cloud.sehat.dpdns.org/rtc');
   const [prescriptionPanelOpen, setPrescriptionPanelOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(500);
 
@@ -60,331 +31,123 @@ export default function DoctorVideoCallModal({
   }, []);
 
   const handleClose = useCallback(() => {
-    apiRef.current?.dispose();
-    apiRef.current = null;
-    setApi(null);
     setLoading(true);
     setError(null);
+    setLivekitToken(null);
     onClose();
   }, [onClose]);
 
   const { requestLeave, finalizeLeave } = useLeaveConfirmation({
     isOpen,
     onConfirmLeave: handleClose,
+    message: 'Do you want to end the consultation?',
   });
 
-  // Load Jitsi External API script
+  // Fetch LiveKit token for doctor directly (no waiting room step)
   useEffect(() => {
     if (!isOpen) return;
 
-    const scriptSrc = 'https://cloud.sehat.dpdns.org/external_api.js';
-    
-    const checkJitsiLoaded = () => {
-      return typeof window.JitsiMeetExternalAPI === 'function';
-    };
-
-    const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
-    
-    if (existingScript) {
-      if (checkJitsiLoaded()) {
-        setJitsiLoaded(true);
-      } else {
-        let attempts = 0;
-        const maxAttempts = 20;
-        
-        const checkInterval = setInterval(() => {
-          attempts++;
-          if (checkJitsiLoaded()) {
-            clearInterval(checkInterval);
-            setJitsiLoaded(true);
-          } else if (attempts >= maxAttempts) {
-            clearInterval(checkInterval);
-            setError('Video call interface is taking too long to load. Please refresh and try again.');
-            setLoading(false);
-          }
-        }, 500);
-        
-        return () => clearInterval(checkInterval);
-      }
-    } else {
-      const script = document.createElement('script');
-      script.src = scriptSrc;
-      script.async = true;
-      
-      let loadTimeout: NodeJS.Timeout;
-      
-      script.onload = () => {
-        loadTimeout = setTimeout(() => {
-          if (checkJitsiLoaded()) {
-            setJitsiLoaded(true);
-          } else {
-            setError('Video call interface loaded but not available. Please refresh and try again.');
-            setLoading(false);
-          }
-        }, 1000);
-      };
-      
-      script.onerror = () => {
-        setError('Failed to load video call interface. Please check your connection and try again.');
-        setLoading(false);
-      };
-      
-      document.body.appendChild(script);
-      
-      return () => {
-        if (loadTimeout) clearTimeout(loadTimeout);
-      };
-    }
-  }, [isOpen]);
-
-  // Initialize Jitsi for DOCTOR (with JWT token)
-  useEffect(() => {
-    if (!isOpen || !jitsiLoaded || !jitsiContainer.current) return;
-
-    if (typeof window.JitsiMeetExternalAPI !== 'function') {
-      setError('Video call interface is not ready. Please try again.');
-      setLoading(false);
-      return;
-    }
-
-    const initializeCall = async () => {
+    const fetchDoctorToken = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-        const requestBody = { 
-          appointmentId,
-          role: 'doctor' // Explicitly tell backend this is a doctor request
-        };
-
-        // Initiate video call and get JWT token for DOCTOR
-        // Backend verifies user is doctor from Firebase token and returns JWT with lobby_bypass: true
-        const response = await fetch(`${API_URL}/api/video-calls/initiate`, {
-          method: 'POST',
+        const response = await fetch(`/api/livekit/token?appointmentId=${encodeURIComponent(appointmentId)}&role=doctor`, {
+          method: 'GET',
           headers: {
             Authorization: `Bearer ${firebaseToken}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to initiate video call');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Failed to initiate doctor consultation session');
         }
 
         const data = await response.json();
-        const { jitsiToken, videoCall } = data;
-
-        if (!jitsiContainer.current) {
-          throw new Error('Video container not ready');
+        if (!data.token) {
+          throw new Error('Invalid LiveKit token returned from server');
         }
 
-        const domain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'cloud.sehat.dpdns.org';
-        
-        // DOCTOR configuration with JWT token
-        const options: JitsiConfig = {
-          roomName: videoCall.roomName,
-          jwt: jitsiToken, // DOCTOR GETS JWT TOKEN
-          width: '100%',
-          height: '100%',
-          parentNode: jitsiContainer.current,
-          configOverwrite: {
-            startWithAudioMuted: true,
-            startWithVideoMuted: true,
-            enableWelcomePage: false,
-            prejoinPageEnabled: false, // 🩺 Disable prejoin for doctor
-            disableDeepLinking: true,
-            // ✅ NO lobby_bypass or lobbyBypassIfModerator needed here
-            // Backend JWT includes lobby_bypass: true which Jitsi respects
-            requireDisplayName: false,
-            disableInviteFunctions: true,
-            doNotStoreRoom: true,
-            enableClosePage: false,
-            disableProfile: true,
-            disableReactions: true,
-            disablePolls: true,
-            disableRecordAudioNotification: true,
-            disableSelfView: false,
-            disableLocalVideoFlip: false,
-            hideConferenceSubject: true,
-            hideConferenceTimer: false,
-            hideParticipantsStats: true,
-            disableRemoteMute: false, // DOCTOR CAN MUTE OTHERS
-          },
-          interfaceConfigOverwrite: {
-            TOOLBAR_BUTTONS: [
-              'microphone',
-              'camera',
-              'chat',
-              'hangup',
-              'settings',
-              'filmstrip', // Doctor gets filmstrip
-            ],
-            SHOW_JITSI_WATERMARK: false,
-            SHOW_WATERMARK_FOR_GUESTS: false,
-            DISPLAY_WELCOME_PAGE_CONTENT: false,
-            DISABLE_VIDEO_BACKGROUND: false, // Doctor can use virtual backgrounds
-            DISABLE_FOCUS_INDICATOR: false,
-            DISABLE_DOMINANT_SPEAKER_INDICATOR: false,
-            DISABLE_TRANSCRIPTION_SUBTITLES: true,
-            HIDE_INVITE_MORE_HEADER: true,
-            MOBILE_APP_PROMO: false,
-            SHOW_CHROME_EXTENSION_BANNER: false,
-          },
-        };
-
-        const jitsiApi = new window.JitsiMeetExternalAPI(domain, options);
-
-        // Auto-hide loading after 2 seconds
-        const loadingTimeout = setTimeout(() => {
-          setLoading(false);
-        }, 2000);
-
-        // Event listeners
-        jitsiApi.addEventListener('videoConferenceJoined', async () => {
-          clearTimeout(loadingTimeout);
-          setLoading(false);
-          
-          try {
-            await fetch(`${API_URL}/api/video-calls/${appointmentId}/status`, {
-              method: 'PATCH',
-              headers: {
-                Authorization: `Bearer ${firebaseToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ action: 'join' }),
-            });
-          } catch {
-            // Failed to update join status
-          }
-        });
-
-        jitsiApi.addEventListener('videoConferenceLeft', async () => {
-          try {
-            await fetch(`${API_URL}/api/video-calls/${appointmentId}/status`, {
-              method: 'PATCH',
-              headers: {
-                Authorization: `Bearer ${firebaseToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ action: 'end' }),
-            });
-          } catch {
-            // Failed to update end status
-          }
-
-          finalizeLeave();
-        });
-
-        jitsiApi.addEventListener('readyToClose', () => {
-          finalizeLeave();
-        });
-
-        apiRef.current = jitsiApi;
-        setApi(jitsiApi);
-      } catch (error) {
-        setError(error instanceof Error ? error.message : 'Failed to initialize video call');
+        setLivekitToken(data.token);
+        if (data.serverUrl) setServerUrl(data.serverUrl);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching LiveKit token for doctor:', err);
+        setError(err instanceof Error ? err.message : 'Failed to connect to consultation server');
         setLoading(false);
       }
     };
 
-    initializeCall();
-  }, [isOpen, jitsiLoaded, appointmentId, firebaseToken, finalizeLeave]);
-
-  // Cleanup effect
-  useEffect(() => {
-    apiRef.current = api;
-
-    return () => {
-      if (api) {
-        api.dispose();
-      }
-    };
-  }, [api]);
+    fetchDoctorToken();
+  }, [isOpen, appointmentId, firebaseToken]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-      <div className="relative w-full h-full bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
-        {/* Video Call Container */}
-        <div className="w-full h-full relative overflow-hidden">
-          {loading && !error && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white dark:bg-slate-900">
-              <FaSpinner className="w-16 h-16 text-teal-600 animate-spin mb-4" />
-              <p className="text-lg text-gray-700 dark:text-gray-300 mb-2">
-                🩺 Connecting as Doctor...
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Setting up your consultation room with moderator privileges
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-900">
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 max-w-lg">
-                <h3 className="text-lg font-semibold text-red-800 dark:text-red-400 mb-2">
-                  Connection Error
-                </h3>
-                <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
-                
-                <div className="bg-white dark:bg-slate-800 rounded-md p-4 mb-4 text-sm">
-                  <p className="font-medium text-gray-900 dark:text-white mb-2">💡 Troubleshooting Tips:</p>
-                  <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
-                    <li>Check your internet connection</li>
-                    <li>Make sure the video server is accessible</li>
-                    <li>Try refreshing the page</li>
-                    <li>Clear browser cache and try again</li>
-                  </ul>
-                </div>
-                
-                <div className="flex space-x-3">
-                  <button
-                    onClick={requestLeave}
-                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors font-medium"
-                  >
-                    Refresh & Retry
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div
-            ref={jitsiContainer}
-            className={`h-full transition-all duration-300 ease-in-out ${prescriptionPanelOpen ? 'hidden sm:block' : 'w-full'}`}
-            style={prescriptionPanelOpen ? { marginRight: `${panelWidth}px` } : undefined}
-          />
-
-          {/* Prescription Side Panel */}
-          <VideoCallPrescriptionPanel
-            appointmentId={appointmentId}
-            isOpen={prescriptionPanelOpen}
-            onToggle={() => setPrescriptionPanelOpen((prev) => !prev)}
-            onWidthChange={handlePanelWidthChange}
-          />
-        </div>
-
-        {/* Instructions Footer */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="relative w-full h-full bg-slate-950 shadow-2xl overflow-hidden flex flex-col">
+        {/* Loading State */}
         {loading && !error && (
-          <div className="absolute bottom-0 left-0 right-0 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4">
-            <div className="flex items-start space-x-2 sm:space-x-3 text-xs sm:text-sm">
-              <span className="text-teal-600 dark:text-teal-400 font-semibold shrink-0">💡 Tips:</span>
-              <div className="flex-1 text-gray-600 dark:text-gray-400">
-                <p>Allow camera and microphone access when prompted.</p>
-                <p className="mt-1 hidden sm:block">As a moderator, you can admit patients from the waiting room and control meeting settings.</p>
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950">
+            <FaSpinner className="w-14 h-14 text-teal-500 animate-spin mb-4" />
+            <h3 className="text-xl font-bold text-white mb-1">Connecting as Doctor...</h3>
+            <p className="text-sm text-slate-400">Initializing LiveKit video consultation room</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-slate-950 text-center">
+            <div className="bg-rose-950/40 border border-rose-800/50 rounded-2xl p-6 max-w-md">
+              <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-3">
+                <FaTimes className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-rose-200 mb-2">Consultation Error</h3>
+              <p className="text-sm text-rose-300/80 mb-6">{error}</p>
+              
+              <div className="flex space-x-3 justify-center">
+                <button
+                  onClick={requestLeave}
+                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl transition-colors text-sm font-medium"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white rounded-xl transition-colors text-sm font-medium"
+                >
+                  Refresh Page
+                </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Video Call & Prescription Layout */}
+        {!loading && !error && livekitToken && (
+          <div className="w-full h-full relative flex flex-row overflow-hidden">
+            {/* LiveKit Video Consultation Room */}
+            <div
+              className={`h-full transition-all duration-300 ${prescriptionPanelOpen ? 'hidden sm:block flex-1' : 'w-full'}`}
+              style={prescriptionPanelOpen ? { marginRight: `${panelWidth}px` } : undefined}
+            >
+              <LiveKitVideoRoom
+                token={livekitToken}
+                serverUrl={serverUrl}
+                userRole="doctor"
+                onDisconnected={finalizeLeave}
+              />
+            </div>
+
+            {/* Live Prescription Drafting Side Panel */}
+            <VideoCallPrescriptionPanel
+              appointmentId={appointmentId}
+              isOpen={prescriptionPanelOpen}
+              onToggle={() => setPrescriptionPanelOpen((prev) => !prev)}
+              onWidthChange={handlePanelWidthChange}
+            />
           </div>
         )}
       </div>
