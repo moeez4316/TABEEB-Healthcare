@@ -21,7 +21,7 @@ export default function LiveKitVideoRoom({
   onDisconnected,
   userRole,
 }: LiveKitVideoRoomProps) {
-  const normalizedUrl = serverUrl || process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://cloud.sehat.dpdns.org/rtc';
+  const normalizedUrl = serverUrl || process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://cloud.sehat.dpdns.org';
 
   return (
     <div className="w-full h-full relative bg-slate-950 overflow-hidden flex flex-col">

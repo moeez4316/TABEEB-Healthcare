@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
-    const serverUrl = process.env.LIVEKIT_URL || process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://cloud.sehat.dpdns.org/rtc';
+    const serverUrl = process.env.LIVEKIT_URL || process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://cloud.sehat.dpdns.org';
 
     if (!apiKey || !apiSecret) {
       console.error('LIVEKIT_API_KEY or LIVEKIT_API_SECRET is missing');
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
-    const serverUrl = process.env.LIVEKIT_URL || process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://cloud.sehat.dpdns.org/rtc';
+    const serverUrl = process.env.LIVEKIT_URL || process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://cloud.sehat.dpdns.org';
 
     if (!apiKey || !apiSecret) {
       return NextResponse.json({ message: 'LiveKit credentials missing on server' }, { status: 500 });

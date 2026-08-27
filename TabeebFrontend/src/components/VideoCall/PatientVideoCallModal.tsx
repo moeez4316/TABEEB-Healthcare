@@ -24,7 +24,7 @@ export default function PatientVideoCallModal({
   const [callState, setCallState] = useState<PatientCallState>('connecting_socket');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
-  const [serverUrl, setServerUrl] = useState<string>('wss://cloud.sehat.dpdns.org/rtc');
+  const [serverUrl, setServerUrl] = useState<string>('wss://cloud.sehat.dpdns.org');
   
   const socketRef = useRef<Socket | null>(null);
 

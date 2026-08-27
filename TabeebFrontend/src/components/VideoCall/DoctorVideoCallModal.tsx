@@ -23,7 +23,7 @@ export default function DoctorVideoCallModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
-  const [serverUrl, setServerUrl] = useState<string>('wss://cloud.sehat.dpdns.org/rtc');
+  const [serverUrl, setServerUrl] = useState<string>('wss://cloud.sehat.dpdns.org');
   const [prescriptionPanelOpen, setPrescriptionPanelOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(500);
 

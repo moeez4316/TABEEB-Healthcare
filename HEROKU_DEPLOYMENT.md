@@ -182,9 +182,9 @@ heroku config:set NEXT_PUBLIC_JITSI_APP_ID="tabeeb-healthcare" --app tabeeb-fron
 # LiveKit Video Consultation
 heroku config:set LIVEKIT_API_KEY="APIMyVM2q4v6d8y" --app tabeeb-frontend-web
 heroku config:set LIVEKIT_API_SECRET="jLRaKbKrmteFL0DduxV3LvAJ64H3R3JPzn2BCfVAaya" --app tabeeb-frontend-web
-heroku config:set LIVEKIT_URL="wss://cloud.sehat.dpdns.org/rtc" --app tabeeb-frontend-web
+heroku config:set LIVEKIT_URL="wss://cloud.sehat.dpdns.org" --app tabeeb-frontend-web
 heroku config:set LIVEKIT_SOCKET_URL="wss://cloud.sehat.dpdns.org/socket.io/" --app tabeeb-frontend-web
-heroku config:set NEXT_PUBLIC_LIVEKIT_URL="wss://cloud.sehat.dpdns.org/rtc" --app tabeeb-frontend-web
+heroku config:set NEXT_PUBLIC_LIVEKIT_URL="wss://cloud.sehat.dpdns.org" --app tabeeb-frontend-web
 heroku config:set NEXT_PUBLIC_LIVEKIT_SOCKET_URL="wss://cloud.sehat.dpdns.org/socket.io/" --app tabeeb-frontend-web
 heroku config:set NEXT_PUBLIC_JITSI_SECRET="035f90449ce32ae3ad5649d78b536236a197caabe324cd3300deba4ec9b8e13c" --app tabeeb-frontend-web
 ```
