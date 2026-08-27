@@ -28,16 +28,33 @@ export default function PatientVideoCallModal({
   
   const socketRef = useRef<Socket | null>(null);
 
-  const handleClose = useCallback(() => {
+  const notifyCallStatus = useCallback(async (action: 'join' | 'end') => {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tabeeb.dpdns.org';
+      await fetch(`${API_URL}/api/video-calls/${encodeURIComponent(appointmentId)}/status`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${firebaseToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action }),
+      });
+    } catch (err) {
+      console.warn(`Failed to update video call status (${action}):`, err);
+    }
+  }, [appointmentId, firebaseToken]);
+
+  const handleClose = useCallback(async () => {
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
+    await notifyCallStatus('end');
     setCallState('connecting_socket');
     setErrorMsg(null);
     setLivekitToken(null);
     onClose();
-  }, [onClose]);
+  }, [onClose, notifyCallStatus]);
 
   const { requestLeave, finalizeLeave } = useLeaveConfirmation({
     isOpen,
@@ -71,12 +88,13 @@ export default function PatientVideoCallModal({
       setLivekitToken(token);
       if (url) setServerUrl(url);
       setCallState('in_call');
+      void notifyCallStatus('join');
     } catch (err) {
       console.error('Error fetching LiveKit token for patient:', err);
       setErrorMsg(err instanceof Error ? err.message : 'Unable to connect to consultation server');
       setCallState('error');
     }
-  }, [appointmentId, firebaseToken]);
+  }, [appointmentId, firebaseToken, notifyCallStatus]);
 
   // Socket.io waiting room connection effect
   useEffect(() => {
