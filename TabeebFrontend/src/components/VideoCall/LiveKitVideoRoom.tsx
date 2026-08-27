@@ -21,6 +21,8 @@ export default function LiveKitVideoRoom({
   onDisconnected,
   userRole,
 }: LiveKitVideoRoomProps) {
+  const normalizedUrl = serverUrl || process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://cloud.sehat.dpdns.org/rtc';
+
   return (
     <div className="w-full h-full relative bg-slate-950 overflow-hidden flex flex-col">
       {/* Header bar */}
@@ -37,11 +39,13 @@ export default function LiveKitVideoRoom({
       {/* Main LiveKit Room */}
       <div className="flex-1 relative overflow-hidden">
         <LiveKitRoom
+          connect={true}
           video={true}
           audio={true}
           token={token}
-          serverUrl={serverUrl}
+          serverUrl={normalizedUrl}
           onDisconnected={onDisconnected}
+          onError={(err) => console.error('LiveKit Room error:', err)}
           data-lk-theme="default"
           style={{ height: '100%' }}
         >

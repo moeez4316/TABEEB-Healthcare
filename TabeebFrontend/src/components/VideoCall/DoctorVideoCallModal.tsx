@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { FaSpinner, FaTimes } from 'react-icons/fa';
+import { io, Socket } from 'socket.io-client';
 import VideoCallPrescriptionPanel from './VideoCallPrescriptionPanel';
 import LiveKitVideoRoom from './LiveKitVideoRoom';
 import { useLeaveConfirmation } from './useLeaveConfirmation';
@@ -26,11 +27,17 @@ export default function DoctorVideoCallModal({
   const [prescriptionPanelOpen, setPrescriptionPanelOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(500);
 
+  const socketRef = useRef<Socket | null>(null);
+
   const handlePanelWidthChange = useCallback((width: number) => {
     setPanelWidth(width);
   }, []);
 
   const handleClose = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
     setLoading(true);
     setError(null);
     setLivekitToken(null);
@@ -43,9 +50,31 @@ export default function DoctorVideoCallModal({
     message: 'Do you want to end the consultation?',
   });
 
-  // Fetch LiveKit token for doctor directly (no waiting room step)
+  // Fetch LiveKit token for doctor directly and emit doctor-joined socket signal
   useEffect(() => {
     if (!isOpen) return;
+
+    // Connect socket to relay doctor-joined signal to patient waiting room
+    const socketEndpoint = process.env.NEXT_PUBLIC_LIVEKIT_SOCKET_URL || 'wss://cloud.sehat.dpdns.org/socket.io/';
+    let baseUrl = socketEndpoint;
+    if (socketEndpoint.includes('/socket.io')) {
+      baseUrl = socketEndpoint.split('/socket.io')[0];
+    }
+
+    const socket = io(baseUrl, {
+      path: '/socket.io/',
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+    });
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Doctor connected to Socket.io server:', socket.id);
+      socket.emit('join-waiting-room', appointmentId);
+      socket.emit('join-waiting-room', { appointmentId });
+      socket.emit('doctor-joined', appointmentId);
+      socket.emit('doctor-joined', { appointmentId });
+    });
 
     const fetchDoctorToken = async () => {
       try {
@@ -81,6 +110,11 @@ export default function DoctorVideoCallModal({
     };
 
     fetchDoctorToken();
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
   }, [isOpen, appointmentId, firebaseToken]);
 
   if (!isOpen) return null;
