@@ -54,7 +54,6 @@ export default function DoctorVideoCallModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    // Connect socket to relay doctor-joined signal to patient waiting room
     const socketEndpoint = process.env.NEXT_PUBLIC_LIVEKIT_SOCKET_URL || 'wss://cloud.sehat.dpdns.org/socket.io/';
     let baseUrl = socketEndpoint;
     if (socketEndpoint.includes('/socket.io')) {
@@ -120,8 +119,8 @@ export default function DoctorVideoCallModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full h-full bg-slate-950 shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 w-full h-full overflow-hidden">
+      <div className="relative w-full h-full bg-slate-950 shadow-2xl overflow-hidden flex flex-col min-w-0 min-h-0">
         {/* Loading State */}
         {loading && !error && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950">
@@ -161,27 +160,33 @@ export default function DoctorVideoCallModal({
 
         {/* Video Call & Prescription Layout */}
         {!loading && !error && livekitToken && (
-          <div className="w-full h-full relative flex flex-row overflow-hidden">
+          <div className="w-full h-full relative flex flex-row overflow-hidden min-w-0 min-h-0 bg-slate-950">
             {/* LiveKit Video Consultation Room */}
-            <div
-              className={`h-full transition-all duration-300 ${prescriptionPanelOpen ? 'hidden sm:block flex-1' : 'w-full'}`}
-              style={prescriptionPanelOpen ? { marginRight: `${panelWidth}px` } : undefined}
-            >
+            <div className="h-full flex-1 min-w-0 min-h-0 relative overflow-hidden">
               <LiveKitVideoRoom
                 token={livekitToken}
                 serverUrl={serverUrl}
                 userRole="doctor"
                 onDisconnected={finalizeLeave}
+                onTogglePrescription={() => setPrescriptionPanelOpen((prev) => !prev)}
+                isPrescriptionOpen={prescriptionPanelOpen}
               />
             </div>
 
             {/* Live Prescription Drafting Side Panel */}
-            <VideoCallPrescriptionPanel
-              appointmentId={appointmentId}
-              isOpen={prescriptionPanelOpen}
-              onToggle={() => setPrescriptionPanelOpen((prev) => !prev)}
-              onWidthChange={handlePanelWidthChange}
-            />
+            {prescriptionPanelOpen && (
+              <div
+                className="h-full border-l border-slate-800 bg-slate-900 shrink-0 transition-all duration-300 relative overflow-hidden"
+                style={{ width: `${panelWidth}px`, maxWidth: '50vw' }}
+              >
+                <VideoCallPrescriptionPanel
+                  appointmentId={appointmentId}
+                  isOpen={prescriptionPanelOpen}
+                  onToggle={() => setPrescriptionPanelOpen(false)}
+                  onWidthChange={handlePanelWidthChange}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

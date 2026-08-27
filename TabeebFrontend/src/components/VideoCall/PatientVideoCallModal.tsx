@@ -103,7 +103,6 @@ export default function PatientVideoCallModal({
 
     socket.on('connect', () => {
       console.log('Connected to LiveKit Socket.io server:', socket.id);
-      // Join room with both payload shapes for compatibility
       socket.emit('join-waiting-room', appointmentId);
       socket.emit('join-waiting-room', { appointmentId });
       setCallState('waiting_room');
@@ -132,11 +131,11 @@ export default function PatientVideoCallModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4">
-      <div className="relative w-full max-w-5xl h-[90vh] bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 w-full h-full overflow-hidden">
+      <div className="relative w-full h-full bg-slate-950 shadow-2xl overflow-hidden flex flex-col min-w-0 min-h-0">
         {/* Top bar during waiting/error states */}
         {callState !== 'in_call' && (
-          <div className="px-6 py-4 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between">
+          <div className="px-6 py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between z-20">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 rounded-full bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold">
                 <FaUserMd className="w-4 h-4" />
@@ -157,7 +156,7 @@ export default function PatientVideoCallModal({
         )}
 
         {/* Content Body */}
-        <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+        <div className="flex-1 relative overflow-hidden flex items-center justify-center min-w-0 min-h-0">
           {/* Waiting Room Screen */}
           {(callState === 'connecting_socket' || callState === 'waiting_room' || callState === 'fetching_token') && (
             <div className="p-6 text-center max-w-md mx-auto flex flex-col items-center">
