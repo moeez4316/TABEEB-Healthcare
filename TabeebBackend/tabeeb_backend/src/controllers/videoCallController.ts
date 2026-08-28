@@ -303,13 +303,16 @@ export const updateVideoCallStatus = async (req: Request, res: Response) => {
         } else {
           updateData.patientJoinedAt = now;
         }
-        // If both have joined, mark as IN_PROGRESS
-        if (
-          (isDoctor && videoCall.patientJoinedAt) ||
-          (isPatient && videoCall.doctorJoinedAt)
-        ) {
-          updateData.status = VideoCallStatus.IN_PROGRESS;
-          updateData.startedAt = videoCall.startedAt || now;
+        // Mark as IN_PROGRESS when joining
+        updateData.status = VideoCallStatus.IN_PROGRESS;
+        updateData.startedAt = videoCall.startedAt || now;
+
+        // Ensure appointment status is marked as IN_PROGRESS if confirmed
+        if (appointment.status === 'CONFIRMED') {
+          await prisma.appointment.update({
+            where: { id: appointmentId },
+            data: { status: 'IN_PROGRESS' },
+          });
         }
         break;
 
@@ -321,9 +324,24 @@ export const updateVideoCallStatus = async (req: Request, res: Response) => {
         } else {
           updateData.patientJoinedAt = videoCall.patientJoinedAt || now;
         }
+        if (appointment.status === 'CONFIRMED') {
+          await prisma.appointment.update({
+            where: { id: appointmentId },
+            data: { status: 'IN_PROGRESS' },
+          });
+        }
+        break;
+
+      case 'leave':
+        // User left the call window / disconnected temporarily.
+        // Keep status as IN_PROGRESS (or SCHEDULED if never started). DO NOT mark completed.
+        if (videoCall.startedAt) {
+          updateData.status = VideoCallStatus.IN_PROGRESS;
+        }
         break;
 
       case 'end':
+      case 'complete':
         updateData.status = VideoCallStatus.COMPLETED;
         updateData.endedAt = now;
         if (videoCall.startedAt) {

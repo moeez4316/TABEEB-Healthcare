@@ -28,7 +28,7 @@ export default function PatientVideoCallModal({
   
   const socketRef = useRef<Socket | null>(null);
 
-  const notifyCallStatus = useCallback(async (action: 'join' | 'end') => {
+  const notifyCallStatus = useCallback(async (action: 'join' | 'leave' | 'end') => {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tabeeb.dpdns.org';
       await fetch(`${API_URL}/api/video-calls/${encodeURIComponent(appointmentId)}/status`, {
@@ -49,7 +49,7 @@ export default function PatientVideoCallModal({
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-    await notifyCallStatus('end');
+    await notifyCallStatus('leave');
     setCallState('connecting_socket');
     setErrorMsg(null);
     setLivekitToken(null);

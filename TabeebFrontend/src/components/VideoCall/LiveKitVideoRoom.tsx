@@ -16,6 +16,7 @@ interface LiveKitVideoRoomProps {
   userRole: 'doctor' | 'patient';
   onTogglePrescription?: () => void;
   isPrescriptionOpen?: boolean;
+  onCompleteConsultation?: () => void;
 }
 
 export default function LiveKitVideoRoom({
@@ -25,6 +26,7 @@ export default function LiveKitVideoRoom({
   userRole,
   onTogglePrescription,
   isPrescriptionOpen,
+  onCompleteConsultation,
 }: LiveKitVideoRoomProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const normalizedUrl = serverUrl || process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://cloud.sehat.dpdns.org';
@@ -81,6 +83,17 @@ export default function LiveKitVideoRoom({
               title="Toggle Live Prescription Panel"
             >
               <span>📝 Rx Panel</span>
+            </button>
+          )}
+
+          {/* Doctor Complete Consultation Button */}
+          {userRole === 'doctor' && onCompleteConsultation && (
+            <button
+              onClick={onCompleteConsultation}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition-all flex items-center space-x-1"
+              title="End consultation and mark appointment as completed"
+            >
+              <span>✓ Complete Consultation</span>
             </button>
           )}
 

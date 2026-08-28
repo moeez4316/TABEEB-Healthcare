@@ -33,7 +33,7 @@ export default function DoctorVideoCallModal({
     setPanelWidth(width);
   }, []);
 
-  const notifyCallStatus = useCallback(async (action: 'join' | 'end') => {
+  const notifyCallStatus = useCallback(async (action: 'join' | 'leave' | 'end') => {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tabeeb.dpdns.org';
       await fetch(`${API_URL}/api/video-calls/${encodeURIComponent(appointmentId)}/status`, {
@@ -54,17 +54,31 @@ export default function DoctorVideoCallModal({
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-    await notifyCallStatus('end');
+    await notifyCallStatus('leave');
     setLoading(true);
     setError(null);
     setLivekitToken(null);
     onClose();
   }, [onClose, notifyCallStatus]);
 
+  const handleCompleteConsultation = useCallback(async () => {
+    if (window.confirm('Are you sure you want to mark this consultation as completed?')) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      await notifyCallStatus('end');
+      setLoading(true);
+      setError(null);
+      setLivekitToken(null);
+      onClose();
+    }
+  }, [onClose, notifyCallStatus]);
+
   const { requestLeave, finalizeLeave } = useLeaveConfirmation({
     isOpen,
     onConfirmLeave: handleClose,
-    message: 'Do you want to end the consultation?',
+    message: 'Do you want to leave the consultation room?',
   });
 
   // Fetch LiveKit token for doctor directly and emit doctor-joined socket signal
@@ -188,6 +202,7 @@ export default function DoctorVideoCallModal({
                 onDisconnected={finalizeLeave}
                 onTogglePrescription={() => setPrescriptionPanelOpen((prev) => !prev)}
                 isPrescriptionOpen={prescriptionPanelOpen}
+                onCompleteConsultation={handleCompleteConsultation}
               />
             </div>
 
